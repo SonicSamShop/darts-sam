@@ -164,7 +164,7 @@ def by_itself(rng):
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        cv2.imwrite(str(tmp / "board.png"), img)
+        calib.write_picture(tmp / "board.png", img)
         said = io.StringIO()
         with contextlib.redirect_stdout(said):
             code = autocalib.main([str(tmp / "board.png"), "--twenty", f"{tap[0]:.0f},{tap[1]:.0f}", "--json",
@@ -174,10 +174,27 @@ def by_itself(rng):
         assert np.abs(np.array(out["points"]) - np.array(res.points)).max() < 0.05
         # what it printed is a calibration the server can use as it is
         assert np.abs(calib.view(out).to_board(px) - np.array(CHECK)).max() < 1.0
-        assert cv2.imread(str(tmp / "found.jpg")).shape == img.shape
+        assert calib.read_picture(tmp / "found.jpg").shape == img.shape
         assert sorted(f.name for f in (tmp / "steps").iterdir()) == ["1-colours.jpg", "2-joins.jpg", "3-unrolled.jpg", "4-overlay.jpg"]
+        # a picture that can't be saved is refused before any work, not after it
+        for bad in ("found", str(tmp)):
+            with contextlib.redirect_stderr(io.StringIO()) as why:
+                try:
+                    autocalib.main([str(tmp / "board.png"), "--out", bad])
+                    raise AssertionError(f"--out {bad} was taken")
+                except SystemExit as e:
+                    assert e.code == 2 and "--out is a picture file" in why.getvalue()
+        # a bigger picture than the command works on: the answer is in that picture's own pixels
+        big = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        calib.write_picture(tmp / "big.png", big)
+        said = io.StringIO()
+        with contextlib.redirect_stdout(said):
+            assert autocalib.main([str(tmp / "big.png"), "--twenty", f"{2 * tap[0]:.0f},{2 * tap[1]:.0f}", "--json"]) == 0
+        out = json.loads(said.getvalue())
+        assert max(big.shape) > autocalib.BIGGEST and out["size"] == [2 * W, 2 * H]
+        assert np.abs(calib.view(out).to_board(2 * np.array(px)) - np.array(CHECK)).max() < 1.5
         # a picture with no board in it: says why, and the first picture is still saved
-        cv2.imwrite(str(tmp / "blank.png"), np.full((H, W, 3), 60, np.uint8))
+        calib.write_picture(tmp / "blank.png", np.full((H, W, 3), 60, np.uint8))
         with contextlib.redirect_stderr(io.StringIO()) as why:
             assert autocalib.main([str(tmp / "blank.png"), "--debug", str(tmp / "blank")]) == 1
         assert "red and green rings" in why.getvalue() and (tmp / "blank" / "1-colours.jpg").is_file()
@@ -189,7 +206,7 @@ def real_picture():
     no truth to measure against, but the board must be found, its bull must be
     the bull in the picture (looked up by eye: the middle of the red is at
     711, 247), and its numbers must be the ones printed round the real board."""
-    img = cv2.imread(str(REAL))
+    img = calib.read_picture(REAL)
     res = autocalib.detect(img, (530, 183))  # a pixel in the 20
     view = res.view()
     bull = view.to_picture([(0, 0)])[0]

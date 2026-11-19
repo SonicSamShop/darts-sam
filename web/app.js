@@ -405,7 +405,10 @@ function push(ev) {
   } else rest = [require];
   // What the dart did, in games that have something to say about it (Killer).
   const call = ev.t === 'dart' ? game.call?.(after) ?? '' : '';
-  const said = [dart, call, ...rest].filter(x => x !== '');
+  // A new bed to aim at (Random Targets) is called out last: "Next, Treble 16".
+  const bed = t => JSON.stringify(game.target?.(t) ?? null);
+  const aim = after.winner == null && bed(after) !== bed(before) ? game.aim?.(after) ?? '' : '';
+  const said = [dart, call, ...rest, aim && `Next, ${aim}`].filter(x => x !== '');
   if (said.length) say(said.join('. '));
   renderGame();
 }
@@ -2329,7 +2332,8 @@ $app.addEventListener('click', e => {
         playerIds: ids, darts: ids.map(dartsFor), seq: 0,
       };
       store.set('match', match);
-      say('Game on');
+      const aim = gameById(match.gameId).aim?.(compute(match));  // the first bed to aim at (Random Targets)
+      say(aim ? `Game on. Aim for ${aim}` : 'Game on');
       renderGame();
       return mark(d.act === 'start');  // playing again takes the place of the game just finished
     case 'resume': renderGame(); return mark(true);

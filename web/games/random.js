@@ -2,14 +2,21 @@
 // AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// "Treble 16", "Single 16": a single is spelled out, since only that bed counts.
-const name = t => (t.seg === 25 ? (t.mult === 2 ? 'Bull' : 'Outer bull (25)') : ['Single ', 'Double ', 'Treble '][t.mult - 1] + t.seg);
+import { half } from '../board.js';
 
-// Random Targets: like Around the Clock, but the app picks where to aim. Each
-// go is one bed, shown lit up on the board, and up to three darts at it: hit
-// it for a point and the go is over there and then; miss with all three and it
-// is over too. So the score is out of the number of goes. Everyone gets the
-// same targets in the same order, and the most points after the last go wins.
+// "Treble 16", "Single 16": a single is spelled out, since only that bed
+// counts. In hard mode a single is one half of it: "Inner 16", "Outer 16".
+const single = t => (t.part === 'in' ? 'Inner ' : t.part === 'out' ? 'Outer ' : 'Single ');
+const bed = t => [single(t), 'Double ', 'Treble '][t.mult - 1] + t.seg;
+const name = t => (t.seg === 25 ? (t.mult === 2 ? 'Bull' : 'Outer bull (25)') : bed(t));
+const said = t => (t.seg === 25 ? (t.mult === 2 ? 'Bullseye' : 'Outer bull') : bed(t));  // as the caller says it
+
+// Random Targets: like Around the Clock, but the app picks where to aim. The
+// bed to aim at is lit up on the board. A go is a visit of three darts: hit the
+// bed for a point and the next dart is at a new one, so a good visit takes
+// three targets. A new go always starts on a new bed. Everyone gets the same
+// targets in the same order (the same bed to start each go, and the same ones
+// after each hit in it), and the most points after the last go wins.
 
 // The targets come from the match's own seed (engine.js puts one in the
 // options of a `seeded` game), so replaying the log always gives the same ones.
@@ -24,11 +31,13 @@ function rng(seed) {
 }
 
 // Every bed that can come up: singles (and the 25) always, doubles (and the
-// bull) and trebles if they are included.
+// bull) and trebles if they are included. In hard mode the two halves of a
+// single, inside and outside the treble ring, are beds of their own.
 function beds(opts) {
   const all = [];
   for (let seg = 1; seg <= 20; seg++) {
-    all.push({ seg, mult: 1 });
+    if (opts.hard === 'yes') all.push({ seg, mult: 1, part: 'in' }, { seg, mult: 1, part: 'out' });
+    else all.push({ seg, mult: 1 });
     if (opts.doubles === 'yes') all.push({ seg, mult: 2 });
     if (opts.trebles === 'yes') all.push({ seg, mult: 3 });
   }
@@ -37,13 +46,24 @@ function beds(opts) {
   return all;
 }
 
+// Three beds for every go: the one it starts on and the ones after a first and
+// a second hit. A bed is never one of the three before it, so whichever of a
+// go's beds a player got to, the next one they are given is a different bed.
+const PER_GO = 3;
 export function targets(opts) {
   const pool = beds(opts), next = rng(opts.seed ?? 1), seq = [];
-  while (seq.length < opts.goes) {
+  while (seq.length < opts.goes * PER_GO) {
     const t = pool[Math.floor(next() * pool.length)];
-    if (t !== seq.at(-1)) seq.push(t);  // never the same bed twice running
+    if (!seq.slice(-PER_GO).includes(t)) seq.push(t);
   }
   return seq;
+}
+
+// Did the dart land in the bed? In hard mode it has to be the right half of
+// the single too; a dart entered with no position gets the benefit of the doubt.
+export function hits(d, t) {
+  if (d.seg !== t.seg || d.mult !== t.mult) return false;
+  return !t.part || (half(d) ?? t.part) === t.part;
 }
 
 function finish(s) {
@@ -53,38 +73,42 @@ function finish(s) {
 export default {
   id: 'random',
   name: 'Random Targets',
-  blurb: 'The board lights up a random target. Hit it within three darts for a point, then on to the next. Most points wins.',
+  blurb: 'The board lights up a random target. Hit it for a point and your next dart is at a new one, so a good visit takes three. Hard mode splits each single into its inner and outer half. Most points wins.',
   showTotal: false,  // the three-dart sum means nothing in this game
   seeded: true,
   options: [
     { key: 'doubles', label: 'Doubles', choices: [['yes', 'Include'], ['no', 'Leave out']], default: 'yes' },
     { key: 'trebles', label: 'Trebles', choices: [['yes', 'Include'], ['no', 'Leave out']], default: 'yes' },
+    { key: 'hard', label: 'Hard mode', choices: [['no', 'Off'], ['yes', 'Inner & outer singles']], default: 'no' },
     { key: 'goes', label: 'Goes', min: 5, max: 50, default: 20 },
   ],
 
   init(n, opts) {
-    return { seq: targets(opts), hits: Array(n).fill(0), thrown: Array(n).fill(0) };
+    return { seq: targets(opts), hits: Array(n).fill(0), thrown: Array(n).fill(0), got: 0 };
   },
 
-  turnStart(s) { if (s.round > s.opts.goes) finish(s); },
+  // got: how many targets this visit has hit so far.
+  turnStart(s) {
+    s.got = 0;
+    if (s.round > s.opts.goes) finish(s);
+  },
 
   dart(s, d) {
-    const p = s.current, t = s.seq[s.round - 1];
+    const p = s.current;
     s.thrown[p]++;
-    const hit = d.seg === t.seg && d.mult === t.mult;
-    if (hit) s.hits[p]++;
+    if (hits(d, this.target(s))) { s.hits[p]++; s.got++; }  // a point, and the next dart is at a new bed
     const lastTurn = s.round === s.opts.goes && p === s.players.length - 1;
-    if (lastTurn && (hit || s.turn.length === 3)) finish(s);
-    else if (hit) s.turnOver = true;  // a point: the go is over, the next dart is at the next target
+    if (lastTurn && s.turn.length === 3) finish(s);
   },
 
-  // The bed to light up on the board, while there is one to aim at. After a
-  // hit that is already the next thrower's.
+  // The bed to light up on the board, while there is one to aim at.
   target(s) {
-    if (s.winner != null) return null;
-    const round = s.round + (s.turnOver && s.current === s.players.length - 1 ? 1 : 0);
-    return s.seq[Math.min(round, s.opts.goes) - 1];
+    if (s.winner != null || s.round > s.opts.goes) return null;
+    return s.seq[(s.round - 1) * PER_GO + Math.min(s.got, PER_GO - 1)];
   },
+
+  // The same, as the caller says it when it changes: "Treble 16", "Inner 9".
+  aim(s) { const t = this.target(s); return t ? said(t) : ''; },
 
   summary(s, i) {
     const n = s.thrown[i];
@@ -95,11 +119,11 @@ export default {
     return `<table class="cricket"><tr><td>Go</td><td>${Math.min(s.round, s.opts.goes)} / ${s.opts.goes}</td></tr></table>`;
   },
 
-  hint(s) { return `Aim for ${name(this.target(s))}`; },
+  hint(s) { const t = this.target(s); return t ? `Aim for ${name(t)}` : ''; },
 
   // Alone there is nobody to beat: say how it went instead.
   result(s) {
     if (s.players.length > 1) return undefined;
-    return `Hit ${s.hits[0]} of ${s.opts.goes} targets in ${s.thrown[0]} darts`;
+    return `Hit ${s.hits[0]} target${s.hits[0] === 1 ? '' : 's'} in ${s.thrown[0]} darts`;
   },
 };

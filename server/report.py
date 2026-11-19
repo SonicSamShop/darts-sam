@@ -101,9 +101,9 @@ def _sighting(s, event) -> dict:
 
 def _camera(folder, tag, cam, before, after, mask, sighting, H, event, frame_file) -> tuple[dict, str]:
     """Write one camera's pictures; return its report entry and a line for the summary."""
-    cv2.imwrite(str(folder / f"{tag}-mask.png"), mask)
-    cv2.imwrite(str(folder / f"{tag}-seen.jpg"), annotate(after, mask, sighting, H, event),
-                [cv2.IMWRITE_JPEG_QUALITY, 85])
+    calib.write_picture(folder / f"{tag}-mask.png", mask)
+    calib.write_picture(folder / f"{tag}-seen.jpg", annotate(after, mask, sighting, H, event),
+                        [cv2.IMWRITE_JPEG_QUALITY, 85])
     px = int(cv2.countNonZero(mask))
     entry = {"before": frame_file(before), "after": frame_file(after),
              "mask": f"{tag}-mask.png", "seen": f"{tag}-seen.jpg",
@@ -142,7 +142,7 @@ def save(snap: dict, calibration: dict, app=None, root: Path | None = None) -> d
     def frame_file(img):
         if id(img) not in names:
             names[id(img)] = f"frame-{len(names) + 1:02d}.png"
-            cv2.imwrite(str(folder / names[id(img)]), img, [cv2.IMWRITE_PNG_COMPRESSION, 1])
+            calib.write_picture(folder / names[id(img)], img, [cv2.IMWRITE_PNG_COMPRESSION, 1])
         return names[id(img)]
 
     H = snap["H"]

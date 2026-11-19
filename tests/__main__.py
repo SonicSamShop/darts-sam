@@ -22,11 +22,31 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+LIMIT = 600  # seconds any one test may take (the slowest takes about a minute)
+
+
+def run(command) -> tuple[bool, str]:
+    """Run one lot of tests: whether it passed, and all it printed. One that
+    hasn't ended in LIMIT seconds is stopped and counts as failed, so a test
+    that hangs doesn't hold everything (and what it had printed is still seen)."""
+    try:
+        done = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=LIMIT)
+        return done.returncode == 0, done.stdout + done.stderr
+    except subprocess.TimeoutExpired as e:
+        said = "".join(s.decode(errors="replace") if isinstance(s, bytes) else s or "" for s in (e.stdout, e.stderr))
+        return False, f"{said.rstrip()}\nStopped: still running after {LIMIT} s."
 
 
 def main(argv) -> int:
+    if "-h" in argv or "--help" in argv:
+        print(__doc__.strip())
+        return 0
+    options = [a for a in argv if a.startswith("-") and a != "--no-node"]
+    if options:
+        print(f"No such option: {', '.join(options)}. There is only --no-node.")
+        return 2
     node = "--no-node" not in argv
-    wanted = [a.removeprefix("test_") for a in argv if not a.startswith("--")]
+    wanted = [a.removeprefix("test_") for a in argv if not a.startswith("-")]
     names = sorted(p.stem for p in HERE.glob("test_*.py"))
     unknown = [w for w in wanted if f"test_{w}" not in names]
     if unknown:
@@ -38,22 +58,22 @@ def main(argv) -> int:
     failed = []
     for name in names:
         start = time.time()
-        run = subprocess.run([sys.executable, "-m", f"tests.{name}"], cwd=ROOT, capture_output=True, text=True)
-        print(f"{'ok  ' if run.returncode == 0 else 'FAIL'}  {name:18s} {time.time() - start:5.1f} s", flush=True)
-        if run.returncode != 0:
+        ok, said = run([sys.executable, "-m", f"tests.{name}"])
+        print(f"{'ok  ' if ok else 'FAIL'}  {name:18s} {time.time() - start:5.1f} s", flush=True)
+        if not ok:
             failed.append(name)
-            print((run.stdout + run.stderr).rstrip(), flush=True)
+            print(said.strip(), flush=True)
 
     if node and not shutil.which("node"):
         print("skip  the app's tests: Node isn't installed (node --test tests/*.mjs)")
     elif node:
         start = time.time()
         files = sorted(str(p.relative_to(ROOT)) for p in HERE.glob("*.test.mjs"))
-        run = subprocess.run(["node", "--test", *files], cwd=ROOT, capture_output=True, text=True)
-        print(f"{'ok  ' if run.returncode == 0 else 'FAIL'}  {'the app (Node)':18s} {time.time() - start:5.1f} s", flush=True)
-        if run.returncode != 0:
+        ok, said = run(["node", "--test", *files])
+        print(f"{'ok  ' if ok else 'FAIL'}  {'the app (Node)':18s} {time.time() - start:5.1f} s", flush=True)
+        if not ok:
             failed.append("the app's tests")
-            print((run.stdout + run.stderr).rstrip(), flush=True)
+            print(said.strip(), flush=True)
 
     print(f"\nFailed: {', '.join(failed)}" if failed else "\nAll passed.")
     return 1 if failed else 0

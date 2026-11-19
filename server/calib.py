@@ -17,11 +17,37 @@ few mm wrong, which is just where the doubles are. A View takes the bend out
 before the homography, and puts it back when going from the board to the picture.
 """
 from dataclasses import dataclass
+from pathlib import Path
 
 import cv2
 import numpy as np
 
 from . import board
+
+
+def read_picture(path):
+    """cv2.imread for any file name; None if there is no picture there.
+
+    On Windows OpenCV opens files by the computer's own code page, so it can't
+    find one under C:\\Users\\Jörg. Python can: it reads the file, OpenCV only
+    decodes it."""
+    try:
+        data = np.fromfile(str(path), np.uint8)
+    except OSError:
+        return None
+    return cv2.imdecode(data, cv2.IMREAD_COLOR) if data.size else None
+
+
+def write_picture(path, img, params=()) -> bool:
+    """cv2.imwrite for any file name (see read_picture). False if it couldn't
+    be saved: a kind of file OpenCV can't write, or somewhere that can't be written to."""
+    try:
+        ok, data = cv2.imencode(Path(path).suffix, img, list(params))
+        if ok:
+            data.tofile(str(path))
+        return bool(ok)
+    except (cv2.error, OSError):
+        return False
 
 
 def homography(points) -> np.ndarray:

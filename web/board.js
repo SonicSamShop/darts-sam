@@ -19,6 +19,14 @@ export function scoreAt(x, y) {
 
 export const value = d => d.seg * d.mult;
 
+// Which half of a single a dart landed in: 'in' (between the bull and the
+// treble ring) or 'out' (between the treble and the double). null for any
+// other bed, and for a dart with no position (one entered as a miss, say).
+export function half(d) {
+  if (d.mult !== 1 || d.seg === 25 || d.x == null || d.y == null) return null;
+  return Math.hypot(d.x, d.y) < (R.tIn + R.tOut) / 2 ? 'in' : 'out';
+}
+
 export function label(d) {
   if (!d.mult) return 'Miss';
   if (d.seg === 25) return d.mult === 2 ? 'Bull' : '25';
@@ -200,9 +208,10 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
         el('circle', { cx: d.x, cy: -d.y, r, class: 'b-mark' + (i === darts.length - 1 ? ' last' : '') })));
     },
     // Light up one bed {seg, mult} to aim at and zoom in on it, the rest of the
-    // board dimmed; null puts the board back. Taps still score as usual.
+    // board dimmed; null puts the board back. Taps still score as usual. A
+    // single may be just one half of it: part 'in' or 'out' (see half()).
     showTarget(t) {
-      const key = t ? `${t.seg}x${t.mult}` : '';
+      const key = t ? `${t.seg}x${t.mult}${t.part ?? ''}` : '';
       if (key === aimed) return;
       aimed = key;
       svg.classList.toggle('aiming', !!t);
@@ -214,7 +223,8 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
         aimAt.replaceChildren(lit(t.mult === 2 ? disc(R.bull) : disc(R.outer) + disc(R.bull)));
       } else {
         const i = SEGMENTS.indexOf(t.seg), a0 = i * 18 - 9, a1 = a0 + 18;
-        const rings = t.mult === 3 ? [[R.tIn, R.tOut]] : t.mult === 2 ? [[R.dIn, R.dOut]] : [[R.outer, R.tIn], [R.tOut, R.dIn]];
+        const rings = t.mult === 3 ? [[R.tIn, R.tOut]] : t.mult === 2 ? [[R.dIn, R.dOut]]
+          : [[R.outer, R.tIn], [R.tOut, R.dIn]].filter((_, n) => !t.part || n === (t.part === 'in' ? 0 : 1));
         aimAt.replaceChildren(...rings.map(([r0, r1]) => lit(wedge(r0, r1, a0, a1))));
         const [r0, r1] = rings.at(-1);
         at = pt((r0 + r1) / 2, i * 18).split(' ').map(Number);

@@ -20,5 +20,7 @@ indent_style = tab
 
 # Other people's licence texts, kept exactly as they came.
 [{LICENSE,web/fonts/licences/*}]
+charset = unset
+end_of_line = unset
 trim_trailing_whitespace = false
 insert_final_newline = unset

@@ -73,6 +73,7 @@ MIN_JOINS = 24             # of 40; fewer than this and we don't trust the resul
 MAX_RMS_PX = 2.0
 LENSES = np.round(np.arange(-0.2, 1.21, 0.2), 2)  # bends (calib.py's k) tried first; then either side of the best
 LENS_STEP = 0.1
+BIGGEST = 2000             # px: the command looks at a bigger picture file in a copy this far across
 
 
 class Failed(Exception):
@@ -461,7 +462,7 @@ def explain(img, found: Result | None = None) -> dict:
 def _picture(source: str, size: tuple[int, int]) -> np.ndarray:
     """The picture to look at: a file, or one frame from a camera number or a stream address."""
     if Path(source).is_file():
-        img = cv2.imread(source)
+        img = calib.read_picture(source)
         if img is None:
             raise SystemExit(f"{source} isn't a picture OpenCV can read.")
         return img
@@ -487,57 +488,87 @@ def main(argv=None) -> int:
         prog="python -m server.autocalib",
         description="Find the dartboard in a picture and say where it is. The board must be empty, "
                     "evenly lit and wholly in the picture.")
-    ap.add_argument("source", help="a picture file, a camera number (0, 1, ...) or a stream address (http://..., rtsp://...)")
+    ap.add_argument("source", help="a picture file, a camera number (0, 1, ...) or a stream address (http://..., rtsp://...). "
+                                   f"A picture file more than {BIGGEST} px across is looked at in a smaller copy; the answer "
+                                   "is still in the picture's own pixels")
     ap.add_argument("--twenty", metavar="X,Y", help="a pixel anywhere inside the 20 segment, to say which way up the board "
                                                     "is. Without it the 20 is taken to be at the top of the picture.")
     ap.add_argument("--out", metavar="FILE", help="save the picture with the board's wires and numbers drawn on it")
-    ap.add_argument("--debug", metavar="FOLDER", help="save a picture of each step there (see explain() in this file)")
+    ap.add_argument("--debug", metavar="FOLDER", help="save a picture of each step there, no more than the same size across (see explain() in this file)")
     ap.add_argument("--json", action="store_true", help="print the calibration as JSON instead of in words")
     ap.add_argument("--size", metavar="WxH", default="1280x720", help="for a camera: the picture size to ask it for (default %(default)s)")
     args = ap.parse_args(argv)
     try:
-        twenty = tuple(float(v) for v in args.twenty.split(",")) if args.twenty else None
+        twenty = tuple(float(v) for v in args.twenty.split(",")) if args.twenty is not None else None
         size = tuple(int(v) for v in args.size.lower().split("x"))
         if (twenty is not None and len(twenty) != 2) or len(size) != 2:
             raise ValueError
     except ValueError:
         ap.error("--twenty is two numbers, such as 640,120, and --size is like 1280x720")
+    # Found out now, not after the board has been looked for.
+    if args.out is not None and (not cv2.haveImageWriter(args.out) or Path(args.out).is_dir()):
+        ap.error(f"--out is a picture file to save, such as found.jpg, not {args.out or 'nothing'}")
+    if args.debug is not None and (not args.debug or Path(args.debug).is_file()):
+        ap.error(f"--debug is a folder to save pictures in, not {args.debug or 'nothing'}")
     img = _picture(args.source, size)
 
-    def save(folder, pictures):
-        folder.mkdir(parents=True, exist_ok=True)
+    # A phone's photo is many times a camera's picture: finding the board in it
+    # as it is takes gigabytes, and the limits above are in a camera's pixels.
+    # So it is found in a smaller copy and the answer put back in the picture's own pixels.
+    work, up = img, np.ones(2)
+    if Path(args.source).is_file() and max(img.shape[:2]) > BIGGEST:
+        s = BIGGEST / max(img.shape[:2])
+        work = cv2.resize(img, (round(img.shape[1] * s), round(img.shape[0] * s)), interpolation=cv2.INTER_AREA)
+        up = np.array([img.shape[1] / work.shape[1], img.shape[0] / work.shape[0]])
+
+    def save(name, picture, params=()):
+        try:
+            Path(name).parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass  # the write below fails too, and says so
+        if not calib.write_picture(name, picture, params):
+            raise SystemExit(f"Couldn't save {name}.")
+
+    def save_steps(pictures):
         for n, (name, picture) in enumerate(pictures.items(), 1):
-            cv2.imwrite(str(folder / f"{n}-{name}.jpg"), picture, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            save(Path(args.debug) / f"{n}-{name}.jpg", picture, [cv2.IMWRITE_JPEG_QUALITY, 90])
 
     try:
-        found = detect(img, twenty)
+        small = detect(work, None if twenty is None else tuple(np.array(twenty) / up))
     except Failed as e:
         print(e, file=sys.stderr)
-        if args.debug:
-            save(Path(args.debug), explain(img))
+        if args.debug is not None:
+            save_steps(explain(work))
             print(f"{Path(args.debug) / '1-colours.jpg'} shows what was taken for the red and green rings.", file=sys.stderr)
         return 1
-    if args.debug:
-        save(Path(args.debug), explain(img, found))
-    if args.out:
-        if not cv2.imwrite(args.out, calib.draw_board(img.copy(), found.view(), numbers=True)):
-            raise SystemExit(f"Couldn't save {args.out}.")
+    found = Result(small.H @ np.diag([1 / up[0], 1 / up[1], 1.0]), (np.array(small.points) * up).tolist(), small.joins,
+                   small.rms_px * float(up.max()), small.lens, (img.shape[1], img.shape[0]))
+
+    # The answer first: a picture that can't be saved doesn't lose it.
+    turned = ("The 20 was taken to be at the top of the picture. If the numbers come out turned round, "
+              "say where it is with --twenty X,Y.")
     if args.json:
         # "points", "lens" and "size" are what config.json keeps under "calibration" for a camera.
         print(json.dumps({**found.saved(), "joins": found.joins, "rms_px": round(found.rms_px, 3),
-                          "homography": found.H.tolist()}, indent=2))
-        return 0
-    bull = found.view().to_picture([[0.0, 0.0]])[0]
-    print(f"Board found: {found.joins} of 40 joins agree, within {found.rms_px:.2f} px. Lens bend {found.lens:+.2f}.")
-    print(f"The bull is at ({bull[0]:.1f}, {bull[1]:.1f}) in the picture.")
-    if twenty is None:
-        print("The 20 was taken to be at the top of the picture. If the numbers come out turned round, "
-              "say where it is with --twenty X,Y.")
-    for where in (args.out, args.debug):
-        if where:
-            print(f"Saved {where}")
-    if not (args.out or args.debug):
-        print("Add --out FILE to see it drawn on the picture, or --json for the numbers.")
+                          "homography": found.H.tolist()}, indent=2), flush=True)
+        if twenty is None:
+            print(turned, file=sys.stderr)
+    else:
+        bull = found.view().to_picture([[0.0, 0.0]])[0]
+        print(f"Board found: {found.joins} of 40 joins agree, within {found.rms_px:.2f} px. Lens bend {found.lens:+.2f}.")
+        print(f"The bull is at ({bull[0]:.1f}, {bull[1]:.1f}) in the picture.")
+        if twenty is None:
+            print(turned)
+    if args.debug is not None:
+        save_steps(explain(work, small))
+    if args.out is not None:
+        save(args.out, calib.draw_board(img.copy(), found.view(), numbers=True))
+    if not args.json:
+        for where in (args.out, args.debug):
+            if where:
+                print(f"Saved {where}")
+        if not (args.out or args.debug):
+            print("Add --out FILE to see it drawn on the picture, or --json for the numbers.")
     return 0
 
 

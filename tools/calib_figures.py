@@ -34,7 +34,7 @@ REAL_TWENTY = (530, 183)  # ...and the same for the real picture, real.jpg
 
 
 def save(name: str, img) -> None:
-    cv2.imwrite(str(OUT / name), img, [cv2.IMWRITE_JPEG_QUALITY, 88])
+    calib.write_picture(OUT / name, img, [cv2.IMWRITE_JPEG_QUALITY, 88])
     print(f"  {(OUT / name).relative_to(ROOT)}  {img.shape[1]}x{img.shape[0]}")
 
 
@@ -57,7 +57,7 @@ def main():
     assert np.linalg.norm(bend_point(project(P, np.array([*board.polar(3, 130), 0.0])), LENS) - TWENTY) < 5
 
     save("sample.jpg", img)
-    img = cv2.imread(str(OUT / "sample.jpg"))  # as anyone trying the command gets it
+    img = calib.read_picture(OUT / "sample.jpg")  # as anyone trying the command gets it
     found = autocalib.detect(img, TWENTY)
     print(f"  found: {found.joins}/40 joins, {found.rms_px:.2f} px, lens {found.lens:+.2f}")
     seen = autocalib.explain(img, found)
@@ -75,7 +75,7 @@ def main():
     ]))
 
     # The real camera's picture. Thicker lines here: this one is shown small on the front page.
-    real = cv2.imread(str(OUT / "real.jpg"))
+    real = calib.read_picture(OUT / "real.jpg")
     found = autocalib.detect(real, REAL_TWENTY)
     print(f"  real: {found.joins}/40 joins, {found.rms_px:.2f} px, lens {found.lens:+.2f}")
     save("real-found.jpg", calib.draw_board(real.copy(), found.view(), thickness=2, numbers=True))

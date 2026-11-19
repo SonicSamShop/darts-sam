@@ -19,8 +19,6 @@ import json
 import sys
 from pathlib import Path
 
-import cv2
-
 from . import board, detect, report
 from . import calib
 
@@ -32,7 +30,7 @@ def replay(folder: Path) -> None:
     for look in rep["looks"]:
         lines, seen = [], []
         for cam, c in look["cameras"].items():
-            before, after = (cv2.imread(str(folder / c[k])) for k in ("before", "after"))
+            before, after = (calib.read_picture(folder / c[k]) for k in ("before", "after"))
             s = detect.find_dart(detect.diff_mask(before, after), H[cam])
             if s is not None:
                 lines.append(s)

@@ -35,7 +35,8 @@
 //   result?(state)            -> optional end-of-game line, for games with no real winner
 //   out?(state, i)            -> optional: true if player i's turn is passed over
 //   call?(state)              -> optional: something to say after the last dart
-//   target?(state)            -> optional: the bed {seg, mult} to light up on the board
+//   target?(state)            -> optional: the bed {seg, mult, part?} to light up on the board
+//   aim?(state)               -> optional: that bed as the caller says it, called out when it changes
 //   seeded                    -> optional: true to be given opts.seed (a random number)
 //   summary() may also return out: true, to grey out a player's card
 //

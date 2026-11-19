@@ -25,6 +25,7 @@ concurrency:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15  # they take about two; a test that hangs would otherwise hold the job for six hours
     strategy:
       fail-fast: false
       matrix:

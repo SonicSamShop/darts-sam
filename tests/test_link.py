@@ -31,8 +31,9 @@ def start_host(folder: Path, port: int):
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="critical"))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
-    while not server.started:
+    while not server.started and thread.is_alive():
         time.sleep(0.02)
+    assert server.started, f"the host didn't start on port {port}"
 
     def stop():
         server.should_exit = True
