@@ -192,6 +192,7 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
             store.event(acc["id"], "signup")
         else:
             store.seen(acc["id"], admin)
+            store.event(acc["id"], "signin")  # a sign-up is the first sign-in, so is not counted twice
             acc["admin"] = admin
         start_session(response, acc["id"])
         return {"account": acc, "new": new, "named": named}

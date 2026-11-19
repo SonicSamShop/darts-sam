@@ -87,6 +87,8 @@ def make_router(store, relay, account) -> APIRouter:
             calibrated = sum(1 for ev in store.events(acc["id"], "calibrated") if ev["detail"].get("ok"))
             out.append({**acc, "helper": helper, "connected": relay.connected(acc["id"]), "n": n,
                         "steps": insight.steps(acc, helper, n, calibrated),
+                        # signing up signs you in; sign-ins after that were only counted from 1.4 on
+                        "signins": store.count_events(acc["id"], "signup") + store.count_events(acc["id"], "signin"),
                         "reports": len(store.reports(acc["id"]))})
         return out
 
@@ -103,6 +105,7 @@ def make_router(store, relay, account) -> APIRouter:
         tiles = "".join(f'<div class="tile"><b>{sum(1 for p in rows if p["steps"][i])}</b>{e(name)}</div>'
                         for i, name in enumerate(insight.STEPS))
         tiles += f'<div class="tile"><b>{pct(overall)}</b>Accuracy, {judged} camera darts</div>'
+        tiles += f'<div class="tile"><b>{sum(p["signins"] for p in rows)}</b>Sign-ins</div>'
         by_cams = {}
         for p in rows:
             if p["helper"] and p["helper"]["cameras"] is not None:
@@ -124,15 +127,16 @@ def make_router(store, relay, account) -> APIRouter:
                     f'<td class=n><b>{pct(n["accuracy"])}</b></td><td class=n>{n["days_played"]}</td>'
                     f'<td class=n>{n["played_ms"] // 3600000}h {n["played_ms"] // 60000 % 60:02d}m</td>'
                     f'<td class=n><a href="/admin/reports?who={e(p["id"])}">{p["reports"]}</a></td>'
-                    f'<td>{when(p["created"])}</td><td>{when(p["last_seen"])}</td></tr>')
+                    f'<td>{when(p["created"])}</td><td class=n>{p["signins"]}</td><td>{when(p["last_seen"])}</td></tr>')
         table = ("<table><tr><th>Who</th><th>Path</th><th>Set-up</th><th class=n>Games</th><th class=n>Darts</th>"
                  "<th class=n>Camera darts kept</th><th class=n>Corrected</th><th class=n>Missed</th><th class=n>Accuracy</th>"
-                 "<th class=n>Days played</th><th class=n>Time played</th><th class=n>Reports</th><th>Joined</th><th>Last signed in</th></tr>"
+                 "<th class=n>Days played</th><th class=n>Time played</th><th class=n>Reports</th><th>Joined</th><th class=n>Sign-ins</th><th>Last signed in</th></tr>"
                  + "".join(row(p) for p in rows) + "</table>")
         legend = ('<p class="muted">Path: ' + " → ".join(insight.STEPS) + ". Kept: camera darts left as scored. Corrected: "
                   "camera darts undone and entered by hand. Missed: darts entered by hand in a game the cameras were "
                   "scoring. Accuracy = kept ÷ (kept + corrected + missed). Time played: every game from its start to its winning "
-                  "(or, if not finished, last) dart. Times are UTC.</p>")
+                  "(or, if not finished, last) dart. Sign-ins: times they signed in, sign-up included; staying signed in "
+                  "(90 days on a device) is not a new one, and sign-ins before version 1.4 were not counted. Times are UTC.</p>")
         cams = (f"<h2>Accuracy by number of cameras</h2><table style='width:auto'><tr><th>Set-up</th><th class=n>People</th>"
                 f"<th class=n>Accuracy</th><th class=n>Camera darts</th></tr>{split}</table>") if split else ""
         return page("People", f'<div class="tiles">{tiles}</div>{table}{legend}{cams}')

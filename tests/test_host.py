@@ -97,7 +97,6 @@ def main():
         r = ann2.post("/auth/google", json={"credential": "tok-ann"})
         assert r.json()["account"]["id"] == acc["id"] and r.json()["new"] is False
         assert [p["name"] for p in ann2.get("/api/players").json()] == ["Ann"]
-
         # someone else sees none of it; an admin by email
         r = bob.post("/auth/google", json={"credential": "tok-bob"})
         assert r.json()["account"]["admin"] is True
@@ -186,12 +185,14 @@ def main():
         # --- what the trial records ---
         store = app.state.store
         assert store.count_events(acc["id"], "signup") == 1 and store.count_events(acc["id"], "paired") == 1
+        assert store.count_events(acc["id"], "signin") == 1  # the second device; signing up was the first
         assert nobody.post("/api/events", json={"events": []}).status_code == 401
         r = ann.post("/api/events", json={"events": [{"kind": "open", "ts": 5, "detail": {"w": 800}},
                                                      {"kind": "correction", "ts": 6, "detail": {"was": {"seg": 20, "mult": 3}}},
-                                                     {"kind": "signup", "ts": 7}, {"kind": "nonsense"}]})
+                                                     {"kind": "signup", "ts": 7}, {"kind": "signin", "ts": 8}, {"kind": "nonsense"}]})
         assert r.json() == {"kept": 2}
         assert store.count_events(acc["id"], "signup") == 1 and store.count_events(acc["id"], "correction") == 1
+        assert store.count_events(acc["id"], "signin") == 1  # an app can't add sign-ins
         assert ann.post("/api/events", json={"events": "rubbish"}).status_code in (200, 422)
 
         assert nobody.post("/api/feedback", json={"text": "hi"}).status_code == 401
@@ -254,6 +255,7 @@ def main():
         home = got.text
         assert "&lt;b&gt;Ann&lt;/b&gt;" in home and "<b>Ann</b>" not in home     # typed text is shown as text
         assert "Bob" in home and "(admin)" in home and "Accuracy" in home and "<script" not in home.lower()
+        assert "Sign-ins" in home
         said_page = bob.get("/admin/feedback").text
         assert "The 20s are &lt;b&gt;great&lt;/b&gt;" in said_page and "<b>great</b>" not in said_page
         listing = bob.get("/admin/reports").text
