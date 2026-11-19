@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { value, label } from '../board.js';
+import { throwAt } from '../bot.js';
 
 // Every dart worth throwing, best setup darts first.
 const SETUP = [];
@@ -209,6 +210,18 @@ export default {
   left(s) {
     const n = s.score[s.current];
     return n <= 170 ? n : null;
+  },
+
+  // The dart a computer player throws now (see bot.js). It follows the checkout
+  // chart: on a finish it throws the route's first dart, with too few darts in
+  // hand it sets up as the three-dart route would, and otherwise it scores on
+  // treble 20. A dart that would win the leg is thrown with the skill's
+  // `finish` spread, any other with its `spread`.
+  bot(s, skill, random) {
+    const n = s.score[s.current], dbl = s.opts.out !== 'straight';
+    const route = n > 180 ? null : checkout(n, 3 - s.turn.length, dbl) ?? checkout(n, 3, dbl);
+    const aim = route?.[0] ?? { seg: 20, mult: 3 };
+    return throwAt(aim, route?.length === 1 ? skill.finish : skill.spread, random);
   },
 
   hint(s, { checkouts = true } = {}) {

@@ -5,7 +5,7 @@
 // node --test tests/
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newMatch, compute, gameById, elapsed, clock, previousVisit } from '../web/engine.js';
+import { newMatch, compute, gameById, elapsed, clock, timeSpent, previousVisit } from '../web/engine.js';
 import { checkout } from '../web/games/x01.js';
 import { scoreAt, value, label, spoken, half, heatGrid, bullUp } from '../web/board.js';
 
@@ -386,6 +386,7 @@ test('match clock: runs until the winning dart, then stops', () => {
   assert.equal(clock(0), '0:00');
   assert.equal(clock(65999), '1:05');
   assert.equal(clock(3723000), '1:02:03');
+  assert.deepEqual([59999, 2700000, 12000000].map(timeSpent), ['under a minute', '45 min', '3 h 20 min']);
   const m = { ...newMatch('x01', ['A'], { start: 101, out: 'double' }), started: 1000, log: [] };
   assert.equal(elapsed(m, compute(m), 31000), 30000);
   m.log.push({ ...D(20, 3), ts: 5000 }, { ...D(9), ts: 8000 }, { ...D(16, 2), ts: 12000 });

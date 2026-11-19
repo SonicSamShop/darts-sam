@@ -41,6 +41,7 @@ def numbers(db_file: Path, corrected: int) -> dict:
             "accuracy": kept / judged if judged else None,
             "days_played": one("SELECT COUNT(DISTINCT started / 86400000) FROM matches"),
             "last_played": one("SELECT MAX(started) FROM matches"),
+            "played_ms": one(f"SELECT COALESCE(SUM({db.PLAYED_MS}), 0) FROM matches m"),
             "by_game": {r["game_id"]: r["n"] for r in
                         c.execute("SELECT game_id, COUNT(*) AS n FROM matches GROUP BY game_id ORDER BY n DESC")},
         }

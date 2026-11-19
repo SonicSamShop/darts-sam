@@ -14,7 +14,7 @@ const WAIT = 2500;             // ms to give the Pi before using the saved copy
 // Everything the app needs to start. Files not listed here (a new game module,
 // say) are still saved the first time they are loaded.
 const FILES = [
-  './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'engine.js', 'board.js', 'install.js', 'voice.js',
+  './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'engine.js', 'board.js', 'bot.js', 'install.js', 'voice.js',
   'games/index.js', 'games/x01.js', 'games/cricket.js', 'games/clock.js', 'games/countup.js', 'games/c121.js', 'games/random.js', 'games/killer.js', 'games/free.js',
   'style.css', 'themes.css', 'manifest.json', 'privacy.html', 'faq.html', 'download.html', 'opensource.html',
   'icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',

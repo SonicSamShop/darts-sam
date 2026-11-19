@@ -88,6 +88,7 @@ It must run without OpenCV installed (`requirements-host.txt`).
 | `stats.js` | The deep stats, counted on the device from the history the server sends. |
 | `account.js`, `track.js` | The hosted version: who is signed in, and its notes on how the app is used. |
 | `voice.js` | Calling the scores in the device's own voice. |
+| `bot.js` | Computer players: the levels, and how one throws a dart. Which bed to aim at is each game's own `bot()`; `tools/bot_levels.mjs` works the levels out. |
 | `update.js`, `sw.js`, `install.js` | Reloading onto new files; keeping a copy for offline; "Add to Home Screen". |
 | `index.html`, `faq.html`, `download.html`, `privacy.html`, `opensource.html` | The app's one page, and the site's plain pages. |
 | `style.css`, `themes.css`, `fonts/` | How it looks, in each theme. |

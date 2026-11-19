@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS players (
   id       INTEGER PRIMARY KEY,
   name     TEXT NOT NULL UNIQUE COLLATE NOCASE,
   created  INTEGER NOT NULL,
-  archived INTEGER NOT NULL DEFAULT 0      -- removed players keep their throws
+  archived INTEGER NOT NULL DEFAULT 0,     -- removed players keep their throws
+  bot      INTEGER                         -- a computer player: its level (NULL for a person)
 );
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
@@ -71,7 +72,7 @@ CREATE TABLE IF NOT EXISTS throws (
   mult      INTEGER NOT NULL,              -- 0 miss, 1 single, 2 double, 3 treble
   x         REAL,                          -- mm from the bull, NULL if unknown (Miss button)
   y         REAL,
-  src       TEXT,                          -- 'cam', 'tap' or 'miss'
+  src       TEXT,                          -- 'cam', 'tap', 'miss', 'visit' or 'bot' (a computer player's)
   bust      INTEGER NOT NULL DEFAULT 0,    -- part of a bust visit (scores nothing)
   ts        INTEGER
 );
@@ -158,6 +159,9 @@ def prepare(path: Path):
         # From before darts were tracked: nobody's darts are known for the games already played.
         if "darts" not in [c["name"] for c in db.execute("PRAGMA table_info(match_players)")]:
             db.execute("ALTER TABLE match_players ADD COLUMN darts TEXT")
+        # From before there were computer players: everyone already here is a person.
+        if "bot" not in [c["name"] for c in db.execute("PRAGMA table_info(players)")]:
+            db.execute("ALTER TABLE players ADD COLUMN bot INTEGER")
 
 
 # ---------- players ----------
@@ -172,7 +176,8 @@ def _clean_name(name: str) -> str:
 
 
 def _player(row) -> dict:
-    return {"id": row["id"], "name": row["name"]}
+    # A computer player says its level; a person has no "bot" at all.
+    return {"id": row["id"], "name": row["name"], **({"bot": row["bot"]} if row["bot"] else {})}
 
 
 def list_players() -> list[dict]:
@@ -181,19 +186,25 @@ def list_players() -> list[dict]:
             "SELECT * FROM players WHERE archived = 0 ORDER BY name")]
 
 
-def add_player(name: str) -> dict:
+BOT_LEVELS = 99  # the most levels a computer player could have (the app has the real list: web/bot.js)
+
+
+def add_player(name: str, bot: int | None = None) -> dict:
     """Create a player. Adding a removed player's name brings them back,
-    history and all."""
+    history and all. bot: the level of a computer player (the app plays its
+    darts and saves them like anyone's), or None for a person."""
     name = _clean_name(name)
+    if bot is not None and not 1 <= bot <= BOT_LEVELS:
+        raise Invalid("no such level of computer player")
     with connect() as db:
         row = db.execute("SELECT * FROM players WHERE name = ?", (name,)).fetchone()
         if row and not row["archived"]:
             raise Invalid(f"there is already a player called {row['name']}")
         if row:
-            db.execute("UPDATE players SET archived = 0, name = ? WHERE id = ?", (name, row["id"]))
-            return {"id": row["id"], "name": name}
-        cur = db.execute("INSERT INTO players (name, created) VALUES (?, ?)", (name, now_ms()))
-        return {"id": cur.lastrowid, "name": name}
+            db.execute("UPDATE players SET archived = 0, name = ?, bot = ? WHERE id = ?", (name, bot, row["id"]))
+            return _player({"id": row["id"], "name": name, "bot": bot})
+        cur = db.execute("INSERT INTO players (name, created, bot) VALUES (?, ?, ?)", (name, now_ms(), bot))
+        return _player({"id": cur.lastrowid, "name": name, "bot": bot})
 
 
 def player_named(name: str) -> int:
@@ -395,9 +406,11 @@ def recent_matches(limit: int = 20) -> list[dict]:
 
 def total_darts() -> int:
     """Every dart on record, everyone's. A visit typed in as one number has no
-    single darts to count (the same rule as a player's own stats)."""
+    single darts to count (the same rule as a player's own stats), and a
+    computer player's darts were never thrown at all."""
     with connect() as db:
-        return db.execute("SELECT COUNT(*) FROM throws WHERE COALESCE(src, '') <> 'visit'").fetchone()[0]
+        return db.execute(
+            "SELECT COUNT(*) FROM throws WHERE COALESCE(src, '') NOT IN ('visit', 'bot')").fetchone()[0]
 
 
 # ---------- stats ----------
@@ -407,6 +420,10 @@ def total_darts() -> int:
 # X01's are worked out by the app, from the history sent along with the rest.
 CRICKET = (20, 19, 18, 17, 16, 15, 25)
 HEAT_DARTS = 5000  # most recent dart positions sent for the heat map
+# How long a match (m) was played for, in ms: its time once won, and otherwise
+# (quit part-way and kept, still going, or won before games were timed) from
+# its start to the last dart thrown in it.
+PLAYED_MS = "COALESCE(m.duration, MAX(0, (SELECT MAX(ts) FROM throws WHERE match_id = m.id) - m.started), 0)"
 
 
 def _matches(db, player_id: int, game_id: str | None, darts: str | None = None) -> list:
@@ -709,11 +726,17 @@ def stats(player_id: int, game_id: str | None = None, darts: str | None = None) 
             "SUM(m.winner_id = mp.player_id AND "
             "    (SELECT COUNT(*) FROM match_players o WHERE o.match_id = m.id) > 1) AS won, "
             # Time per game type; games from before the timer have no duration and are left out.
-            "CAST(AVG(m.duration) AS INTEGER) AS avg_ms, MIN(m.duration) AS best_ms "
+            "CAST(AVG(m.duration) AS INTEGER) AS avg_ms, MIN(m.duration) AS best_ms, "
+            f"SUM({PLAYED_MS}) AS total_ms "
             "FROM match_players mp JOIN matches m ON m.id = mp.match_id "
             "WHERE mp.player_id = ? AND m.finished IS NOT NULL" + (" AND m.game_id = ?" if game_id else "")
             + (" AND mp.darts = ?" if darts else "") + " GROUP BY m.game_id ORDER BY played DESC",
             (player_id, *([game_id] if game_id else []), *([darts] if darts else []))).fetchall()
+        # Time at the board in every game they threw in, finished or not.
+        played = db.execute(
+            f"SELECT COALESCE(SUM({PLAYED_MS}), 0) FROM match_players mp JOIN matches m ON m.id = mp.match_id "
+            "WHERE mp.player_id = ?" + (" AND m.game_id = ?" if game_id else "") + (" AND mp.darts = ?" if darts else ""),
+            (player_id, *([game_id] if game_id else []), *([darts] if darts else []))).fetchone()[0]
         segs = db.execute(
             "SELECT seg, COUNT(*) AS n FROM throws WHERE player_id = ? AND mult > 0 "
             "AND COALESCE(src, '') <> 'visit'" + scope + " GROUP BY seg ORDER BY n DESC LIMIT 5", args).fetchall()
@@ -730,6 +753,7 @@ def stats(player_id: int, game_id: str | None = None, darts: str | None = None) 
         "set": darts,
         "darts": h["darts"], "misses": h["misses"], "trebles": h["trebles"],
         "doubles": h["doubles"], "bulls": h["bulls"], "since": h["first"],
+        "played_ms": played,
         "games": [dict(g) for g in games],
         "detail": detail,
         "matches": matches,

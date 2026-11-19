@@ -47,6 +47,18 @@ def main():
         expect(db.NotFound, db.rename_player, 999, "Nobody")
         assert db.rename_player(alex["id"], "Alexa")["name"] == "Alexa"
 
+        # a computer player is a player with a level; its darts are not counted as thrown
+        bot = db.add_player("Bot 7", 7)
+        assert bot == {"id": bot["id"], "name": "Bot 7", "bot": 7}
+        assert "bot" not in sam and bot in db.list_players()
+        expect(db.Invalid, db.add_player, "Bot 0", 0)
+        db.save_match("mb", match(1, [sam["id"], bot["id"]], [throw(0, 1, 20, 1), {**throw(1, 1, 20, 3), "src": "bot"}]))
+        assert db.total_darts() == 1
+        db.delete_match("mb")
+        db.remove_player(bot["id"])
+        assert db.add_player("bot 7", 7)["id"] == bot["id"]
+        db.remove_player(bot["id"])
+
         # settings
         db.set_setting("settings", {"voice": False})
         db.set_setting("settings", {"voice": True})
@@ -78,10 +90,10 @@ def main():
         assert h["opts"] == {"start": 101} and h["finished"] is not None
         assert h["visits"] == [[0, 1, 1000, 0, [203]], [1, 1, 1000, 1, [203, 203]], [0, 2, 2000, 0, [91, 162]]]
         assert s["recent"] == [[0.0, 103.0]]
-        assert s["games"] == [{"game": "X01", "played": 1, "won": 1, "avg_ms": 95000, "best_ms": 95000}]
+        assert s["games"] == [{"game": "X01", "played": 1, "won": 1, "avg_ms": 95000, "best_ms": 95000, "total_ms": 95000}]
         a = db.stats(alex["id"])
         assert a["matches"][0]["me"] == 1 and a["matches"][0]["visits"] == h["visits"]
-        assert a["games"] == [{"game": "X01", "played": 1, "won": 0, "avg_ms": 95000, "best_ms": 95000}]
+        assert a["games"] == [{"game": "X01", "played": 1, "won": 0, "avg_ms": 95000, "best_ms": 95000, "total_ms": 95000}]
         expect(db.NotFound, db.stats, 999)
         # one match on its own: the same history entry, belonging to nobody
         assert db.match("m1") == {k: v for k, v in h.items() if k != "me"}
@@ -97,12 +109,17 @@ def main():
             assert db.save_match(f"t{i}", match(1, [sam["id"]], [throw(0, 1, 5, 1)], winner=0, game="clock", duration=ms))
         # an unfinished game has no time, whatever the app sends
         assert db.save_match("t2", match(1, [sam["id"]], [throw(0, 1, 5, 1)], game="clock", duration=5))
-        assert {"game": "CLOCK", "played": 2, "won": 0, "avg_ms": 90000, "best_ms": 60000} in db.stats(sam["id"])["games"]
+        assert {"game": "CLOCK", "played": 2, "won": 0, "avg_ms": 90000, "best_ms": 60000, "total_ms": 180000} in db.stats(sam["id"])["games"]
+        # time played counts every game thrown in: a won game's time, and an unfinished
+        # one from its start (1) to its last dart. m1 was undone to unfinished, its last dart at 2000.
+        assert db.stats(sam["id"])["played_ms"] == 1999 + 180000 + 999
+        assert db.stats(sam["id"], "clock")["played_ms"] == 180000 + 999
+        assert db.stats(alex["id"])["played_ms"] == 1999
         assert db.delete_match("t2")
 
         # a solo game is "played" but never counts as a win
         assert db.save_match("m3", match(1, [sam["id"]], [throw(0, 1, 5, 1)], winner=0, game="countup"))
-        assert {"game": "COUNTUP", "played": 1, "won": 0, "avg_ms": None, "best_ms": None} in db.stats(sam["id"])["games"]
+        assert {"game": "COUNTUP", "played": 1, "won": 0, "avg_ms": None, "best_ms": None, "total_ms": 999} in db.stats(sam["id"])["games"]
 
         # quitting a game part-way removes it and its throws from the stats
         darts = db.stats(sam["id"])["darts"]
@@ -112,7 +129,7 @@ def main():
         assert db.stats(sam["id"])["darts"] == darts
         assert not db.delete_match("m4")  # already gone
         assert not db.delete_match("m3")  # a finished game is kept
-        assert {"game": "COUNTUP", "played": 1, "won": 0, "avg_ms": None, "best_ms": None} in db.stats(sam["id"])["games"]
+        assert {"game": "COUNTUP", "played": 1, "won": 0, "avg_ms": None, "best_ms": None, "total_ms": 999} in db.stats(sam["id"])["games"]
 
         # each game type has its own stats page: only that game's darts, plus its own figures
         x = db.stats(sam["id"], "x01")
@@ -122,7 +139,7 @@ def main():
         k = db.stats(sam["id"], "clock")
         assert k["darts"] == 2 and k["recent"] == []
         assert sorted(m["id"] for m in k["matches"]) == ["t0", "t1"]
-        assert k["games"] == [{"game": "CLOCK", "played": 2, "won": 0, "avg_ms": 90000, "best_ms": 60000}]
+        assert k["games"] == [{"game": "CLOCK", "played": 2, "won": 0, "avg_ms": 90000, "best_ms": 60000, "total_ms": 180000}]
         assert db.stats(alex["id"], "cricket")["detail"] is None
 
         # Around the Clock: 1, miss, 2 (a treble, jumping ahead to 5), then a wrong number
@@ -185,7 +202,8 @@ def main():
         assert db.export_match("g1")["darts"] == ["red", None]
         r = db.stats(sam["id"], darts="red")
         assert r["set"] == "red" and r["darts"] == 5 and sorted(m["id"] for m in r["matches"]) == ["g1", "g2"]
-        assert r["games"] == [{"game": "COUNTUP", "played": 2, "won": 2, "avg_ms": None, "best_ms": None}]
+        assert r["games"] == [{"game": "COUNTUP", "played": 2, "won": 2, "avg_ms": None, "best_ms": None, "total_ms": 1998}]
+        assert r["played_ms"] == 1998  # only the games thrown with those darts
         assert db.stats(sam["id"], "countup", "blue")["detail"]["highest"] == 20
         assert db.stats(sam["id"], "x01", "red")["matches"] == []
         gear = {g["id"]: g for g in r["gear"]}  # the same whichever set is being looked at

@@ -21,13 +21,13 @@ function rig() {
     if (!pi.up) throw new TypeError('Failed to fetch');
     pi.calls.push(`${method} ${path}`);
     const id = +path.split('/')[2];
-    if (path === '/players' && method === 'GET') return pi.players.filter(p => !p.gone).map(({ id, name }) => ({ id, name }))
+    if (path === '/players' && method === 'GET') return pi.players.filter(p => !p.gone).map(({ gone, ...p }) => p)
       .sort((a, b) => a.name.localeCompare(b.name));
     if (path === '/players' && method === 'POST') {
       const old = pi.players.find(p => p.name.toLowerCase() === body.name.toLowerCase());
       if (old && !old.gone) refuse(400, 'there is already a player called ' + old.name);
       if (old) { old.gone = false; return { id: old.id, name: old.name }; }
-      pi.players.push({ id: pi.nextId++, name: body.name });
+      pi.players.push({ id: pi.nextId++, name: body.name, ...(body.bot ? { bot: body.bot } : {}) });
       return { ...pi.players.at(-1) };
     }
     if (path.startsWith('/players/')) {
@@ -64,6 +64,22 @@ const D = (seg, mult = 1, ts = 1000) => ({ t: 'dart', seg, mult, ts });
 function game(id, playerIds, names, log) {
   return { ...newMatch('x01', names, { start: 101, out: 'double' }), id, playerIds, seq: 1, log, started: 0 };
 }
+
+test('a computer player keeps its level through the Pi numbering it', async () => {
+  const { store, pi, data } = rig();
+  const sam = data.addPlayer('Sam'), bot = data.addPlayer('Bot 7', 7);
+  assert.deepEqual(bot, { id: -2, name: 'Bot 7', bot: 7 });
+  const m = { ...game('m1', [sam.id, bot.id], ['Sam', 'Bot 7'], [D(20, 3)]), bots: [null, 7] };
+  store.set('match', m);
+  data.saveMatch(m);
+  pi.up = true;
+  assert.equal(await data.sync(true), true);
+  assert.deepEqual(pi.players, [{ id: 1, name: 'Sam' }, { id: 2, name: 'Bot 7', bot: 7 }]);
+  assert.deepEqual(store.get('players'), [{ id: 2, name: 'Bot 7', bot: 7 }, { id: 1, name: 'Sam' }]);
+  assert.deepEqual(store.get('match').playerIds, [1, 2]);
+  assert.deepEqual(store.get('match').bots, [null, 7]);
+  assert.deepEqual(pi.matches.get('m1').players, [1, 2]);
+});
 
 test('offline: players, settings and a whole game are kept, then reach the Pi in order', async () => {
   const { store, pi, data, reports } = rig();

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { GAMES } from './games/index.js';
-import { gameById, newMatch, compute, elapsed, clock, previousVisit } from './engine.js';
+import { gameById, newMatch, compute, elapsed, clock, timeSpent, previousVisit } from './engine.js';
 import { buildBoard, label, spoken, value, bullUp, bullMm } from './board.js';
 import { createSync } from './sync.js';
 import { createUpdater } from './update.js';
@@ -11,6 +11,7 @@ import { request } from './api.js';
 import { createAccount } from './account.js';
 import { createTracker } from './track.js';
 import { createVoice } from './voice.js';
+import { LEVELS, botLevel, throwAt } from './bot.js';
 import { X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith } from './stats.js';
 
 const $app = document.getElementById('app');
@@ -64,15 +65,26 @@ const pi = () => account.hosted ? 'the server' : 'the Pi';
 const Pi = () => account.hosted ? 'The server' : 'The Pi';
 
 let match = store.get('match', null);
-let players = store.get('players', []);  // [{id, name}]
+// The people who play: [{id, name}]. The computer's players are kept apart, so that no list of
+// players has them in it: [{id, name, bot: its level}] (see "computer players" below).
+let players = [], bots = [];
+function loadPlayers() {
+  const all = store.get('players', []);
+  players = all.filter(p => !p.bot);
+  bots = all.filter(p => p.bot);
+}
+loadPlayers();
 let darts = store.get('darts', []);  // every player's sets of darts: [{id, player, name, grams, created, retired}]
 // players: ids in throwing order. darts: {player id: the set of darts they are throwing}
 let setup = store.get('setup', { gameId: 'x01', players: [], opts: {} });
 let settings = store.get('settings', { voice: true });
 // A phone or a tablet (anything held upright, narrow or worked by touch), as style.css has it:
-// tabs along the bottom, and the settings as one page of sections instead of a tab at a time.
+// tabs along the bottom, and the settings as a list that opens a section at a time instead of tabs.
 const STACKED = matchMedia('(orientation: portrait), (max-width: 800px), (pointer: coarse)');
-const sectShown = id => STACKED.matches || settingsTab === id;  // is this section of the settings on screen?
+// A tablet on its side has the room for both: the list down the left, the section beside it.
+const SPLIT = matchMedia('(pointer: coarse) and (orientation: landscape) and (min-width: 900px)');
+const listShown = () => STACKED.matches && (SPLIT.matches || !settingsOpen);  // is the settings' list on screen?
+const sectShown = id => settingsTab === id && (!STACKED.matches || SPLIT.matches || settingsOpen);  // and this section of them?
 let totals = store.get('totals', null);  // {darts, reports}: everything on the Pi, as it last said
 let formError = '';   // shown under the "new player" box
 let addingPlayer = false;  // home: the "new player" box is out of sight until asked for
@@ -100,7 +112,54 @@ function applyTheme() {
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', theme.bar);
   return theme;
 }
-const nameOf = id => players.find(p => p.id === id)?.name ?? '?';
+// ---------- computer players ----------
+// A game that has a bot() can be played against the computer (bot.js has its levels and how it
+// throws). On the menu the computer is one more player to tap, BOT in setup.players, at the level
+// in setup.bot. A game needs a real player to keep its darts under, so each level is a player of
+// its own on the Pi ("Bot 7"), made the first time that level is played and never listed with the
+// people. In a game, match.bots says which seats the computer has: its level, or null for a person.
+const BOT = 0;  // (no player has this id: the Pi's start at 1, and one made offline is below zero)
+const botAt = () => botLevel(setup.bot ?? 5);
+const botsPlay = () => !!gameById(setup.gameId)?.bot;
+// Who is down to play, in throwing order: the computer only in a game it can play.
+const seats = () => (setup.players ?? []).filter(id => id !== BOT || botsPlay());
+const nameOf = id => id === BOT ? `Bot ${botAt().level}` : (players.find(p => p.id === id) ?? bots.find(p => p.id === id))?.name ?? '?';
+// The player that the computer's games at this level are kept under, made if this is its first.
+function botPlayer(level) {
+  const old = bots.find(b => b.bot === level);
+  if (old) return old.id;
+  for (const name of [`Bot ${level}`, `Computer ${level}`, `CPU level ${level}`]) {  // (a person may have the name)
+    try {
+      const p = data.addPlayer(name, level);
+      loadPlayers();
+      return p.id;
+    } catch { /* taken: the next name */ }
+  }
+  return null;
+}
+// The level of the computer player whose throw it is in the game in progress, or null.
+const botUp = (s = compute(match)) => s.winner == null ? match.bots?.[s.current] ?? null : null;
+// The computer throws by itself, a dart at a time, whenever the game is on screen and it is its
+// turn: renderGame() asks for the next dart each time it draws. It waits a little longer before
+// the first dart of a visit, which leaves time to undo a wrong dart before it starts.
+const BOT_WAIT = 2200, BOT_PACE = 1200;
+let botTimer = 0;
+let botFlight = false;  // the dart about to be drawn is the computer's: show it landing
+function botSoon() {
+  clearTimeout(botTimer);
+  if (screen !== 'game' || !match) return;
+  const s = compute(match);
+  if (botUp(s)) botTimer = setTimeout(botThrow, s.turn.length ? BOT_PACE : BOT_WAIT);
+}
+function botThrow() {
+  if (screen !== 'game' || !match) return;
+  if (quitAsk) return botSoon();  // being asked whether to quit: wait for the answer
+  const s = compute(match), level = botUp(s), game = gameById(match.gameId);
+  if (!level || !game.bot) return;
+  botFlight = true;
+  push({ t: 'dart', ...game.bot(s, botLevel(level), Math.random), src: 'bot' });
+  botFlight = false;
+}
 // ---------- darts ----------
 // Each player can keep several sets of darts and say which they are throwing,
 // the way a running app keeps a runner's shoes: every game remembers each
@@ -115,13 +174,13 @@ function dartsFor(id) {
 const grams = g => g == null ? '' : `${+g.toFixed(1)}g`;
 
 function cleanSetup() {
-  setup.players = (setup.players ?? []).filter(id => players.some(p => p.id === id));
+  setup.players = (setup.players ?? []).filter(id => id === BOT || players.some(p => p.id === id));
   if (setup.first !== 'random' && setup.first !== 'bull') setup.first = null;  // (it was once a player)
 }
 // The players in the order they will throw: the order they were tapped in,
 // turned round to begin with any one of them (Random, when Start asks who throws first).
 function randomOrder() {
-  const ids = setup.players, at = Math.floor(Math.random() * ids.length);
+  const ids = seats(), at = Math.floor(Math.random() * ids.length);
   return [...ids.slice(at), ...ids.slice(0, at)];
 }
 const data = createSync({ store, api, changed: synced });
@@ -142,7 +201,7 @@ function synced({ remapped, pulled, sent }) {
   tracker.flush();  // the site was just reached: send the trial's notes too
   const shown = () => JSON.stringify([players, darts, setup, settings]);
   const before = shown();
-  players = store.get('players', []);
+  loadPlayers();
   darts = store.get('darts', []);
   setup = store.get('setup', setup);
   settings = store.get('settings', settings);
@@ -162,7 +221,7 @@ function synced({ remapped, pulled, sent }) {
   if (shown() === before) return;
   if (screen === 'home') redraw(renderHome);
   if (screen === 'players') redraw(renderPlayers);
-  if (screen === 'settings' && sectShown('players')) redraw(renderSettings);
+  if (screen === 'settings' && (sectShown('players') || listShown())) redraw(renderSettings);
 }
 // Redraw without losing what is being typed.
 function redraw(draw) {
@@ -238,14 +297,16 @@ async function loadRelease(tries = 0) {
 }
 // Where anybody using the app can get its source (the AGPL asks for this).
 const SOURCE = 'https://github.com/SonicSamShop/darts-sam';
-// Settings → Games: "Darts S.A.M version 1.2 (build 61, a140399)", and where the source is.
-function versionLine() {
-  const v = appBuild?.release ?? release?.version;
-  if (!v) return '';
+// Settings → About: "Darts S.A.M version 1.2 (build 61, a140399)", and where the source is.
+const appRelease = () => appBuild?.release ?? release?.version ?? '';
+function aboutPanel() {
+  const v = appRelease();
   const extra = [appBuild?.build != null && `build ${appBuild.build}`, appBuild?.commit].filter(Boolean).join(', ');
-  return `<p class="muted small">Darts S.A.M version ${esc(v)}${extra ? ` (${esc(extra)})` : ''}.
-    Free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>:
-    <a href="${SOURCE}" target="_blank" rel="noopener">source code</a>.</p>`;
+  return `<div class="settings">
+    ${v ? `<p>Darts S.A.M version ${esc(v)}${extra ? ` <span class="muted">(${esc(extra)})</span>` : ''}</p>` : ''}
+    <p class="muted small">Free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>:
+      <a href="${SOURCE}" target="_blank" rel="noopener">source code</a>.</p>
+    <p class="muted small"><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p></div>`;
 }
 const MB = n => `${Math.round(n / 1e6)} MB`;
 function releaseDone(d) {
@@ -301,6 +362,7 @@ function connect() {
     if (ev.type === 'hello') { cameraCount = ev.cameras; helperLinked = !!ev.helper; refreshStatus(); return updater.seen(ev.version); }
     if (screen === 'bull' && bull) { if (ev.type === 'dart') bullDart({ seg: ev.seg, mult: ev.mult, x: ev.x, y: ev.y }); return; }
     if (screen !== 'game' || !match) return;
+    if (botUp()) return;  // the computer is throwing: nothing at the board is part of the game
     if (ev.type === 'dart') push({ t: 'dart', seg: ev.seg, mult: ev.mult, x: ev.x, y: ev.y, src: 'cam' });
     // A takeout with no darts thrown is just someone touching the board.
     const s = compute(match);
@@ -427,6 +489,9 @@ function push(ev) {
   renderGame();
 }
 function undo() {
+  // Undo is for the people playing: the computer's darts since go with the dart being undone
+  // (it throws again when its turn comes back round).
+  while (match.log.at(-1)?.src === 'bot') match.log.pop();
   const gone = match.log.pop();
   tracker.undone(match.id, gone?.t === 'dart' ? gone : undefined);  // a camera dart undone may be about to be put right
   store.set('match', match);
@@ -434,13 +499,37 @@ function undo() {
   renderGame();
 }
 
-// Quit the game in progress: nothing from it is kept, here or on the Pi, so it
-// never reaches the stats.
-let quitArmed = false;
-function quitGame() {
-  if (!quitArmed) { quitArmed = true; return renderGame(); }
-  quitArmed = false;
-  data.quitMatch(match);
+// Quit the game in progress, once the player has said they are sure. Its results
+// are saved unless they untick the box: the darts thrown so far stay in the stats,
+// as an unfinished game. Unticked (or with nothing thrown yet), nothing from it is
+// kept, here or on the Pi.
+let quitAsk = null;  // the question, while it is on screen
+const thrown = m => m.log.some(e => e.t === 'dart' || e.t === 'visit');
+function askQuit() {
+  closeQuit();
+  quitAsk = document.body.appendChild(document.createElement('div'));
+  quitAsk.className = 'report shareask quitask';
+  quitAsk.innerHTML = `<div class="report-in">
+    <h1>Are you sure?</h1>
+    <p class="muted">This game ends here and can't be picked up again.</p>
+    ${thrown(match) ? `<label class="tick"><input type="checkbox" checked> Save your results?</label>
+      <p class="muted small">Saved, the darts thrown in this game count in your stats. Unticked, the game is thrown away, darts and all.</p>` : ''}
+    <div class="row"><button class="danger" data-quit="yes">Quit game</button>
+      <button class="primary" data-quit="no">Keep playing</button></div></div>`;
+  quitAsk.querySelector('.primary').focus();
+}
+function closeQuit() { quitAsk?.remove(); quitAsk = null; }
+document.addEventListener('click', e => {
+  const answer = e.target.closest('.quitask [data-quit]')?.dataset.quit;
+  if (!answer) return;
+  const save = !!quitAsk.querySelector('input')?.checked;
+  closeQuit();
+  if (answer === 'yes' && match) quitGame(save);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQuit(); });
+function quitGame(save) {
+  if (save) data.saveMatch(match);  // as it stands: every dart of it is already queued
+  else data.quitMatch(match);
   match = null;
   store.set('match', null);
   padValue = ''; padAsk = null; padError = '';
@@ -480,7 +569,7 @@ function place() {
     const top = drill.at(-1), m = top?.v === 'match' && statsData && deep(statsData).matches.find(m => m.id === top.id);
     url = m ? gameUrl(m.game, m.opts, m.id) : '#/stats';
   }
-  if (screen === 'settings') { at.settingsTab = settingsTab; url = '#/settings'; }
+  if (screen === 'settings') { Object.assign(at, { settingsTab, settingsOpen, fromList }); url = '#/settings'; }
   if (screen === 'cameras') url = '#/cameras';
   return [at, '', url];
 }
@@ -509,7 +598,7 @@ function show(at) {
   if (at.screen === 'game') return match?.id === at.id ? renderGame() : renderSheet(at.id, at.name);
   if (at.screen === 'players') {
     // (adding and editing players was once part of the stats: an entry from then finds them in the settings)
-    if (at.editing || at.statsTab === 'edit') { settingsTab = 'players'; return renderSettings(); }
+    if (at.editing || at.statsTab === 'edit') { settingsTab = 'players'; return renderSettings(true); }
     if ('statsFor' in at) ({ statsFor, statsGame, statsTab } = at);
     statsDarts = at.statsDarts ?? null;
     drill = (at.drill ?? []).map(level => ({ ...level }));
@@ -517,7 +606,7 @@ function show(at) {
   }
   // (the cameras were once a tab of the settings: a history entry from then still finds them)
   if (at.screen === 'cameras' || (at.screen === 'settings' && at.settingsTab === 'cams')) return renderCameras();
-  if (at.screen === 'settings') { settingsTab = at.settingsTab ?? settingsTab; return renderSettings(); }
+  if (at.screen === 'settings') { settingsTab = at.settingsTab ?? settingsTab; settingsOpen = !!at.settingsOpen; fromList = !!at.fromList; return renderSettings(); }
   return renderHome();
 }
 // The app's own Menu and Back buttons take the same steps as the browser's.
@@ -530,10 +619,11 @@ function goBack() {
   if (depth) history.back(); else goHome();
 }
 addEventListener('popstate', e => {
-  quitArmed = removeArmed = addingPlayer = false;
+  removeArmed = addingPlayer = false;
   formError = '';
   dartsForm = dartsError = null;
   closeFirst();
+  closeQuit();
   if (bull) { clearTimeout(bull.timer); bull = null; }
   if (e.state?.screen) { depth = e.state.depth ?? 0; return show(e.state); }
   depth++;  // an address typed in by hand: a new entry with nothing riding along
@@ -854,7 +944,7 @@ function goTo(place) {
   const deep = screen === 'home' || screen === 'sheet' || (screen === 'players' && drill.length > 0);
   if (place === 'players') { drill = []; renderPlayers(); }
   if (place === 'cameras') { camAdding = false; camStep = camNote = ''; renderCameras(); }
-  if (place === 'settings') renderSettings();
+  if (place === 'settings') { settingsOpen = fromList = false; renderSettings(); }
   mark(deep);
 }
 
@@ -872,12 +962,12 @@ function renderHome() {
   }
   cleanSetup();
   store.set('setup', setup);
-  const start = `<button class="primary start" data-act="start" ${setup.players.length ? '' : 'disabled'}>Start ${game.name}</button>`;
+  const start = `<button class="primary start" data-act="start" ${seats().some(id => id !== BOT) ? '' : 'disabled'}>Start ${game.name}</button>`;
   const scrolled = document.querySelector('.home-body')?.scrollTop ?? 0;  // a tap redraws the menu: stay where it was
   const steps = [['game', 'Game', esc(game.name)]];
   if (game.options.length) steps.push(['options', 'Options', esc(optsBrief(game))]);
   steps.push(['players', 'Players', playersBrief()]);
-  if (homeStep === undefined) homeStep = setup.players.length ? null : 'players';
+  if (homeStep === undefined) homeStep = seats().length ? null : 'players';
   if (!steps.some(s => s[0] === homeStep)) homeStep = null;
   // One step of the menu. On a phone it is a numbered line saying what is chosen, which opens
   // to change it; on a computer every step is open under its heading (see style.css).
@@ -903,11 +993,11 @@ function renderHome() {
       : stepper(o)}</div>`).join('')}
     <button class="step-next" data-step="${after('options')[0]}">Next: ${after('options')[1].toLowerCase()}</button>`) : ''}
     ${step('players', `${players.length ? `<div class="row">${players.map(p => {
-      const n = setup.players.indexOf(p.id);
+      const n = seats().indexOf(p.id);
       return `<button class="chip ${n >= 0 ? 'on' : ''}" data-pick="${p.id}">${n >= 0 ? `<i>${n + 1}</i>` : ''}${esc(p.name)}</button>`;
-    }).join('')}${addingPlayer ? '' : '<button class="chip ghost" data-act="newplayer">+ New</button>'}</div>
+    }).join('')}${game.bot ? botChip() : ''}${addingPlayer ? '' : '<button class="chip ghost" data-act="newplayer">+ New</button>'}</div>
     <p class="muted small">Tap who is playing, in throwing order. With two or more, Start asks who throws first: closest to the bull, or random.</p>
-    ${dartsRows()}`
+    ${botRow()}${dartsRows()}`
       : '<p class="muted">Add a player to get started.</p>'}
     ${addingPlayer || !players.length ? newPlayerRow() : ''}`)}
     <span class="spacer"></span>
@@ -939,8 +1029,22 @@ function optsBrief(game) {
 }
 // Who is playing, in the order they will throw.
 function playersBrief() {
-  if (!setup.players.length) return players.length ? 'Choose who is playing' : 'Add a player';
-  return esc(setup.players.map(nameOf).join(', '));
+  if (!seats().length) return players.length ? 'Choose who is playing' : 'Add a player';
+  return esc(seats().map(nameOf).join(', '));
+}
+// The computer, among the players to tap (in a game it can play), and once it is playing, how good it is.
+function botChip() {
+  const n = seats().indexOf(BOT);
+  return `<button class="chip ${n >= 0 ? 'on' : ''}" data-pick="${BOT}" title="Play against the computer">${n >= 0 ? `<i>${n + 1}</i>` : ''}Bot</button>`;
+}
+function botRow() {
+  if (!seats().includes(BOT)) return '';
+  const b = botAt();
+  return `<div class="opt"><span>Bot level</span><div class="choices stepper">
+      <button data-botlevel="-1" aria-label="Easier" ${b.level <= 1 ? 'disabled' : ''}>−</button>
+      <b>${b.level}</b><button data-botlevel="1" aria-label="Harder" ${b.level >= LEVELS.length ? 'disabled' : ''}>+</button></div></div>
+    <p class="muted small">Level ${b.level} of ${LEVELS.length}: the computer averages about ${b.average} and hits about ${
+      Math.round(b.checkout * 100)}% of its darts at a double.</p>`;
 }
 // With two or more playing, Start (and Play again) asks how to settle who throws first:
 // a dart each at the bull (see renderBull), or at random. The last answer is kept
@@ -982,21 +1086,25 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFirst()
 let bull = null;  // {act: 'start' or 'rematch', ids: the players, darts: each dart thrown, timer: the game about to start}
 const BULL_PAUSE = 4000;  // ms the result stays up before the game starts by itself
 function openBull(act) {
-  bull = { act, ids: [...setup.players], darts: [], timer: 0 };
+  bull = { act, ids: seats(), darts: [], timer: 0, botTimer: 0 };
   say(`Closest to the bull. ${nameOf(bull.ids[0])} to throw`);
   renderBull();
 }
 function closeBull() {
   if (!bull) return;
   clearTimeout(bull.timer);
+  clearTimeout(bull.botTimer);
   const { act } = bull;
   bull = null;
   if (screen !== 'bull') return;
   if (act === 'rematch' && match) renderGame(); else renderHome();
 }
-function bullDart(d) {
-  if (bullUp(bull.ids, bull.darts).order) return;  // settled: a dart now is not part of it
-  bull.darts.push(d);
+// bot: the dart is the computer's own. While it is the computer's throw, no other dart counts.
+function bullDart(d, bot = false) {
+  const now = bullUp(bull.ids, bull.darts);
+  if (now.order) return;  // settled: a dart now is not part of it
+  if ((now.next === BOT) !== bot) return;
+  bull.darts.push(bot ? { ...d, bot } : d);
   const b = bullUp(bull.ids, bull.darts);
   if (b.order) {
     say(`${nameOf(b.order[0])} is closest`);
@@ -1012,6 +1120,15 @@ function bullStart() {
   clearTimeout(bull.timer);
   bull = null;
   startMatch(act, order);
+}
+// The computer's dart at the bull, a moment after its turn comes.
+function bullBot() {
+  const mine = bull;
+  clearTimeout(mine.botTimer);
+  if (bullUp(mine.ids, mine.darts).next !== BOT) return;
+  mine.botTimer = setTimeout(() => {
+    if (bull === mine && screen === 'bull') bullDart(throwAt({ seg: 25, mult: 2 }, botAt().finish), true);
+  }, BOT_WAIT);
 }
 const nth = n => `${n}${['th', 'st', 'nd', 'rd'][n % 10 < 4 && (n % 100 - n % 10 !== 10) ? n % 10 : 0]}`;
 function renderBull() {
@@ -1047,18 +1164,22 @@ function renderBull() {
   boardUI.showTarget(null);
   refreshStatus();
   fit();
+  bullBot();
 }
 // A new game with the players chosen, throwing in `order` (as picked, when there is none): from Start on the
 // menu, or "Play again" at the end of a game (which takes that game's place in the history).
 function startMatch(act, order) {
   cleanSetup();
-  if (!setup.players.length) return renderHome();
+  if (!seats().some(id => id !== BOT)) return renderHome();
   // (the order settled a moment ago, less anyone removed since, on another device say)
-  const ids = order ? order.filter(id => setup.players.includes(id)) : [...setup.players];
+  // The computer takes its seat as the player its level's games are kept under.
+  const level = botAt().level;
+  const ids = (order ? order.filter(id => seats().includes(id)) : seats())
+    .map(id => id === BOT ? botPlayer(level) : id).filter(id => id != null);
   match = {
     ...newMatch(setup.gameId, ids.map(nameOf), startOpts()),
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-    playerIds: ids, darts: ids.map(dartsFor), seq: 0,
+    playerIds: ids, darts: ids.map(dartsFor), bots: ids.map(id => bots.find(b => b.id === id)?.bot ?? null), seq: 0,
   };
   store.set('match', match);
   const opening = compute(match), aim = gameById(match.gameId).aim?.(opening);  // the first thing to aim at (Random Targets, Around the Clock)
@@ -1117,7 +1238,7 @@ function addPlayer() {
   if (!name) return input.focus();
   try {
     const p = data.addPlayer(name);
-    players = store.get('players', []);
+    loadPlayers();
     formError = '';
     addingPlayer = false;
     // Added on the menu, they are playing; added in the settings, they are only on the list
@@ -1385,14 +1506,15 @@ function drawPlayers() {
     ${game?.id === 'x01' ? (x ? x01Tiles(x) : '')
       : game && st.detail ? `<h2>${game.name} averages</h2><div class="tiles">${gameTiles(game.id, st.detail, gamesOf(game.name))}</div>` : ''}
     <h2>${game ? `${game.name} darts` : 'All games'}${st.since ? ` · since ${new Date(st.since).toLocaleDateString()}` : ''}</h2>
-    <div class="tiles">${tile('Darts thrown', st.darts, numbers)}${tile('Trebles', pct(st.trebles, st.darts), numbers)}
+    <div class="tiles">${tile('Darts thrown', st.darts, numbers)}${tile('Time played', st.played_ms ? timeSpent(st.played_ms) : null)}${tile('Trebles', pct(st.trebles, st.darts), numbers)}
       ${tile('Doubles', pct(st.doubles, st.darts), numbers)}${tile('Bulls and 25s', st.bulls, numbers)}${tile('Misses', pct(st.misses, st.darts), numbers)}
       ${tile('Most hit', st.segments.slice(0, 3).map(g => g.seg === 25 ? 'Bull' : g.seg).join(', ') || null, numbers)}</div>
     ${x && !game ? `<h2>X01</h2><div class="tiles">${x01Tiles(x, X01_HEADLINES)}</div>` : ''}</div>
     <div class="p-games">${st.games.length ? `<h2>Finished games</h2>
-    <table class="plain"><tr><th>Game</th><th>Played</th><th>Won (2+ players)</th><th>Average time</th><th>Quickest</th></tr>${st.games.map(g =>
+    <table class="plain"><tr><th>Game</th><th>Played</th><th>Won (2+ players)</th><th>Average time</th><th>Quickest</th><th class="wide">Total time</th></tr>${st.games.map(g =>
       `<tr${opens(gamesOf(g.game))}><td>${esc(g.game)}</td><td>${g.played}</td><td>${g.won}</td>
-       <td>${g.avg_ms != null ? clock(g.avg_ms) : '–'}</td><td>${g.best_ms != null ? clock(g.best_ms) : '–'}</td></tr>`).join('')}</table>`
+       <td>${g.avg_ms != null ? clock(g.avg_ms) : '–'}</td><td>${g.best_ms != null ? clock(g.best_ms) : '–'}</td>
+       <td class="wide">${g.total_ms ? timeSpent(g.total_ms) : '–'}</td></tr>`).join('')}</table>`
       : '<p class="muted">No finished games yet.</p>'}${gearHtml(st, game)}</div>
     <div class="p-board">${st.recent.length ? `<h2>Heat map · ${game ? `${game.name}, ` : ''}${
       st.recent.length === 1 ? '1 dart' : `${st.recent.length < 5000 ? '' : 'last '}${st.recent.length} darts`}</h2>
@@ -1497,7 +1619,7 @@ function renamePlayer(id) {
   if (!name || name === nameOf(id)) return;
   try {
     data.renamePlayer(id, name);
-    players = store.get('players', []);
+    loadPlayers();
     formError = '';
     renameFailed = null;
     data.sync();
@@ -1511,7 +1633,7 @@ function removePlayer(id) {
   if (removeArmed !== id) { removeArmed = id; return renderSettings(); }
   removeArmed = false;
   data.removePlayer(id);
-  players = store.get('players', []);
+  loadPlayers();
   cleanSetup();
   saveSetup();
   formError = '';
@@ -1592,6 +1714,7 @@ function drawSheet() {
 let padValue = '', padAsk = null, padError = '';
 const usingPad = game => !!game.visit && settings.entry === 'pad';
 function padKey(key) {
+  if (botUp()) return;
   padError = '';
   if (key === 'back') padValue = padValue.slice(0, -1);
   else if (key === 'enter') return padEnter();
@@ -1613,11 +1736,12 @@ function padCommit(total, darts) {
 }
 function padHtml(s) {
   const midVisit = s.turn.length && !s.turnOver;
-  const msg = padError || (midVisit ? 'Finish this visit on the board, or undo those darts'
+  const bot = botUp(s);
+  const msg = padError || (bot ? `${esc(s.players[s.current])} is throwing` : midVisit ? 'Finish this visit on the board, or undo those darts'
     : padAsk ? `${padAsk.total} to finish. How many darts?`
     : s.legWon ? `${esc(s.players[s.legWon.player])} won the ${s.legWon.set ? 'set' : 'leg'}`
     : s.lastVisit ? `${esc(s.players[s.lastVisit.player])} scored ${s.lastVisit.total}` : 'Type the visit total');
-  const off = midVisit || s.winner != null ? 'disabled' : '';
+  const off = bot || midVisit || s.winner != null ? 'disabled' : '';
   const keys = padAsk
     ? padAsk.darts.map(n => `<button class="primary" data-fin="${n}">${n} dart${n > 1 ? 's' : ''}</button>`).join('')
       + '<button class="wide" data-key="cancel">Cancel</button>'
@@ -1659,7 +1783,7 @@ function renderGame() {
     screen = 'game';
     $app.innerHTML = `<div class="game"><div class="side"></div>
       <div class="boardwrap"><svg id="board"></svg><div class="pad"></div></div><div class="tvbar"></div></div>`;
-    boardUI = buildBoard(document.getElementById('board'), d => push({ t: 'dart', ...d, src: 'tap' }));
+    boardUI = buildBoard(document.getElementById('board'), d => { if (!botUp()) push({ t: 'dart', ...d, src: 'tap' }); });
   }
   const game = gameById(match.gameId);
   const s = compute(match);
@@ -1701,7 +1825,7 @@ function renderGame() {
       ${connected && cameraCount > 0 ? '<button data-act="report" title="A dart was scored wrongly: save what the cameras saw">Report</button>' : ''}
       ${canTv(game, s) ? `<button data-act="tv">${tv ? 'Card view' : 'TV view'}</button>` : ''}
       ${game.visit ? `<button data-act="entry">${pad ? 'Use board' : 'Type scores'}</button>` : ''}
-      ${s.winner == null ? `<button class="danger swap" data-act="quit"><span${quitArmed ? ' class="hid" aria-hidden="true"' : ''}>Quit game</span><span${quitArmed ? '' : ' class="hid" aria-hidden="true"'}>Tap again</span></button>` : ''}</div>
+      ${s.winner == null ? `<button class="danger" data-act="quit">Quit game</button>` : ''}</div>
     ${tv ? '' : `<div class="players">${s.players.map((p, i) => {
       const v = game.summary(s, i);
       return `<div class="pcard ${s.winner === i ? 'win' : s.winner == null && i === s.current ? 'cur' : ''}${v.out ? ' out' : ''}">
@@ -1716,13 +1840,14 @@ function renderGame() {
       <button data-act="undo" ${match.log.length ? '' : 'disabled'}>Undo</button>
       ${s.winner != null
         ? '<button data-act="home">Menu</button><button class="primary" data-act="rematch">Play again</button>'
-        : pad ? '' : `<button data-act="miss">Miss</button>
-           <button class="${s.turnOver ? 'primary' : ''}" data-act="next">Next player ›</button>`}
+        : pad ? '' : `<button data-act="miss" ${botUp(s) ? 'disabled' : ''}>Miss</button>
+           <button class="${s.turnOver ? 'primary' : ''}" data-act="next" ${botUp(s) ? 'disabled' : ''}>Next player ›</button>`}
     </div>`;
-  boardUI.showDarts(shown);
+  boardUI.showDarts(shown, 5, botFlight && settings.flight !== false && !pad);
   boardUI.showTarget(game.target?.(s) ?? null);
   refreshStatus();
   fit();
+  botSoon();
 }
 
 // The match clock in the top bar ticks between renders.
@@ -1797,55 +1922,90 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.closest('.report input')) saveReport(); });
 
 // ---------- settings ----------
-// On a computer, a row of tabs with one of them on screen at a time. On a phone
-// or a tablet there are no tabs: every section is on the one page, each under
-// its name, and the page scrolls. All of them are drawn either way and
-// style.css shows what belongs (as with the app's four places, see nav()).
-let settingsTab = '';  // the tab on screen; '' until opened, then the first
-// jump: bring the section asked for into view, for someone sent to it from elsewhere.
+// The settings are a handful of sections (SECTIONS below), all drawn every time;
+// style.css shows what belongs (as with the app's four places, see nav()):
+//  - on a computer, a row of tabs with one section on screen at a time;
+//  - on a phone, a list of the sections, each line saying how it is set. A tap
+//    opens that section by itself, with a way back to the list above it;
+//  - on a tablet on its side, the list down the left and the section beside it.
+// Every section is made of the same few parts: a line that opens something
+// (setRow), a switch for on or off (switchRow) and one of several to choose
+// (pickRow), each a whole line to tap.
+let settingsTab = '';      // the section on screen; '' until opened, then the first
+let settingsOpen = false;  // on a phone: a section is open, not the list
+let fromList = false;      // and it was opened from the list, which is the history entry under this one
+const chevron = icon('<path d="M9 5l7 7-7 7"/>'), tickMark = icon('<path d="M5 12.5l4.5 4.5L19 7.5"/>');
+const setRow = (id, name, value) => `<button class="srow ${settingsTab === id ? 'cur' : ''}" data-sopen="${id}">
+    <span><b>${name}</b>${value ? `<small>${value}</small>` : ''}</span><u>${chevron}</u></button>`;
+// attr: what a tap does (the data- attribute read by the click handler), written for the way it is not now.
+const switchRow = (name, on, attr, hint = '') => `<button class="srow switchrow" role="switch" aria-checked="${on}" ${attr}>
+    <span><b>${name}</b>${hint ? `<small>${hint}</small>` : ''}</span><i class="switch"></i></button>`;
+const pickRow = (name, on, attr, hint = '') => `<button class="srow pickrow ${on ? 'on' : ''}" role="radio" aria-checked="${on}" ${attr}>
+    <span><b>${name}</b>${hint ? `<small>${hint}</small>` : ''}</span><u>${on ? tickMark : ''}</u></button>`;
+const canFeedBack = () => account.hosted ? !!account.account : !!share?.on;
+// jump: open the section asked for, for someone sent to it from elsewhere.
 function renderSettings(jump) {
   if (account.locked) return renderLanding();
-  const scrolled = screen === 'settings' ? document.querySelector('.setbody')?.scrollTop ?? 0 : 0;  // a tap redraws: stay where it was
+  if (jump) { settingsOpen = true; fromList = false; }
+  const was = screen === 'settings' ? document.querySelector('.setbody') : null;
   screen = 'settings';
-  const look = `<div class="settings">
-    <div class="opt solo"><span>Theme</span><div><div class="choices themes">${THEMES.map(t =>
-      `<button class="${t.id === applyTheme().id ? 'on' : ''}" data-theme="${t.id}">${t.name}</button>`).join('')}</div>
-      <p class="muted small">${applyTheme().blurb}</p></div></div>
-    </div>`;
-  const sound = `<div class="settings">
-    <div class="opt"><span>Call scores aloud</span><div class="choices">
-      <button class="${settings.voice ? 'on' : ''}" data-voice="on">On</button>
-      <button class="${settings.voice ? '' : 'on'}" data-voice="off">Off</button></div></div>
+  const theme = applyTheme();
+  const look = `<div class="settings"><div class="rows" role="radiogroup" aria-label="Theme">${THEMES.map(t =>
+    pickRow(t.name, t.id === theme.id, `data-theme="${t.id}"`, t.blurb)).join('')}</div></div>`;
+  const hints = settings.checkouts !== false;
+  const game = `<div class="settings"><div class="rows">
+    ${switchRow('Call scores aloud', settings.voice, `data-voice="${settings.voice ? 'off' : 'on'}"`)}
     ${voicePicker()}
-    </div>`;
-  const play = `<div class="settings">
-    <div class="opt"><span>Checkout hints</span><div class="choices">
-      <button class="${settings.checkouts !== false ? 'on' : ''}" data-checkouts="on">Show</button>
-      <button class="${settings.checkouts !== false ? '' : 'on'}" data-checkouts="off">Hide</button></div></div>
-    <p class="muted small">Hide them to practise working out your finishes yourself.</p>
-    ${versionLine()}
-    </div>`;
-  // two lots: side by side on a tablet on its side, one under the other on anything narrower
-  const cols = [
-    [...(account.hosted ? [['acct', 'Account', accountPanel()]] : []), ['look', 'Theme', look], ['sound', 'Sound', sound], ['play', 'Games', play]],
-    [['players', 'Players and darts', playersPanel()], ...(!account.hosted && share ? [['share', 'Sharing', sharePanel()]] : [])],
-  ];
-  const tabs = cols.flat();
+    ${switchRow('Checkout hints', hints, `data-checkouts="${hints ? 'off' : 'on'}"`, 'Switch off to practise working out your finishes yourself.')}
+    ${switchRow('Show the bot\'s darts landing', settings.flight !== false, `data-flight="${settings.flight !== false ? 'off' : 'on'}"`, 'Against the computer, each of its darts flies in to where it lands on the board.')}
+    </div></div>`;
+  // [id, its name, its name on a tab, how it is set (the list says), the section]: in the list's groups
+  const groups = [
+    account.hosted && account.account ? [['acct', 'Account', 'Account', esc(account.account.nickname ?? ''), accountPanel()]] : [],
+    [['players', 'Players and darts', 'Players', esc(players.map(p => p.name).join(', ')) || 'Nobody yet', playersPanel()]],
+    [['look', 'Theme', 'Theme', theme.name, look],
+      ['game', 'In a game', 'In a game', `${settings.voice && !voice.none() ? 'Scores called aloud' : 'Scores not called'} · ${hints ? 'checkout hints on' : 'checkout hints off'}`, game]],
+    [...(!account.hosted && share ? [['share', 'Sharing', 'Sharing', share.on ? 'On' : 'Off', sharePanel()]] : []),
+      ...(canFeedBack() ? [['feedback', 'Send feedback', 'Feedback', '', `<div class="settings">${feedbackBox()}</div>`]] : []),
+      ['about', 'About', 'About', appRelease() && `Version ${esc(appRelease())}`, aboutPanel()]],
+  ].filter(g => g.length);
+  const tabs = groups.flat();
   if (settingsTab === 'darts') settingsTab = 'players';  // once a tab of their own
-  if (!tabs.some(t => t[0] === settingsTab)) settingsTab = tabs[0][0];
-  $app.innerHTML = `<div class="page">
+  if (settingsTab === 'sound' || settingsTab === 'play') settingsTab = 'game';  // and these two, one each
+  if (!tabs.some(t => t[0] === settingsTab)) { settingsTab = tabs[0][0]; settingsOpen = false; }
+  const view = settingsOpen ? settingsTab : '';
+  $app.innerHTML = `<div class="page setpage ${settingsOpen ? 'insect' : 'atlist'}">
     ${pageHead('settings')}
-    ${tabs.length > 1 ? `<div class="row tabs stabs">${tabs.map(([id, name]) =>
-      `<button class="${settingsTab === id ? 'on' : ''}" data-stab="${id}">${name}</button>`).join('')}</div>` : ''}
-    <div class="fill setbody">${cols.map(col => `<div class="setcol">${col.map(([id, name, html]) =>
-      html ? `<section class="sect ${settingsTab === id ? 'on' : ''}"><h2>${name}</h2>${html}</section>` : '').join('')}</div>`).join('')}</div>
+    <div class="row tabs stabs">${tabs.map(([id, , name]) =>
+      `<button class="${settingsTab === id ? 'on' : ''}" data-stab="${id}">${name}</button>`).join('')}</div>
+    <div class="sethead"><button class="ghost sback" data-act="sback">${icon('<path d="M15 5l-7 7 7 7"/>')}Settings</button></div>
+    <div class="fill setbody" data-view="${view}">
+      <nav class="setlist" aria-label="Settings">${groups.map(g =>
+        `<div class="rows">${g.map(([id, name, , value]) => setRow(id, name, value)).join('')}</div>`).join('')}</nav>
+      <div class="setsects">${tabs.map(([id, name, , , html]) =>
+        `<section class="sect ${settingsTab === id ? 'on' : ''}"><h2>${name}</h2>${html}</section>`).join('')}</div>
+    </div>
     ${pageFoot('settings')}
   </div>`;
-  const body = document.querySelector('.setbody');
-  body.scrollTop = scrolled;
-  if (jump && STACKED.matches) body.querySelector('.sect.on')?.scrollIntoView();
+  if (was?.dataset.view === view) document.querySelector('.setbody').scrollTop = was.scrollTop;  // a tap redraws: stay where it was
   refreshStatus();
   fit();
+}
+// A section opened from the list (on a phone, a step that Back undoes), and the way back to the list.
+function openSection(id) {
+  const step = STACKED.matches && !SPLIT.matches && !settingsOpen;
+  settingsTab = id;
+  settingsOpen = true;
+  if (step) fromList = true;
+  renderSettings();
+  mark(step);
+  if (step) document.querySelector('.sback')?.focus();
+}
+function closeSection() {
+  if (fromList && depth) return history.back();
+  settingsOpen = false;
+  renderSettings();
+  mark();
 }
 
 // ---------- the first time the desktop app is opened ----------
@@ -1912,7 +2072,7 @@ function finishWelcome(camera) {
   if (welcomeDue()) store.set('newcomer', null);  // answered; their player came with the account (see synced())
   else try {
     const p = data.addPlayer(welcomeName);
-    players = store.get('players', []);
+    loadPlayers();
     setup.players = [p.id];  // ready to throw
     saveSetup();
   } catch (e) {
@@ -2213,17 +2373,16 @@ function accountPanel() {
   if (!account.account) return '';  // signed out is the welcome page's business
   return `<div class="settings">
     ${note}
-    ${acctDeleting ? `<p>This deletes your games and stats for good.</p>
-    <div class="row"><button class="danger" data-act="acct-delete-yes">Delete</button><button data-act="acct-delete-no">Keep</button></div>`
-    : acctSigningOut ? `<p>Are you sure you want to sign out?</p>
+    ${acctSigningOut ? `<p>Are you sure you want to sign out?</p>
     <div class="row"><button data-act="acct-signout-yes">Sign out</button><button data-act="acct-signout-no">Stay signed in</button></div>`
-    : `<div class="row"><button data-act="acct-signout">Sign out</button>
-      <button class="danger" data-act="acct-delete">Delete my account</button></div>`}
-    ${feedbackBox()}
+    : acctDeleting ? '' : '<div class="rows"><button class="srow" data-act="acct-signout"><span><b>Sign out</b></span></button></div>'}
     <p class="muted small"><a href="privacy.html" target="_blank" rel="noopener">What is stored about you</a>${
-      account.account.admin ? ' · <a href="/admin">The trial\'s admin pages</a>' : ''}</p></div>`;
+      account.account.admin ? ' · <a href="/admin">The trial\'s admin pages</a>' : ''}</p>
+    <div class="setend">${acctDeleting ? `<p>This deletes your account, games and stats for good.</p>
+    <div class="row"><button class="danger" data-act="acct-delete-yes">Delete</button><button data-act="acct-delete-no">Keep</button></div>`
+    : '<button class="ghost danger" data-act="acct-delete">Delete my account</button>'}</div></div>`;
 }
-const onAccountTab = () => screen === 'settings' && (sectShown('acct') || sectShown('share'));
+const onAccountTab = () => screen === 'settings' && (sectShown('acct') || sectShown('share') || sectShown('feedback') || listShown());
 const feedbackBox = () => `<div class="feedback"><label for="fb-text">Tell us what you think: what works, what doesn't, what's missing.</label>
       <textarea id="fb-text" rows="3" maxlength="2000"></textarea>
       <div class="row"><button data-act="feedback">Send feedback</button><span class="muted">${esc(fbNote)}</span></div></div>`;
@@ -2298,20 +2457,17 @@ async function deleteShared() {
 function sharePanel() {
   if (!share) return '<p class="muted">Not connected to the Pi.</p>';
   return `<div class="settings">
-    <div class="opt"><span>Send to Darts S.A.M</span><div class="choices">
-      <button class="${share.on ? 'on' : ''}" data-act="share-on">On</button>
-      <button class="${share.on ? '' : 'on'}" data-act="share-off">Off</button></div></div>
+    <div class="rows">${switchRow('Send to Darts S.A.M', share.on, `data-act="share-${share.on ? 'off' : 'on'}"`)}</div>
     ${shareNote ? `<p class="warn">${esc(shareNote)}</p>` : ''}
     <p class="muted small">${share.on ? 'This computer sends to Darts S.A.M, to help improve the camera scoring:'
       : 'Off: everything stays on this computer. Switched on, this computer sends to Darts S.A.M, to help improve the camera scoring:'}</p>
     <div class="muted small">${SHARED}</div>
     <p class="muted small">No account, name or email address is asked for or sent.${share.paired
       ? ' These cameras are paired with an online account, so problem reports go to that account.' : ''}</p>
-    ${share.on ? feedbackBox() : ''}
-    ${shareDeleting ? `<p>This stops sharing and deletes from Darts S.A.M everything this computer has sent. Your games here are not touched.</p>
+    <p class="muted small"><a href="privacy.html" target="_blank" rel="noopener">What is sent, and what is done with it</a></p>
+    <div class="setend">${shareDeleting ? `<p>This stops sharing and deletes from Darts S.A.M everything this computer has sent. Your games here are not touched.</p>
     <div class="row"><button class="danger" data-act="share-delete-yes">Delete</button><button data-act="share-delete-no">Keep</button></div>`
-    : '<div class="row"><button data-act="share-delete">Delete what has been sent</button></div>'}
-    <p class="muted small"><a href="privacy.html" target="_blank" rel="noopener">What is sent, and what is done with it</a></p></div>`;
+    : '<button class="ghost danger" data-act="share-delete">Delete what has been sent</button>'}</div></div>`;
 }
 document.addEventListener('click', e => {
   const answer = e.target.closest('.shareask [data-share]')?.dataset.share;
@@ -2426,7 +2582,6 @@ $app.addEventListener('click', e => {
   if (b.tagName === 'A') e.preventDefault();  // a link that does something on this page instead (see landNav)
   const d = b.dataset;
   if (d.act !== 'remove') removeArmed = false;
-  if (d.act !== 'quit') quitArmed = false;
   if (d.act !== 'addplayer' && d.act !== 'rename' && d.act !== 'remove') formError = '';
   if (!/darts$/.test(d.act ?? '')) dartsError = null;
   if (d.act !== 'addplayer') addingPlayer = d.act === 'newplayer';
@@ -2468,7 +2623,8 @@ $app.addEventListener('click', e => {
     return mark();
   }
   if (d.nav) return goTo(d.nav);
-  if (d.stab) { settingsTab = d.stab; renderSettings(true); return mark(); }
+  if (d.stab) { settingsTab = d.stab; renderSettings(); return mark(); }
+  if (d.sopen) return openSection(d.sopen);
   if (d.camremove) return changeCameras('/cameras/remove', { name: d.camremove });
   if (d.camoff) return changeCameras('/cameras/enabled', { name: d.camoff, on: false });
   if (d.camon) return changeCameras('/cameras/enabled', { name: d.camon, on: true });
@@ -2478,6 +2634,8 @@ $app.addEventListener('click', e => {
   if (d.fin) return padCommit(padAsk.total, +d.fin);
   if (d.theme) { settings.theme = d.theme; saveSettings(); applyTheme(); renderSettings(); return mark(); }
   if (d.checkouts) { settings.checkouts = d.checkouts === 'on'; saveSettings(); return renderSettings(); }
+  if (d.flight) { settings.flight = d.flight === 'on'; saveSettings(); return renderSettings(); }
+  if (d.botlevel) { setup.bot = botLevel(botAt().level + +d.botlevel).level; saveSetup(); return renderHome(); }
   if (d.voice) {
     settings.voice = d.voice === 'on';
     saveSettings();
@@ -2526,16 +2684,20 @@ $app.addEventListener('click', e => {
     case 'start':
     case 'rematch':
       cleanSetup();
-      if (setup.players.length > 1) return askFirst(d.act);
+      if (seats().length > 1) return askFirst(d.act);
       return startMatch(d.act);
     case 'bull-cancel': return closeBull();
-    case 'bull-undo': clearTimeout(bull.timer); bull.darts.pop(); return renderBull();
+    case 'bull-undo':
+      clearTimeout(bull.timer);
+      while (bull.darts.at(-1)?.bot) bull.darts.pop();  // the computer's dart goes with the one before it
+      bull.darts.pop();
+      return renderBull();
     case 'bull-random': { const { act } = bull; clearTimeout(bull.timer); bull = null; return startMatch(act, randomOrder()); }
     case 'bull-start': return bullStart();
     case 'resume': renderGame(); return mark(true);
-    case 'quit': return quitGame();
+    case 'quit': return askQuit();
     case 'home': return goHome();
-    case 'settings': renderSettings(); return mark(true);
+    case 'settings': settingsOpen = fromList = false; renderSettings(); return mark(true);
     case 'cameras': camAdding = false; camStep = camNote = ''; renderCameras(); return mark(true);
     case 'camadd': camAdding = true; camFirst = false; camStep = camNote = ''; return renderCameras();
     case 'camadd-done': camAdding = false; camStep = camNote = ''; return renderCameras();
@@ -2553,9 +2715,9 @@ $app.addEventListener('click', e => {
       saveSettings();
       return renderGame();
     case 'tv': settings.view = settings.view === 'tv' ? 'cards' : 'tv'; saveSettings(); return renderGame();
-    case 'miss': return push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
+    case 'miss': return botUp() ? undefined : push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
     case 'next':
-      if (compute(match).lastVisit?.auto) return;  // the third dart already moved play on
+      if (compute(match).lastVisit?.auto || botUp()) return;  // the third dart already moved play on, or the computer is up
       return push({ t: 'next' });
     case 'reset': return resetDetection();
     case 'refreshcams': return refreshCameras();
@@ -2578,6 +2740,7 @@ $app.addEventListener('click', e => {
     case 'mail-send': return sendCode();
     case 'mail-code': return signIn('email', { email: mailTo, code: document.getElementById('mail-code').value });
     case 'mail-back': mailStep = 'ask'; landNote = ''; renderLanding(); return document.getElementById('mail-addr').focus();
+    case 'sback': return closeSection();
     case 'acct-signout': acctSigningOut = true; acctNote = ''; return renderSettings();
     case 'acct-signout-no': acctSigningOut = false; return renderSettings();
     case 'acct-signout-yes': return accountDo('signout');

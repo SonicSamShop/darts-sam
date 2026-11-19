@@ -12,8 +12,9 @@
 //
 // Kept in the store (the browser's localStorage, see app.js):
 //   players   [{id, name}]   a player made offline has a negative id until the
-//                            Pi has given them a real one
-//   ops       [{n, op: 'add'|'rename'|'remove', id, name?}]  player changes to send
+//                            Pi has given them a real one. A computer player
+//                            also has bot: its level (see bot.js)
+//   ops       [{n, op: 'add'|'rename'|'remove', id, name?, bot?}]  player changes to send
 //   darts     [{id, player, name, grams, created, retired}]  every player's sets of
 //                            darts; the app makes up their ids, so none is renumbered
 //   dartsq    [id]           sets added or changed here, to send
@@ -78,17 +79,19 @@ export function createSync({ store, api, changed = () => {} }) {
     const ops = get('ops', []);
     set('ops', [...ops, { ...op, n: Math.max(0, ...ops.map(o => o.n)) + 1 }]);
   }
-  function addPlayer(name) {
+  // bot: the level of a computer player; left out for a person.
+  function addPlayer(name, bot) {
     name = checkName(name);
     const players = get('players', []);
     const id = Math.min(0, ...players.map(p => p.id), ...get('ops', []).map(o => o.id)) - 1;
-    set('players', byName([...players, { id, name }]));
-    queue({ op: 'add', id, name });
-    return { id, name };
+    const p = bot ? { id, name, bot } : { id, name };
+    set('players', byName([...players, p]));
+    queue({ op: 'add', ...p });
+    return p;
   }
   function renamePlayer(id, name) {
     name = checkName(name, id);
-    set('players', byName(get('players', []).map(p => p.id === id ? { id, name } : p)));
+    set('players', byName(get('players', []).map(p => p.id === id ? { ...p, name } : p)));
     queue({ op: 'rename', id, name });
     return { id, name };
   }
@@ -171,7 +174,7 @@ export function createSync({ store, api, changed = () => {} }) {
     const swap = ids => ids.map(i => i === old ? id : i);
     const mine = get('players', []).find(p => p.id === old);
     const others = get('players', []).filter(p => p.id !== old && p.id !== id);
-    set('players', byName(mine ? [...others, { id, name: mine.name }] : others));
+    set('players', byName(mine ? [...others, { ...mine, id }] : others));
     set('darts', get('darts', []).map(d => d.player === old ? { ...d, player: id } : d));
     const setup = get('setup', null);
     if (setup?.players?.includes(old) || setup?.darts?.[old]) {
@@ -208,7 +211,7 @@ export function createSync({ store, api, changed = () => {} }) {
       try {
         if (op.op === 'add') {
           let p;
-          try { p = await api('/players', 'POST', { name: op.name }); } catch (e) {
+          try { p = await api('/players', 'POST', op.bot ? { name: op.name, bot: op.bot } : { name: op.name }); } catch (e) {
             // The name is already on the Pi (added from another device, or our
             // own earlier try got there but its reply didn't): use that player.
             if (e.status !== 400) throw e;

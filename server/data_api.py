@@ -18,6 +18,7 @@ from . import db
 
 class Name(BaseModel):
     name: str
+    bot: int | None = None  # a new player only: the level of a computer player
 
 
 class DartsIn(BaseModel):
@@ -80,7 +81,7 @@ def make_router(db_file: Callable[[Request], Path | None], reports: Callable[[],
     @router.post("/api/players")
     def add_player(request: Request, body: Name):
         with db.at(db_file(request)):
-            return _db(db.add_player, body.name)
+            return _db(db.add_player, body.name, body.bot)
 
     @router.patch("/api/players/{player_id}")
     def rename_player(request: Request, player_id: int, body: Name):

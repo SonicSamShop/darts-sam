@@ -26,7 +26,7 @@ def main():
         db.prepare(f)
         n = insight.numbers(f, corrected=0)
         assert n == {"games": 0, "finished": 0, "darts": 0, "kept": 0, "corrected": 0, "missed": 0, "accuracy": None,
-                     "days_played": 0, "last_played": None, "by_game": {}}
+                     "days_played": 0, "last_played": None, "played_ms": 0, "by_game": {}}
 
         with db.at(f):
             pid = db.add_player("Ann")["id"]
@@ -49,6 +49,16 @@ def main():
         assert n["accuracy"] == 8 / 11
         assert n["days_played"] == 2 and n["last_played"] == 12 * DAY
         assert n["by_game"] == {"x01": 2, "cricket": 1}
+        # time played: none of the three was timed, and their darts' times are before their starts: never negative
+        assert n["played_ms"] == 0
+        with db.at(f):  # a timed game counts its time, an untimed one from its start to its last dart
+            db.save_match("timed", {**m(12 * DAY, [throw(1, 20, 1, "tap")], winner=0), "duration": 90000})
+            db.save_match("quit", m(0, [throw(1, 20, 1, "tap"), throw(4, 20, 1, "tap")]))
+        assert insight.numbers(f, corrected=1)["played_ms"] == 90000 + 4000
+        with db.at(f):
+            db.delete_match("quit")
+            db.save_match("timed", {**m(12 * DAY, [throw(1, 20, 1, "tap")]), "seq": 2})
+            assert db.delete_match("timed")
 
         # more corrections recorded than hand-entered darts left (a correction later undone): never negative
         n = insight.numbers(f, corrected=5)

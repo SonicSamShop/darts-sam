@@ -122,15 +122,17 @@ def make_router(store, relay, account) -> APIRouter:
                     f'<td>{setup}</td><td class=n title="{games}">{n["games"]}</td><td class=n>{n["darts"]}</td>'
                     f'<td class=n>{n["kept"]}</td><td class=n>{n["corrected"]}</td><td class=n>{n["missed"]}</td>'
                     f'<td class=n><b>{pct(n["accuracy"])}</b></td><td class=n>{n["days_played"]}</td>'
+                    f'<td class=n>{n["played_ms"] // 3600000}h {n["played_ms"] // 60000 % 60:02d}m</td>'
                     f'<td class=n><a href="/admin/reports?who={e(p["id"])}">{p["reports"]}</a></td>'
                     f'<td>{when(p["created"])}</td><td>{when(p["last_seen"])}</td></tr>')
         table = ("<table><tr><th>Who</th><th>Path</th><th>Set-up</th><th class=n>Games</th><th class=n>Darts</th>"
                  "<th class=n>Camera darts kept</th><th class=n>Corrected</th><th class=n>Missed</th><th class=n>Accuracy</th>"
-                 "<th class=n>Days played</th><th class=n>Reports</th><th>Joined</th><th>Last signed in</th></tr>"
+                 "<th class=n>Days played</th><th class=n>Time played</th><th class=n>Reports</th><th>Joined</th><th>Last signed in</th></tr>"
                  + "".join(row(p) for p in rows) + "</table>")
         legend = ('<p class="muted">Path: ' + " → ".join(insight.STEPS) + ". Kept: camera darts left as scored. Corrected: "
                   "camera darts undone and entered by hand. Missed: darts entered by hand in a game the cameras were "
-                  "scoring. Accuracy = kept ÷ (kept + corrected + missed). Times are UTC.</p>")
+                  "scoring. Accuracy = kept ÷ (kept + corrected + missed). Time played: every game from its start to its winning "
+                  "(or, if not finished, last) dart. Times are UTC.</p>")
         cams = (f"<h2>Accuracy by number of cameras</h2><table style='width:auto'><tr><th>Set-up</th><th class=n>People</th>"
                 f"<th class=n>Accuracy</th><th class=n>Camera darts</th></tr>{split}</table>") if split else ""
         return page("People", f'<div class="tiles">{tiles}</div>{table}{legend}{cams}')

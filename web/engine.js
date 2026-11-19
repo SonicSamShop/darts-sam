@@ -39,6 +39,9 @@
 //   aim?(state)               -> optional: that bed as the caller says it, called out when it changes
 //                                and at the start of each visit; needs no target()
 //   seeded                    -> optional: true to be given opts.seed (a random number)
+//   bot?(state, skill, random) -> optional: the dart {seg, mult, x, y} a computer player of that
+//                                skill throws now (see bot.js). A game with one can be played
+//                                against the computer; the app enters the dart as src 'bot'.
 //   summary() may also return out: true, to grey out a player's card
 //
 // A match of several legs (X01): when a dart or visit wins a leg but not the
@@ -69,6 +72,12 @@ export function clock(ms) {
   const t = Math.floor(ms / 1000), h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60;
   const ss = String(t % 60).padStart(2, '0');
   return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+}
+
+// A length of time added up over many games: 2700000 -> "45 min", 12000000 -> "3 h 20 min"
+export function timeSpent(ms) {
+  const m = Math.floor(ms / 60000), h = Math.floor(m / 60);
+  return h ? `${h.toLocaleString()} h ${m % 60} min` : m ? `${m} min` : 'under a minute';
 }
 
 // The visit before the one being thrown now: {player, darts, bust, typed}, or

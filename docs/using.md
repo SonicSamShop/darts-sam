@@ -20,6 +20,15 @@ account has a database of its own instead.
   before the next player throws; the nearest starts, and players who are level
   throw again) or **Random**. Removing a player only hides them:
   their throws are kept, and adding the same name again brings them back.
+- **Playing the computer:** in X01, **Bot** is one more player to tap. Once it
+  is playing, **Bot level** sets how good it is, from 1 (averages about 18,
+  and hits a double with about 1 dart in 12) to 15 (averages about 110 and
+  hits 80% of its doubles). It throws by itself when its turn comes, a dart at
+  a time, and each dart is shown landing on the board (**Settings › In a
+  game** switches that off). While it throws, nothing at the real board is
+  scored, so your darts can come out. Undo takes back your last dart, along
+  with anything the bot has thrown since. Each level's games are kept like a
+  player's, but bots are not listed with the players.
 - **Darts:** add each set you own to your card under **Settings › Players and
   darts**, pick which you
   are throwing on the Play screen, and see how much each set has been thrown
@@ -53,7 +62,9 @@ account has a database of its own instead.
   `#/stats`, `#/cameras` and `#/settings`.
 - **Match time:** a clock runs in the top bar from "Game on" to the winning
   dart. The time is saved with the finished game, and the stats show the
-  average and quickest time for each game type.
+  average, quickest and total time for each game type. **Time played** on a
+  player's stats adds up every game they threw in, a game quit part-way and
+  kept counting up to its last dart.
 
 ## When a dart is scored wrongly
 
@@ -72,8 +83,10 @@ Things the cameras don't do yet:
 
 And about the rest:
 
-- Stats count every dart saved, those of a game still in progress included. A
-  game ended with **Quit game** is thrown away, darts and all.
+- Stats count every dart saved, those of a game still in progress included. **Quit
+  game** asks if you are sure and offers to save your results: left ticked, the
+  darts thrown stay in your stats; unticked, the game is thrown away, darts and
+  all.
 - X01 is double out; its checkout hints follow the standard published chart.
 - Scores are called in the device's own voice. A device with none (a Pi, most
   Linux PCs) doesn't call them aloud.

@@ -1,6 +1,7 @@
 {
   "version": "1.2",
   "unreleased": [
+    "Stats now show how long you've played: Time played adds up every game you've thrown in, for all games or one game type, and the Games tab shows the total time for each.",
     "Players and their darts are now looked after in one place: Settings › Players and darts has a card for each player. Tap it to change their name, add or change their darts, or remove them.",
     "On a phone, the Play screen is now three simple steps: Game, Options and Players. Each shows what is chosen at a glance and opens when you tap it, every game says what it is, and Start is always in reach.",
     "Settings now shows the app's build number next to its version, so you can tell exactly which one you have.",
@@ -12,7 +13,10 @@
     "With two or more playing, the caller now says whose turn it is at the start of every visit, in every game.",
     "Random Targets: each player now starts their turn on a new target, rather than the one the last player was left on.",
     "Around the Clock: the number you need is now called out at the start of every turn and after each hit.",
-    "With two or more playing, Start and Play again now ask who throws first: Closest to bull, where everyone throws one dart at the bull and the nearest starts, or Random."
+    "With two or more playing, Start and Play again now ask who throws first: Closest to bull, where everyone throws one dart at the bull and the nearest starts, or Random.",
+    "Quit game now asks if you're sure, and lets you save your results: leave the box ticked and the darts you threw still count in your stats.",
+    "Settings are easier to find your way round on a phone: a short list shows how everything is set, and a tap opens one thing at a time. On and off are now switches, feedback has its own place, and the version is under About.",
+    "Play against the computer in X01: tap Bot on the Play screen and pick its level, from 1 (a beginner averaging about 18) to 15 (averaging about 110 and hitting 80% of its doubles). It throws by itself, and each of its darts is shown landing on the board (you can switch that off under Settings › In a game)."
   ],
   "notes": {
     "1.0": [
