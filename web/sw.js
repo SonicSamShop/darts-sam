@@ -3,7 +3,7 @@
 // It still tries the Pi first, so editing files on the Pi updates the app; if
 // the Pi doesn't answer quickly the saved copy is used instead.
 // Browsers only run this over https or on localhost (see the README).
-const CACHE = 'dartssam-v14';
+const CACHE = 'dartssam-v15';
 const DATA = 'dartssam-data';  // stats saved by app.js for showing offline
 const WAIT = 2500;             // ms to give the Pi before using the saved copy
 
@@ -12,7 +12,7 @@ const WAIT = 2500;             // ms to give the Pi before using the saved copy
 const FILES = [
   './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'engine.js', 'board.js', 'install.js', 'voice.js',
   'games/index.js', 'games/x01.js', 'games/cricket.js', 'games/clock.js', 'games/countup.js', 'games/c121.js', 'games/random.js', 'games/killer.js', 'games/free.js',
-  'style.css', 'themes.css', 'manifest.json', 'privacy.html', 'faq.html', 'download.html',
+  'style.css', 'themes.css', 'manifest.json', 'privacy.html', 'faq.html', 'download.html', 'opensource.html',
   'icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',
   'fonts/anton-400.woff2', 'fonts/barlow-condensed-600.woff2', 'fonts/barlow-condensed-700.woff2',
   'fonts/bungee-400.woff2', 'fonts/cabin-sketch-700.woff2', 'fonts/patrick-hand-400.woff2',

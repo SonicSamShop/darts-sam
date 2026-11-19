@@ -569,6 +569,31 @@ const EXTRAS = [
   ['Any screen', 'A phone at the oche, a tablet on the wall or the big TV. Add it to your home screen and it runs like an app.'],
   ['Your look', 'Five themes, from big-stage TV graphics to the pub chalkboard.'],
 ];
+// The two ways to play, side by side: [what, tapping the board, with cameras]. true is a tick;
+// words say how. What it claims is what web/faq.html says: change one, change the other.
+const FEATURES = () => [
+  ['Price', 'Free', 'Free'],
+  ['What you need', 'A phone, tablet, TV or computer', 'Also a Mac, Windows or Linux PC and two or three webcams'],
+  ['Scoring', 'Tap the board or type the visit', 'The cameras score each dart. Tap to put one right'],
+  ['Every dart called', true, true],
+  [`All ${GAMES.length} games`, true, true],
+  ['Stats and heat map', true, true],
+  ['TV view', true, true],
+  ['Every screen you sign in on', true, true],
+  [`${THEMES.length} themes`, true, true],
+  ['Without the internet', 'Once on your home screen', 'Needs the internet'],
+  ['Adverts', 'None', 'None'],
+];
+const TICK = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Yes"><path d="m5 12 5 5 9-10"/></svg>';
+const featureTable = () => `<div class="land-games">
+      <p class="eyebrow">Side by side</p>
+      <h2>What you get</h2>
+      <div class="feat-wrap"><table class="feat">
+        <thead><tr><th scope="col"><span class="sr">Feature</span></th><th scope="col">Tap to score</th><th scope="col">Autoscore</th></tr></thead>
+        <tbody>${FEATURES().map(([what, ...ways]) => `<tr><th scope="row">${what}</th>${ways.map(w =>
+          `<td>${w === true ? TICK : esc(w)}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
 const APPLE_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>';
 const MAIL_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
 const icon = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -578,6 +603,7 @@ const LAND_PLACES = [  // [its address, what it does here instead of going there
   ['./', 'land-home', 'Home', icon('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'), 'on'],
   ['faq.html', '', 'FAQ', icon('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/>'), ''],
   ['download.html', '', 'Download', icon('<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>'), ''],
+  ['opensource.html', '', 'Open source', icon('<path d="m8 7-5 5 5 5M16 7l5 5-5 5"/>'), ''],
   ['./', 'land-top', 'Sign in', icon('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'), 'go'],
 ];
 const landNav = where => `<nav class="land-nav ${where}" aria-label="Darts S.A.M">${LAND_PLACES.map(([href, act, name, pic, cls]) =>
@@ -688,6 +714,7 @@ function renderLanding() {
       <h2>Built for the oche</h2>
       <div class="tour">${EXTRAS.map(([title, text]) => `<div class="tour-card"><b>${title}</b><span>${text}</span></div>`).join('')}</div>
     </div>
+    ${featureTable()}
     <div class="land-end">
       <h2>Ready when you are.</h2>
       <button class="primary start" data-act="land-top">Sign in to play</button>

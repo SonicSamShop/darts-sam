@@ -395,7 +395,7 @@ def analytics():
         counted = TestClient(host.create(Path(tmp) / "b", {"google_client_id": "client-123", "dev": True,
                                                           "analytics_token": "abc123"}))
         beacon = """data-cf-beacon='{"token": "abc123"}'"""
-        for page in ("/", "/index.html", "/faq.html", "/download.html", "/privacy.html"):
+        for page in ("/", "/index.html", "/faq.html", "/download.html", "/opensource.html", "/privacy.html"):
             r = counted.get(page)
             head = r.text.lower().split("</head>")[0]
             assert r.status_code == 200 and "static.cloudflareinsights.com/beacon.min.js" in head, page

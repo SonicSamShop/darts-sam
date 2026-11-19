@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b1b11">
+<meta name="description" content="Darts S.A.M is open source under the AGPL-3.0: read the code, report a problem, or run your own.">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="themes.css">
+<script>
+// The same look as the app (see index.html).
+try { document.documentElement.className = 't-' + (JSON.parse(localStorage.getItem('settings')).theme || 'chalk'); }
+catch (e) { document.documentElement.className = 't-chalk'; }
+</script>
+<title>Darts S.A.M · open source</title>
+</head>
+<body>
+<!-- Open source: what that means here and where the code is. Anyone can open this page.
+     What it says about the licence is the short form of LICENSE and NOTICE: change one, change the other.
+     The repository's address is also SOURCE in web/app.js. -->
+<div id="app"><div class="landing faq">
+  <div class="land-top"><span class="brand"><a class="wordmark" href="./">Darts S.A.M</a><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></span>
+    <nav class="land-nav top" aria-label="Darts S.A.M">
+      <a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span>Home</span></a>
+      <a href="faq.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/></svg><span>FAQ</span></a>
+      <a href="download.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></a>
+      <a href="opensource.html" class="on" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span>Open source</span></a>
+      <a href="./#signin" class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Sign in</span></a>
+    </nav></div>
+  <div class="dl-head">
+    <p class="eyebrow">Open source</p>
+    <h1>Free, and open.</h1>
+    <p class="lead">Every line of Darts S.A.M is public: the scoreboard, the games, the stats and the camera scoring.
+      Read how it works, report what's wrong, or run it on your own computer.</p>
+  </div>
+
+  <div class="tour">
+    <a class="tour-card os-link" href="https://github.com/SonicSamShop/darts-sam" target="_blank" rel="noopener">
+      <b>Source code</b><span>The whole project on GitHub: the app, the camera scoring and the website.</span></a>
+    <a class="tour-card os-link" href="https://github.com/SonicSamShop/darts-sam/issues" target="_blank" rel="noopener">
+      <b>Report a problem</b><span>Found a bug or want something added? Open an issue on GitHub.</span></a>
+    <a class="tour-card os-link" href="https://github.com/SonicSamShop/darts-sam#readme" target="_blank" rel="noopener">
+      <b>Run your own</b><span>Build it yourself and score at home with your own cameras.</span></a>
+    <a class="tour-card os-link" href="https://github.com/SonicSamShop/darts-sam/blob/main/LICENSE" target="_blank" rel="noopener">
+      <b>The licence</b><span>GNU AGPL-3.0, with the extra terms in the NOTICE file.</span></a>
+  </div>
+
+  <section id="licence">
+    <p class="eyebrow">The licence</p>
+    <h2>What you can do with it</h2>
+    <p>Darts S.A.M is free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">GNU Affero General Public License, version 3</a>.
+      You can use it, change it and share it. If you share a changed version, or run one for other people to use over the internet, you share its source code too.</p>
+    <p>The <a href="https://github.com/SonicSamShop/darts-sam/blob/main/NOTICE" target="_blank" rel="noopener">NOTICE</a> file adds three things:
+      keep the credit "Based on Darts S.A.M by Sam Cramphorn", mark changed versions as changed, and don't call your version Darts S.A.M.</p>
+  </section>
+
+  <div class="land-end">
+    <p class="more">Just want to play? <a href="./#signin">Sign in</a> or <a href="download.html">download the app</a>.</p>
+  </div>
+</div>
+<nav class="land-nav foot" aria-label="Darts S.A.M">
+  <a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span>Home</span></a>
+  <a href="faq.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/></svg><span>FAQ</span></a>
+  <a href="download.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></a>
+  <a href="opensource.html" class="on" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span>Open source</span></a>
+  <a href="./#signin" class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Sign in</span></a>
+</nav></div>
+<script>
+// Someone signed in on this device (app.js keeps who under 'owner') is offered the app, not the sign-in.
+try {
+  if (JSON.parse(localStorage.getItem('owner'))) for (const a of document.querySelectorAll('.land-nav a.go')) {
+    a.href = './'; a.querySelector('span').textContent = 'Play';
+  }
+} catch (e) { /* nothing kept: the page is right as it stands */ }
+</script>
+</body>
+</html>

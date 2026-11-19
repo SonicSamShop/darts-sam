@@ -506,6 +506,22 @@ button.apple {
 .tally { display: block; padding: 18px 12px; text-align: center; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 17px; font-weight: 400; text-decoration: none; text-transform: none; letter-spacing: 0; }
 .tally b { color: var(--text); font-size: 1.3em; font-variant-numeric: tabular-nums; }
 .tally[hidden] { display: none; }
+/* the two ways to play, side by side (FEATURES in app.js) */
+.feat-wrap { margin-top: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.feat { width: 100%; border-collapse: collapse; table-layout: fixed; text-transform: none; letter-spacing: normal; }
+.feat th, .feat td { padding: 14px 18px; text-align: left; vertical-align: middle; font-size: 17px; line-height: 1.35; }
+.feat thead th { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); border-bottom: 1px solid var(--line); }
+.feat thead th:first-child { width: 34%; }
+.feat tbody th { font-weight: 700; color: var(--text); }
+.feat td { color: var(--muted); font-weight: 400; }
+.feat td svg { display: block; color: var(--accent); }
+.feat tbody tr + tr > * { border-top: 1px solid var(--line); }
+.feat .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 600px) {
+  .feat th, .feat td { padding: 12px 10px; font-size: 15px; }
+  .feat thead th { font-size: 12px; letter-spacing: .08em; }
+  .feat thead th:first-child { width: 30%; }
+}
 /* Getting about before signing in: the welcome page, the questions (web/faq.html) and the downloads
    (web/download.html). As in the app (see .nav above) the places are drawn twice and one is shown:
    words along the top on a computer, a bar of tabs along the bottom on a phone or tablet. */
@@ -687,3 +703,7 @@ body:has(.game) .install { display: none; }  /* never cover the scoreboard mid-g
 /* number boxes (a set of darts' weight): no spinner arrows, just the number */
 input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* the open source page's links (web/opensource.html): whole cards to tap */
+a.os-link { text-decoration: none; transition: border-color .15s; }
+a.os-link:hover, a.os-link:focus-visible { border-color: var(--accent); }
+a.os-link b::after { content: " \2197"; color: var(--accent); }
