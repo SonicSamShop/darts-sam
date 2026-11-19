@@ -57,6 +57,21 @@ def main():
         except ValueError:
             pass
 
+        # an account file from before darts were tracked is brought up to date after a restart
+        import sqlite3
+        with sqlite3.connect(fa) as c:
+            c.execute("DROP TABLE dart_sets")
+            c.execute("ALTER TABLE match_players DROP COLUMN darts")
+        c.close()
+        fa = hoststore.Store(Path(tmp)).account_db(a["id"])
+        with db.at(fa):
+            ann = db.list_players()[0]["id"]
+            db.save_darts("d1", {"player": ann, "name": "Mine"})
+            assert db.save_match("m1", {"seq": 1, "game_id": "x01", "game_name": "X01", "opts": {}, "log": [],
+                                        "started": 1, "players": [ann], "darts": ["d1"], "winner": None,
+                                        "throws": [{"player": 0, "round": 1, "seg": 20, "mult": 3}]})
+            assert db.stats(ann)["darts"] == 1
+
         # pairing a helper
         assert hoststore.clean_code(" ab-c 2 3d ") == "ABC23D"
         p = s.start_pairing()

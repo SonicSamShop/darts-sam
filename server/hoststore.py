@@ -162,6 +162,7 @@ class Store:
     def __init__(self, folder: Path):
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
+        self._prepared: set[Path] = set()  # account files brought up to date since this started
         with self.connect() as c:
             c.execute("PRAGMA journal_mode = WAL")
             c.executescript(SCHEMA)
@@ -199,12 +200,15 @@ class Store:
             return _account(c.execute("SELECT * FROM accounts WHERE id = ?", (account_id,)).fetchone())
 
     def account_db(self, account_id: str) -> Path:
-        """The account's own database of players and games, made on first use."""
+        """The account's own database of players and games, made on first use.
+        One made by an older version is brought up to date (new tables and
+        columns) the first time it is used after a restart."""
         if not ACCOUNT_ID.match(account_id):
             raise ValueError("not an account id")
         path = self.folder / "accounts" / account_id / "darts.db"
-        if not path.exists():
+        if path not in self._prepared:
             db.prepare(path)
+            self._prepared.add(path)
         return path
 
     def delete_account(self, account_id: str):
