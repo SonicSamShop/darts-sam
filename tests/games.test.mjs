@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newMatch, compute, gameById, elapsed, clock, previousVisit } from '../web/engine.js';
 import { checkout } from '../web/games/x01.js';
-import { scoreAt, value, label, spoken, half, heatGrid } from '../web/board.js';
+import { scoreAt, value, label, spoken, half, heatGrid, bullUp } from '../web/board.js';
 
 const D = (seg, mult = 1) => ({ t: 'dart', seg, mult });
 const NEXT = { t: 'next' };
@@ -604,4 +604,27 @@ test('checkout hints can be hidden', () => {
   const t = play('c121', ['A'], { start: 121, darts: 9, inc: 1, rounds: 2 }, []);
   assert.match(c.hint(t), /^Checkout: /);
   assert.equal(c.hint(t, { checkouts: false }), '');
+});
+
+test('closest to the bull: who throws first', () => {
+  const at = (x, y) => ({ ...scoreAt(x, y), x, y });
+  // part-way through: B is next
+  let b = bullUp([1, 2, 3], [at(0, 50)]);
+  assert.deepEqual([b.next, b.order, b.thrown], [2, null, 1]);
+  // nearest first, the rest nearest first too
+  b = bullUp([1, 2, 3], [at(0, 50), at(30, 0), at(0, -40)]);
+  assert.deepEqual(b.order, [2, 3, 1]);
+  assert.equal(b.next, null);
+  // the bullseye beats the 25 ring, which beats a dart just outside it
+  assert.deepEqual(bullUp([1, 2, 3], [at(0, 17), at(0, 15), at(6, 0)]).order, [3, 2, 1]);
+  // two in the 25 ring are level whatever the distance: those two throw again, the third is settled
+  b = bullUp([1, 2, 3], [at(0, 8), at(0, 60), at(15, 0)]);
+  assert.deepEqual([b.order, b.round, b.next, b.again, b.thrown, b.tail], [null, [1, 3], 1, true, 0, [2]]);
+  b = bullUp([1, 2, 3], [at(0, 8), at(0, 60), at(15, 0), at(0, 90), at(0, 70)]);
+  assert.deepEqual(b.order, [3, 1, 2]);
+  // the same distance out is level too, and so on until it is settled
+  b = bullUp([1, 2], [at(0, 40), at(40, 0), at(0, 0), at(1, 1), at(0, 100), at(0, 99)]);
+  assert.deepEqual(b.order, [2, 1]);
+  // a dart with no position is the furthest away
+  assert.deepEqual(bullUp([1, 2], [{ seg: 0, mult: 0 }, at(0, 160)]).order, [2, 1]);
 });

@@ -116,19 +116,31 @@ button:disabled { opacity: .4; }
 .picks .pick { position: relative; flex: 1; min-width: min(140px, 100%); }  /* a third (Darts) wraps under on a narrow phone */
 .picks .pick span { position: absolute; left: 16px; top: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); pointer-events: none; }
 .noplayers { padding-top: 14px; }
-/* the settings' Players tab: a narrow list, a name to a line, what can be done to it said quietly after it */
+/* the settings' Players tab: a card a player, saying who they are and what they throw. One opens at a
+   time, with their name, their darts and removing them inside it (see playersPanel in app.js). */
 .editplayers { max-width: 560px; padding-top: 14px; }
-.editplayers .player-row { align-items: center; gap: 4px; margin-bottom: 4px; }
-.editplayers .player-row input { flex: 1; min-width: 0; }
-.editplayers .player-row .ghost { border-color: transparent; padding-left: 12px; padding-right: 12px; }
-.editplayers .player-row:has(#newplayer) { gap: 10px; }
-.editplayers .danger { min-width: 112px; }  /* as wide armed ("Tap again") as not, so the rows line up */
-/* the settings' Darts tab: a player's sets under their name, a weight beside each, put-away ones faded */
-.editdarts h3 { margin: 18px 0 6px; font-size: 15px; color: var(--muted); }
-.editdarts h3:first-child { margin-top: 0; }
-.editdarts .darts-row input[type=number] { flex: 0 0 76px; }
-.editdarts .darts-row:has([data-newdarts]) { gap: 10px; }
-.editdarts .darts-row.away input { opacity: .55; }
+.who { margin-bottom: 8px; }
+.who-head, .pline { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; text-align: left; }
+.who-head { padding: 10px 14px; }
+.who-head b { display: block; font-size: 19px; line-height: 1.2; overflow-wrap: anywhere; }
+.who-head small { display: block; color: var(--muted); font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.who-head u, .pline u { text-decoration: none; color: var(--accent); font-size: 14px; }
+.who.open .who-head { border-color: var(--accent); }
+.who-body { padding: 2px 0 10px 14px; margin: 0 0 14px 14px; border-left: 2px solid var(--line); }
+.page .who-body h3 { margin: 12px 0 6px; font: 600 12px/1.4 var(--font); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }  /* .page: outranks the themes' headings */
+.who-body p { margin: 4px 0 8px; }
+.who-body .player-row input { flex: 1; min-width: 0; }
+.pline { margin-bottom: 6px; background: none; }
+.pline span { overflow-wrap: anywhere; }
+.pline small { color: var(--muted); }
+.pline.away span { opacity: .6; }
+/* a set of darts being added or changed: its name and weight, then what to do with them */
+.pform { margin-bottom: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; }
+.pform .player-row input[type=number] { flex: 0 0 88px; }
+.pform .row button { flex: 1; padding-left: 8px; padding-right: 8px; white-space: nowrap; }
+.who-end { margin-top: 16px; }
+.who-end .danger { border-color: transparent; padding-left: 0; padding-right: 0; }
+.who-end p { margin: 0; }
 /* a button that reads as a link in a sentence ("add your darts") */
 button.link { background: none; border: 0; padding: 0; min-height: 0; color: var(--accent); text-decoration: underline; font: inherit; cursor: pointer; }
 /* stats: how much each set of darts has been thrown; a line opens that set's stats */
@@ -741,3 +753,6 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 a.os-link { text-decoration: none; transition: border-color .15s; }
 a.os-link:hover, a.os-link:focus-visible { border-color: var(--accent); }
 a.os-link b::after { content: " \2197"; color: var(--accent); }
+
+/* Throwing for the bull (renderBull in app.js): how far out each dart was */
+.bullup .pcard .big small { font-size: .4em; font-weight: 600; color: var(--muted); }

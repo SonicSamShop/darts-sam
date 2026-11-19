@@ -12,11 +12,16 @@ server, so nothing is lost if the server is unreachable (see "Working offline"
 in [setup.md](setup.md#working-offline-needs-https)). On the hosted site each
 account has a database of its own instead.
 
-- **Players:** add them on the home screen, or under **Settings › Players**
-  (where they are renamed and removed too), then tap who is playing in
-  throwing order. Removing a player only hides them:
+- **Players:** add them on the home screen, or under **Settings › Players and
+  darts**, where each player has a card: tap it to rename them, look after
+  their darts or remove them. Then tap who is playing in
+  throwing order. With two or more playing, Start (and Play again) asks who
+  throws first: **Closest to bull** (one dart each at the bull, taken out
+  before the next player throws; the nearest starts, and players who are level
+  throw again) or **Random**. Removing a player only hides them:
   their throws are kept, and adding the same name again brings them back.
-- **Darts:** add each set you own under **Settings › Darts**, pick which you
+- **Darts:** add each set you own to your card under **Settings › Players and
+  darts**, pick which you
   are throwing on the Play screen, and see how much each set has been thrown
   and its stats on their own.
 - **Stats:** **Stats** has a page for all games together and one for

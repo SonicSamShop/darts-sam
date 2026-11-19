@@ -40,6 +40,45 @@ export function spoken(d) {
   return ['', 'Double ', 'Treble '][d.mult - 1] + d.seg;
 }
 
+// Throwing for the bull, to settle who throws first: everyone throws one dart
+// and the nearest goes first, the rest following nearest first. The bullseye
+// beats the 25 ring, which beats anything outside it; two darts in the same one
+// of those, or the same distance out (to the millimetre), are level. Players
+// level for first throw again, in the same order, until one of them is nearest.
+// ids: the players in throwing order. darts: every dart so far, in the order thrown
+// ({seg, mult, x, y}; one with no position is further away than any that has one).
+// Gives back:
+//   round   who throws in the round being thrown
+//   thrown  how many of them have
+//   next    who throws next (null once it is settled)
+//   again   the round is a throw-off between players who were level
+//   last    {player id: their latest dart}
+//   tail    those whose place is settled already, in order, behind the ones still throwing
+//   order   the whole throwing order, once it is settled (else null)
+export const bullMm = d => d.x == null || d.y == null ? Infinity : Math.round(Math.hypot(d.x, d.y));
+const bullBed = d => d.seg === 25 ? 2 - d.mult : 2;  // 0 the bullseye, 1 the 25 ring, 2 anywhere else
+function nearer(a, b) {
+  if (bullBed(a) !== bullBed(b)) return bullBed(a) - bullBed(b);
+  if (bullBed(a) < 2 || bullMm(a) === bullMm(b)) return 0;
+  return bullMm(a) - bullMm(b);
+}
+export function bullUp(ids, darts) {
+  const last = {};
+  let round = ids, tail = [], n = 0, again = false;
+  for (;;) {
+    const thrown = darts.slice(n, n + round.length).map((d, i) => ({ d, id: round[i] }));
+    for (const t of thrown) last[t.id] = t.d;
+    if (thrown.length < round.length) return { round, thrown: thrown.length, next: round[thrown.length], again, last, tail, order: null };
+    n += round.length;
+    const sorted = [...thrown].sort((a, b) => nearer(a.d, b.d));
+    const level = sorted.filter(t => nearer(t.d, sorted[0].d) === 0).map(t => t.id);
+    tail = [...sorted.slice(level.length).map(t => t.id), ...tail];
+    if (level.length === 1) return { round, thrown: thrown.length, next: null, again, last, tail, order: [level[0], ...tail] };
+    round = round.filter(id => level.includes(id));
+    again = true;
+  }
+}
+
 const NS = 'http://www.w3.org/2000/svg';
 const el = (name, attrs) => {
   const e = document.createElementNS(NS, name);
