@@ -712,11 +712,12 @@ const APPLE_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden=
 const MAIL_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
 const icon = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 // Getting about before signing in: this page, the questions and the downloads (the same bar is
-// written out in web/faq.html and web/download.html). Drawn twice, like the app's own (see nav()).
+// written out in web/faq.html, web/download.html, web/releases.html and web/opensource.html). Drawn twice, like the app's own (see nav()).
 const LAND_PLACES = [  // [its address, what it does here instead of going there, its name, its picture, its class]
   ['./', 'land-home', 'Home', icon('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'), 'on'],
   ['faq.html', '', 'FAQ', icon('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/>'), ''],
   ['download.html', '', 'Download', icon('<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>'), ''],
+  ['releases.html', '', "What's new", icon('<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.2 10.8 15.5 12 13.2 13.2 12 15.5 10.8 13.2 8.5 12 10.8 10.8Z"/>'), ''],
   ['opensource.html', '', 'Open source', icon('<path d="m8 7-5 5 5 5M16 7l5 5-5 5"/>'), ''],
   ['./', 'land-top', 'Sign in', icon('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'), 'go'],
 ];

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b1b11">
+<meta name="description" content="Darts S.A.M release notes: what is new in each version of the app.">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="themes.css">
+<script>
+// The same look as the app (see index.html).
+try { document.documentElement.className = 't-' + (JSON.parse(localStorage.getItem('settings')).theme || 'chalk'); }
+catch (e) { document.documentElement.className = 't-chalk'; }
+</script>
+<title>Darts S.A.M · release notes</title>
+</head>
+<body>
+<!-- What is new in each version, newest first. Anyone can open this page, signed in or not.
+     It is release.json written out for reading: every note under "notes" there is here word for
+     word, under a short heading of its own (tests/test_release.py checks that none is missing).
+     A new release adds a section at the top and takes the "latest" from the one below it:
+     see docs/releasing.md. -->
+<div id="app"><div class="landing faq rel">
+  <div class="land-top"><span class="brand"><a class="wordmark" href="./">Darts S.A.M</a><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></span>
+    <nav class="land-nav top" aria-label="Darts S.A.M">
+      <a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span>Home</span></a>
+      <a href="faq.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/></svg><span>FAQ</span></a>
+      <a href="download.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></a>
+      <a href="releases.html" class="on" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.2 10.8 15.5 12 13.2 13.2 12 15.5 10.8 13.2 8.5 12 10.8 10.8Z"/></svg><span>What's new</span></a>
+      <a href="opensource.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span>Open source</span></a>
+      <a href="./#signin" class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Sign in</span></a>
+    </nav></div>
+  <div class="dl-head">
+    <p class="eyebrow">Release notes</p>
+    <h1>What's new.</h1>
+    <p class="lead">Every version of Darts S.A.M and what changed in it, newest first. The site is always the newest;
+      the app on the computer by your board offers each new version when it starts.</p>
+  </div>
+  <div class="faq-jump">
+    <a href="#v1.3">1.3</a>
+    <a href="#v1.2">1.2</a>
+    <a href="#v1.1">1.1</a>
+    <a href="#v1.0">1.0</a>
+  </div>
+
+  <section id="v1.3" class="latest">
+    <p class="eyebrow">Version 1.3 · 19 November 2026 <span class="tag">Latest</span></p>
+    <h2>Play the computer.</h2>
+    <p>A bot to play X01 against at fifteen levels, your sets of darts kept track of, a throw at the bull for who goes first,
+      and a Play screen and Settings that are easier on a phone.</p>
+    <div class="tour">
+      <div class="tour-card"><b>Play the computer</b><span>Play against the computer in X01: tap Bot on the Play screen and pick its level, from 1 (a beginner averaging about 18) to 15 (averaging about 110 and hitting 80% of its doubles). It throws by itself, and each of its darts is shown landing on the board (you can switch that off under Settings › In a game).</span></div>
+      <div class="tour-card"><b>Keep track of your darts</b><span>Keep track of your darts: add each set you own to your card under Settings › Players and darts, pick which you're throwing on the Play screen, and see how much each set has been thrown and its stats on their own.</span></div>
+      <div class="tour-card"><b>Players and darts in one place</b><span>Players and their darts are now looked after in one place: Settings › Players and darts has a card for each player. Tap it to change their name, add or change their darts, or remove them.</span></div>
+      <div class="tour-card"><b>Who throws first</b><span>With two or more playing, Start and Play again now ask who throws first: Closest to bull, where everyone throws one dart at the bull and the nearest starts, or Random.</span></div>
+    </div>
+    <ul class="rel-list">
+      <li><b>The caller says whose turn it is.</b> With two or more playing, the caller now says whose turn it is at the start of every visit, in every game.</li>
+      <li><b>Random Targets.</b> Random Targets: hit the target and your next dart is at a new one, so a good visit can take three targets, and each player starts their turn on a new target. Each new target is called out, and a new hard mode splits every single into its inner and outer half.</li>
+      <li><b>Around the Clock.</b> Around the Clock: the number you need is now called out at the start of every turn and after each hit.</li>
+      <li><b>Time played.</b> Stats now show how long you've played: Time played adds up every game you've thrown in, for all games or one game type, and the Games tab shows the total time for each.</li>
+      <li><b>Play in three steps on a phone.</b> On a phone, the Play screen is now three simple steps: Game, Options and Players. Each shows what is chosen at a glance and opens when you tap it, every game says what it is, and Start is always in reach.</li>
+      <li><b>Settings on a phone.</b> Settings are easier to find your way round on a phone: a short list shows how everything is set, and a tap opens one thing at a time. On and off are now switches, feedback has its own place, and the version is under About.</li>
+      <li><b>Quit game asks first.</b> Quit game now asks if you're sure, and lets you save your results: leave the box ticked and the darts you threw still count in your stats.</li>
+      <li><b>Your device's own voice.</b> Scores are now called only in your device's own voices. A device with none, such as a Raspberry Pi, no longer uses the old robotic voice and stays quiet instead.</li>
+      <li><b>Updates checked as genuine.</b> Updates are now checked before they are opened: the app only installs a new version that is signed as genuine.</li>
+      <li><b>Build number.</b> Settings now shows the app's build number next to its version, so you can tell exactly which one you have.</li>
+      <li><b>Windows report pictures.</b> On Windows, reporting a wrongly scored dart now saves its pictures even when your user name has accented or non-English letters in it.</li>
+    </ul>
+  </section>
+
+  <section id="v1.2">
+    <p class="eyebrow">Version 1.2</p>
+    <h2>Truer doubles and trebles.</h2>
+    <ul class="rel-list">
+      <li><b>Calibration for wide webcams.</b> Doubles and trebles are scored more accurately: automatic calibration now allows for the way wide webcams bend the picture. Run Auto calibrate again on each camera to get this.</li>
+    </ul>
+  </section>
+
+  <section id="v1.1">
+    <p class="eyebrow">Version 1.1</p>
+    <h2>Updates that find you.</h2>
+    <ul class="rel-list">
+      <li><b>New versions offered in the app.</b> The desktop app now tells you when a new version is ready, shows what has changed, and can download it for you.</li>
+    </ul>
+  </section>
+
+  <section id="v1.0">
+    <p class="eyebrow">Version 1.0</p>
+    <h2>Where it started.</h2>
+    <ul class="rel-list">
+      <li>First release.</li>
+    </ul>
+  </section>
+
+  <div class="land-end">
+    <h2>Get the newest.</h2>
+    <p class="more"><a href="download.html">Download for Mac, Windows and Linux</a> · <a href="./#signin">Sign in to play</a></p>
+  </div>
+</div>
+<nav class="land-nav foot" aria-label="Darts S.A.M">
+  <a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span>Home</span></a>
+  <a href="faq.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/></svg><span>FAQ</span></a>
+  <a href="download.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></a>
+  <a href="releases.html" class="on" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.2 10.8 15.5 12 13.2 13.2 12 15.5 10.8 13.2 8.5 12 10.8 10.8Z"/></svg><span>What's new</span></a>
+  <a href="opensource.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span>Open source</span></a>
+  <a href="./#signin" class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Sign in</span></a>
+</nav></div>
+<script>
+// Someone signed in on this device (app.js keeps who under 'owner') is offered the app, not the sign-in.
+try {
+  if (JSON.parse(localStorage.getItem('owner'))) for (const a of document.querySelectorAll('.land-nav a.go')) {
+    a.href = './'; a.querySelector('span').textContent = 'Play';
+  }
+} catch (e) { /* nothing kept: the page is right as it stands */ }
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@
 """Telling the desktop app's user about a newer version (server/release.py). Run: python -m tests.test_release"""
 import base64
 import hashlib
+import html
 import io
 import tempfile
 import time
@@ -36,6 +37,13 @@ def main():
     mine = release.load()
     assert release.VERSION.match(mine["version"]) and isinstance(mine["notes"], dict)
     assert "unreleased" in mine
+    # the release notes page has every version, and every note of each word for word
+    page = (Path(release.__file__).parent.parent / "web" / "releases.html").read_text(encoding="utf-8")
+    for version, notes in mine["notes"].items():
+        assert f'id="v{version}"' in page, f"releases.html has no section for {version}"
+        for note in notes:
+            assert html.escape(note, quote=False) in page, f"releases.html is missing a {version} note: {note}"
+    assert page.count('class="tag">Latest') == 1 and f'id="v{mine["version"]}" class="latest"' in page
     with tempfile.TemporaryDirectory() as tmp:
         assert release.load(Path(tmp) / "missing.json")["version"] == "0"
         (Path(tmp) / "bad.json").write_text('{"version": "one"}')
