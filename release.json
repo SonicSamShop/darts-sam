@@ -6,7 +6,9 @@
     "Scores are now called only in your device's own voices. A device with none, such as a Raspberry Pi, no longer uses the old robotic voice and stays quiet instead.",
     "Updates are now checked before they are opened: the app only installs a new version that is signed as genuine.",
     "On Windows, reporting a wrongly scored dart now saves its pictures even when your user name has accented or non-English letters in it.",
-    "Random Targets: hit the target and your next dart is at a new one, so a good visit can take three targets. Each new target is called out, and a new hard mode splits every single into its inner and outer half."
+    "Random Targets: hit the target and your next dart is at a new one, so a good visit can take three targets. Each new target is called out, and a new hard mode splits every single into its inner and outer half.",
+    "With two or more playing, the caller now says whose turn it is at the start of every visit, in every game.",
+    "Random Targets: each player now starts their turn on a new target, rather than the one the last player was left on."
   ],
   "notes": {
     "1.0": [

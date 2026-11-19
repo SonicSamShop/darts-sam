@@ -539,7 +539,9 @@ test('random targets: seeded targets, a point for each hit, up to three in a vis
   const game = gameById('random');
   assert.ok(Number.isInteger(newMatch('random', ['A'], { ...o, seed: undefined }).opts.seed));  // a new match is given a seed
   assert.equal(newMatch('x01', ['A'], {}).opts.seed, undefined);
-  const two = { ...o, goes: 2 }, [a1, a2, a3, b1, b2] = targets(two);
+  assert.equal(targets(o, 3).length, 180);                        // ... of every player
+  const two = { ...o, goes: 2 }, [a1, a2, a3, b1, b2, , c1, , , d1] = targets(two, 2);
+  assert.deepEqual(targets(two).slice(0, 3), [a1, a2, a3]);       // alone, a go is one visit
   const hit = t => ({ t: 'dart', ...t }), M = D(0, 0);
   let s = play('random', ['A', 'B'], two, []);
   assert.deepEqual(game.target(s), a1);
@@ -550,17 +552,19 @@ test('random targets: seeded targets, a point for each hit, up to three in a vis
   assert.deepEqual(game.target(s), a3); assert.equal(s.current, 0);
   s = play('random', ['A', 'B'], two, [hit(a1), hit(a2), hit(a3)]);  // three targets in one visit
   assert.deepEqual(s.hits, [3, 0]); assert.equal(s.current, 1);
-  assert.deepEqual(game.target(s), a1);                           // B starts the go on the same bed A did
-  s = play('random', ['A', 'B'], two, [M, hit(a1), M, M, M, hit(a1)]);
+  assert.deepEqual(game.target(s), b1);                           // B starts on a bed of their own
+  s = play('random', ['A', 'B'], two, [M, M, M]);
+  assert.deepEqual(game.target(s), b1);                           // ... not the one A was left on
+  s = play('random', ['A', 'B'], two, [M, hit(a1), M, M, M, hit(b1)]);
   assert.deepEqual(s.hits, [1, 1]); assert.deepEqual(s.thrown, [3, 3]);
-  assert.deepEqual(game.target(s), b1);                           // a new go starts on a new bed
+  assert.deepEqual(game.target(s), c1);                           // a new go starts on a new bed
   // the right number in the wrong ring does not count
   s = play('random', ['A'], two, [{ t: 'dart', seg: a1.seg, mult: a1.mult === 1 ? 2 : 1 }]);
   assert.equal(s.hits[0], 0); assert.deepEqual(game.target(s), a1);
   s = play('random', ['A', 'B'], two, [M, M, M, M, M, M]);         // three misses each: no points, next go
-  assert.deepEqual(s.hits, [0, 0]); assert.deepEqual(game.target(s), b1); assert.equal(s.current, 0);
-  s = play('random', ['A', 'B'], two, [hit(a1), NEXT, NEXT, hit(b1), hit(b2), M, hit(b1), M, M]);
-  assert.equal(s.winner, 0); assert.deepEqual(s.hits, [3, 1]); assert.equal(game.target(s), null);
+  assert.deepEqual(s.hits, [0, 0]); assert.deepEqual(game.target(s), c1); assert.equal(s.current, 0);
+  s = play('random', ['A', 'B'], two, [hit(a1), NEXT, NEXT, hit(c1), M, M, hit(d1), M, M]);
+  assert.equal(s.winner, 0); assert.deepEqual(s.hits, [2, 1]); assert.equal(game.target(s), null);
   s = play('random', ['A'], two, [hit(a1), M, M, M, NEXT]);        // moving on early ends the last go too
   assert.equal(s.winner, 0); assert.match(game.result(s), /Hit 1 target in 6 darts/);
 });
@@ -583,7 +587,7 @@ test('random targets: hard mode splits each single into its inner and outer half
   const game = gameById('random'), s = play('random', ['A'], o, []);
   const first = seq[0], word = first.part === 'in' ? 'Inner' : first.part === 'out' ? 'Outer' : null;
   if (word) assert.equal(game.aim(s), `${word} ${first.seg}`);
-  const said = t => game.aim({ winner: null, round: 1, got: 0, opts: o, seq: [t] });
+  const said = t => game.aim({ winner: null, round: 1, got: 0, opts: o, seq: [t], players: ['A'], current: 0 });
   assert.equal(said(inner), 'Inner 20'); assert.equal(said(outer), 'Outer 20');
   assert.equal(said({ seg: 16, mult: 3 }), 'Treble 16'); assert.equal(said({ seg: 9, mult: 2 }), 'Double 9');
   assert.equal(said({ seg: 9, mult: 1 }), 'Single 9'); assert.equal(said({ seg: 25, mult: 2 }), 'Bullseye');

@@ -405,10 +405,17 @@ function push(ev) {
   } else rest = [require];
   // What the dart did, in games that have something to say about it (Killer).
   const call = ev.t === 'dart' ? game.call?.(after) ?? '' : '';
-  // A new bed to aim at (Random Targets) is called out last: "Next, Treble 16".
+  // With two or more playing, whoever is up is called by name as their visit
+  // begins. "You require" above already names them.
+  const began = after.winner == null && !after.turn.length && !after.turnOver
+    && (after.throws.length !== before.throws.length || after.current !== before.current || after.round !== before.round);
+  const name = began && after.players.length > 1 && !require ? after.players[after.current] : '';
+  // A new bed to aim at (Random Targets) is called out last: "Next, Treble 16",
+  // or "Sam, Treble 16" when it is for the next thrower.
   const bed = t => JSON.stringify(game.target?.(t) ?? null);
-  const aim = after.winner == null && bed(after) !== bed(before) ? game.aim?.(after) ?? '' : '';
-  const said = [dart, call, ...rest, aim && `Next, ${aim}`].filter(x => x !== '');
+  const aim = after.winner == null && (name || bed(after) !== bed(before)) ? game.aim?.(after) ?? '' : '';
+  const next = name ? (aim ? `${name}, ${aim}` : name) : aim && `Next, ${aim}`;
+  const said = [dart, call, ...rest, next].filter(x => x !== '');
   if (said.length) say(said.join('. '));
   renderGame();
 }
@@ -2332,8 +2339,10 @@ $app.addEventListener('click', e => {
         playerIds: ids, darts: ids.map(dartsFor), seq: 0,
       };
       store.set('match', match);
-      const aim = gameById(match.gameId).aim?.(compute(match));  // the first bed to aim at (Random Targets)
-      say(aim ? `Game on. Aim for ${aim}` : 'Game on');
+      const first = compute(match), aim = gameById(match.gameId).aim?.(first);  // the first bed to aim at (Random Targets)
+      const who = first.players.length > 1 ? first.players[first.current] : '';  // who throws first, when there is more than one
+      const opener = aim ? (who ? `${who}, aim for ${aim}` : `Aim for ${aim}`) : who && `${who} to throw first`;
+      say(opener ? `Game on. ${opener}` : 'Game on');
       renderGame();
       return mark(d.act === 'start');  // playing again takes the place of the game just finished
     case 'resume': renderGame(); return mark(true);

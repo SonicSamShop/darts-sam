@@ -14,9 +14,9 @@ const said = t => (t.seg === 25 ? (t.mult === 2 ? 'Bullseye' : 'Outer bull') : b
 // Random Targets: like Around the Clock, but the app picks where to aim. The
 // bed to aim at is lit up on the board. A go is a visit of three darts: hit the
 // bed for a point and the next dart is at a new one, so a good visit takes
-// three targets. A new go always starts on a new bed. Everyone gets the same
-// targets in the same order (the same bed to start each go, and the same ones
-// after each hit in it), and the most points after the last go wins.
+// three targets. Every visit starts on a new bed, so the next thrower never
+// carries on at the bed the last one was left on. The most points after the
+// last go wins.
 
 // The targets come from the match's own seed (engine.js puts one in the
 // options of a `seeded` game), so replaying the log always gives the same ones.
@@ -46,13 +46,14 @@ function beds(opts) {
   return all;
 }
 
-// Three beds for every go: the one it starts on and the ones after a first and
-// a second hit. A bed is never one of the three before it, so whichever of a
-// go's beds a player got to, the next one they are given is a different bed.
+// Three beds for every visit (each player's turn in every go): the one it
+// starts on and the ones after a first and a second hit. A bed is never one of
+// the three before it, so whichever of a visit's beds a player got to, the
+// next thrower is given a different bed.
 const PER_GO = 3;
-export function targets(opts) {
+export function targets(opts, players = 1) {
   const pool = beds(opts), next = rng(opts.seed ?? 1), seq = [];
-  while (seq.length < opts.goes * PER_GO) {
+  while (seq.length < opts.goes * players * PER_GO) {
     const t = pool[Math.floor(next() * pool.length)];
     if (!seq.slice(-PER_GO).includes(t)) seq.push(t);
   }
@@ -84,7 +85,7 @@ export default {
   ],
 
   init(n, opts) {
-    return { seq: targets(opts), hits: Array(n).fill(0), thrown: Array(n).fill(0), got: 0 };
+    return { seq: targets(opts, n), hits: Array(n).fill(0), thrown: Array(n).fill(0), got: 0 };
   },
 
   // got: how many targets this visit has hit so far.
@@ -104,7 +105,8 @@ export default {
   // The bed to light up on the board, while there is one to aim at.
   target(s) {
     if (s.winner != null || s.round > s.opts.goes) return null;
-    return s.seq[(s.round - 1) * PER_GO + Math.min(s.got, PER_GO - 1)];
+    const visit = (s.round - 1) * s.players.length + s.current;
+    return s.seq[visit * PER_GO + Math.min(s.got, PER_GO - 1)];
   },
 
   // The same, as the caller says it when it changes: "Treble 16", "Inner 9".
