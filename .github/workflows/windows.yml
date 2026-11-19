@@ -75,6 +75,8 @@ jobs:
   # Not held up by the tests: a first Windows run may show failures in them
   # that have nothing to do with whether the .exe starts.
   build:
+    needs: release
+    if: needs.release.outputs.new == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
