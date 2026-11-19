@@ -76,6 +76,11 @@ const sectShown = id => STACKED.matches || settingsTab === id;  // is this secti
 let totals = store.get('totals', null);  // {darts, reports}: everything on the Pi, as it last said
 let formError = '';   // shown under the "new player" box
 let addingPlayer = false;  // home: the "new player" box is out of sight until asked for
+// home, on a phone: the step that is open ('game', 'options' or 'players'), or null for none.
+// Not chosen yet (undefined): none when somebody is down to play, so the menu opens as three
+// lines and Start, and otherwise the players.
+let homeStep;
+let stepMoved = false;  // a step has just been opened: bring it into view
 let screen = match ? 'game' : 'home';
 const MAX_PLAYERS = 6;
 
@@ -410,11 +415,13 @@ function push(ev) {
   const began = after.winner == null && !after.turn.length && !after.turnOver
     && (after.throws.length !== before.throws.length || after.current !== before.current || after.round !== before.round);
   const name = began && after.players.length > 1 && !require ? after.players[after.current] : '';
-  // A new bed to aim at (Random Targets) is called out last: "Next, Treble 16",
-  // or "Sam, Treble 16" when it is for the next thrower.
-  const bed = t => JSON.stringify(game.target?.(t) ?? null);
-  const aim = after.winner == null && (name || bed(after) !== bed(before)) ? game.aim?.(after) ?? '' : '';
-  const next = name ? (aim ? `${name}, ${aim}` : name) : aim && `Next, ${aim}`;
+  // What to aim at (Random Targets, Around the Clock) is called out last, when
+  // it changes and at the start of every visit: "Next, Treble 16", or "Sam,
+  // Treble 16" for the next thrower. Alone and still on the same one: "Aim for 5".
+  const aimAt = t => (t.winner == null ? game.aim?.(t) ?? '' : '');
+  const changed = aimAt(after) !== aimAt(before);
+  const aim = began || changed ? aimAt(after) : '';
+  const next = name ? (aim ? `${name}, ${aim}` : name) : aim && `${changed ? 'Next,' : 'Aim for'} ${aim}`;
   const said = [dart, call, ...rest, next].filter(x => x !== '');
   if (said.length) say(said.join('. '));
   renderGame();
@@ -864,23 +871,35 @@ function renderHome() {
   store.set('setup', setup);
   const start = `<button class="primary start" data-act="start" ${setup.players.length ? '' : 'disabled'}>Start ${game.name}</button>`;
   const scrolled = document.querySelector('.home-body')?.scrollTop ?? 0;  // a tap redraws the menu: stay where it was
+  const steps = [['game', 'Game', esc(game.name)]];
+  if (game.options.length) steps.push(['options', 'Options', esc(optsBrief(game))]);
+  steps.push(['players', 'Players', playersBrief()]);
+  if (homeStep === undefined) homeStep = setup.players.length ? null : 'players';
+  if (!steps.some(s => s[0] === homeStep)) homeStep = null;
+  // One step of the menu. On a phone it is a numbered line saying what is chosen, which opens
+  // to change it; on a computer every step is open under its heading (see style.css).
+  const step = (id, body) => {
+    const n = steps.findIndex(s => s[0] === id), [, name, brief] = steps[n], open = homeStep === id;
+    return `<section class="step ${open ? 'open' : ''}" data-is="${id}">
+      <button class="step-head" data-step="${id}" aria-expanded="${open}"><i>${n + 1}</i><span><small>${name}</small><b>${brief}</b></span><u>${open ? 'Done' : 'Change'}</u></button>
+      <div class="step-body"><h2>${name}</h2>${body}</div></section>`;
+  };
+  const after = id => steps[steps.findIndex(s => s[0] === id) + 1];
   $app.innerHTML = `<div class="page">
     ${pageHead('home')}
     <div class="home-body">
     <div class="pick">
     ${match ? '<h2>In progress</h2><button class="start" data-act="resume">Resume game in progress</button>' : ''}
-    <h2>Game</h2>
-    <div class="games">${GAMES.map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
-      <b>${g.name}</b></button>`).join('')}</div>
-    <p class="blurb muted small">${game.blurb}</p>
+    ${step('game', `<div class="games">${GAMES.map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
+      <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>
+    <p class="blurb muted small">${game.blurb}</p>`)}
     </div>
     <div class="setup">
-    ${game.options.length ? '<h2>Options</h2>' : ''}
-    ${game.options.map(o => `<div class="opt"><span>${o.label}</span>${o.choices ? `<div class="choices">${o.choices.map(([v, l]) =>
+    ${game.options.length ? step('options', `${game.options.map(o => `<div class="opt"><span>${o.label}</span>${o.choices ? `<div class="choices">${o.choices.map(([v, l]) =>
       `<button class="${setup.opts[o.key] === v ? 'on' : ''}" data-opt="${o.key}" data-val="${esc(JSON.stringify(v))}">${l}</button>`).join('')}</div>`
       : stepper(o)}</div>`).join('')}
-    <h2>Players</h2>
-    ${players.length ? `<div class="row">${players.map(p => {
+    <button class="step-next" data-step="${after('options')[0]}">Next: ${after('options')[1].toLowerCase()}</button>`) : ''}
+    ${step('players', `${players.length ? `<div class="row">${players.map(p => {
       const n = setup.players.indexOf(p.id);
       return `<button class="chip ${n >= 0 ? 'on' : ''}" data-pick="${p.id}">${n >= 0 ? `<i>${n + 1}</i>` : ''}${esc(p.name)}</button>`;
     }).join('')}${addingPlayer ? '' : '<button class="chip ghost" data-act="newplayer">+ New</button>'}</div>
@@ -890,7 +909,7 @@ function renderHome() {
       <button class="chip ${setup.first === 'random' ? 'on' : ''}" data-first="random">Random</button></div></div>` : ''}
     ${dartsRows()}`
       : '<p class="muted">Add a player to get started.</p>'}
-    ${addingPlayer || !players.length ? newPlayerRow() : ''}
+    ${addingPlayer || !players.length ? newPlayerRow() : ''}`)}
     <span class="spacer"></span>
     ${start}
     </div>
@@ -900,11 +919,30 @@ function renderHome() {
     ${pageFoot('home')}
   </div>`;
   document.querySelector('.home-body').scrollTop = scrolled;
+  if (stepMoved) document.querySelector('.step.open')?.scrollIntoView({ block: 'nearest' });
+  stepMoved = false;
   refreshStatus();
   showTotals();
   loadTotals();
   fit();
   if (addingPlayer) document.getElementById('newplayer')?.focus();
+}
+// A step's line on a phone: what is chosen in it, in a few words.
+// An option says its own with `brief` (nothing at all, to be left out); one that doesn't is
+// its name and what is chosen.
+function optsBrief(game) {
+  return game.options.map(o => {
+    const v = setup.opts[o.key];
+    if (o.brief) return o.brief(v);
+    return `${o.label}: ${o.choices ? o.choices.find(c => c[0] === v)[1] : v}`;
+  }).filter(Boolean).join(' · ');
+}
+// Who is playing, in the order they will throw.
+function playersBrief() {
+  if (!setup.players.length) return players.length ? 'Choose who is playing' : 'Add a player';
+  const random = setup.first === 'random' && setup.players.length > 1;
+  const ids = random ? setup.players : throwingOrder();
+  return esc(ids.map(nameOf).join(', ')) + (random ? ' · random start' : '');
 }
 // Which darts each player is throwing: a line for each one playing who has more than one set.
 // Nobody playing has any: a word on where to add them.
@@ -2256,7 +2294,15 @@ $app.addEventListener('click', e => {
   if (d.act !== 'addplayer' && d.act !== 'rename' && d.act !== 'remove') formError = '';
   if (!/darts$/.test(d.act ?? '')) dartsError = null;
   if (d.act !== 'addplayer') addingPlayer = d.act === 'newplayer';
-  if (d.game) { setup.gameId = d.game; saveSetup(); return renderHome(); }
+  if (d.game) {
+    // chosen: on to the next step, or to the players when nobody is down to play
+    setup.gameId = d.game;
+    homeStep = gameById(d.game).options.length ? 'options' : setup.players.length ? null : 'players';
+    stepMoved = true;
+    saveSetup();
+    return renderHome();
+  }
+  if (d.step && !d.opt) { homeStep = homeStep === d.step ? null : d.step; stepMoved = true; return renderHome(); }
   if (d.step) {
     const o = gameById(setup.gameId).options.find(o => o.key === d.opt);
     setup.opts[d.opt] = Math.min(o.max, Math.max(o.min, setup.opts[d.opt] + +d.step));
@@ -2318,7 +2364,7 @@ $app.addEventListener('click', e => {
   }
   switch (d.act) {
     case 'addplayer': return addPlayer();
-    case 'newplayer': return renderHome();
+    case 'newplayer': homeStep = 'players'; return renderHome();
     case 'rename': return renamePlayer(+d.id);
     case 'remove': return removePlayer(+d.id);
     case 'manageplayers': settingsTab = 'players'; renderSettings(true); return mark(true);
@@ -2339,7 +2385,7 @@ $app.addEventListener('click', e => {
         playerIds: ids, darts: ids.map(dartsFor), seq: 0,
       };
       store.set('match', match);
-      const first = compute(match), aim = gameById(match.gameId).aim?.(first);  // the first bed to aim at (Random Targets)
+      const first = compute(match), aim = gameById(match.gameId).aim?.(first);  // the first thing to aim at (Random Targets, Around the Clock)
       const who = first.players.length > 1 ? first.players[first.current] : '';  // who throws first, when there is more than one
       const opener = aim ? (who ? `${who}, aim for ${aim}` : `Aim for ${aim}`) : who && `${who} to throw first`;
       say(opener ? `Game on. ${opener}` : 'Game on');

@@ -37,6 +37,7 @@
 //   call?(state)              -> optional: something to say after the last dart
 //   target?(state)            -> optional: the bed {seg, mult, part?} to light up on the board
 //   aim?(state)               -> optional: that bed as the caller says it, called out when it changes
+//                                and at the start of each visit; needs no target()
 //   seeded                    -> optional: true to be given opts.seed (a random number)
 //   summary() may also return out: true, to grey out a player's card
 //

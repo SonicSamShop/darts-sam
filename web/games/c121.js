@@ -59,11 +59,11 @@ export default {
   name: '121 Checkout',
   blurb: 'Check out 121 in nine darts. Hit it and the target goes up; miss and it comes back down, never below the start.',
   options: [
-    { key: 'start', label: 'Start', choices: [[81, '81'], [101, '101'], [121, '121']], default: 121 },
-    { key: 'darts', label: 'Darts per target', choices: [[3, '3'], [6, '6'], [9, '9'], [12, '12'], [15, '15']], default: 9 },
-    { key: 'inc', label: 'Increase on success', choices: [[1, '+1'], [2, '+2'], [5, '+5']], default: 1 },
-    { key: 'dec', label: 'Decrease on failure', choices: [[1, '−1'], [2, '−2'], [5, '−5'], [10, '−10'], [0, 'Back to start']], default: 1 },
-    { key: 'rounds', label: 'Rounds', choices: [[10, '10'], [20, '20'], [30, '30']], default: 10 },
+    { key: 'start', label: 'Start', choices: [[81, '81'], [101, '101'], [121, '121']], default: 121, brief: v => `From ${v}` },
+    { key: 'darts', label: 'Darts per target', choices: [[3, '3'], [6, '6'], [9, '9'], [12, '12'], [15, '15']], default: 9, brief: v => `${v} darts` },
+    { key: 'inc', label: 'Increase on success', choices: [[1, '+1'], [2, '+2'], [5, '+5']], default: 1, brief: v => `+${v}` },
+    { key: 'dec', label: 'Decrease on failure', choices: [[1, '−1'], [2, '−2'], [5, '−5'], [10, '−10'], [0, 'Back to start']], default: 1, brief: v => v ? `−${v}` : 'back to start' },
+    { key: 'rounds', label: 'Rounds', choices: [[10, '10'], [20, '20'], [30, '30']], default: 10, brief: v => `${v} rounds` },
   ],
 
   // Everything is kept per player.

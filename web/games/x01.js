@@ -115,10 +115,10 @@ export default {
   name: 'X01',
   blurb: 'Race from 501 (or 301 / 701) down to exactly zero. One leg, or first to a number of legs and sets.',
   options: [
-    { key: 'start', label: 'Start', choices: [[301, '301'], [501, '501'], [701, '701']], default: 501 },
+    { key: 'start', label: 'Start', choices: [[301, '301'], [501, '501'], [701, '701']], default: 501, brief: v => `${v}` },
     // First to this many legs wins the set; first to this many sets wins the match.
-    { key: 'legs', label: 'Legs to win', min: 1, max: 99, default: 1 },
-    { key: 'sets', label: 'Sets to win', min: 1, max: 99, default: 1 },
+    { key: 'legs', label: 'Legs to win', min: 1, max: 99, default: 1, brief: v => `${v} leg${v === 1 ? '' : 's'}` },
+    { key: 'sets', label: 'Sets to win', min: 1, max: 99, default: 1, brief: v => v > 1 ? `${v} sets` : '' },
   ],
 
   init(n, opts) {

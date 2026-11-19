@@ -287,6 +287,33 @@ svg.heat .b-num { fill: #d9dce3; }
   .tile { padding: 8px 10px; }
   .tile b { font-size: 24px; }
 }
+/* home: its steps (Game, Options, Players: see renderHome in app.js). On a computer each is open under
+   its heading, as the menu always was. On a phone each is a numbered line saying what is chosen, and
+   one at a time opens to change it: the games then have the room to say what they are. */
+.step-head, .step-next, .pick .game-card span { display: none; }
+@media (orientation: portrait), (max-width: 800px) {
+  .step-head {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+    width: 100%; margin-top: 10px; padding: 12px 14px; text-align: left;
+  }
+  .step-head i {
+    font-style: normal; width: 30px; line-height: 30px; border-radius: 50%; text-align: center; font-size: 15px; font-weight: 700;
+    box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .step.open .step-head i { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+  .step-head small { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
+  .step-head b { display: block; font-size: 19px; line-height: 1.2; overflow-wrap: anywhere; }
+  .step-head u { text-decoration: none; color: var(--accent); font-size: 14px; }
+  .step-body { display: none; padding: 12px 0 8px; }
+  .step.open .step-body { display: block; }
+  .page .step-body > h2, .pick .blurb { display: none; }  /* .page: outranks the themes' headings */
+  .pick .games { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; gap: 8px; }
+  .pick .game-card { height: auto; padding: 12px 14px; text-align: left; text-wrap: wrap; }
+  .pick .game-card span { display: block; margin-top: 4px; line-height: 1.3; }
+  .step .opt { grid-template-columns: minmax(0, 1fr); gap: 4px; margin-bottom: 14px; }
+  .step .row { gap: 8px; }
+  .step-next { display: block; width: 100%; margin-top: 4px; }
+}
 
 /* ---------- game ---------- */
 .game { display: grid; grid-template-columns: minmax(330px, 1fr) minmax(0, 1.25fr); gap: 16px; height: 100%; padding: 14px; }

@@ -78,10 +78,10 @@ export default {
   showTotal: false,  // the three-dart sum means nothing in this game
   seeded: true,
   options: [
-    { key: 'doubles', label: 'Doubles', choices: [['yes', 'Include'], ['no', 'Leave out']], default: 'yes' },
-    { key: 'trebles', label: 'Trebles', choices: [['yes', 'Include'], ['no', 'Leave out']], default: 'yes' },
-    { key: 'hard', label: 'Hard mode', choices: [['no', 'Off'], ['yes', 'Inner & outer singles']], default: 'no' },
-    { key: 'goes', label: 'Goes', min: 5, max: 50, default: 20 },
+    { key: 'doubles', label: 'Doubles', choices: [['yes', 'Include'], ['no', 'Leave out']], default: 'yes', brief: v => v === 'no' ? 'No doubles' : '' },
+    { key: 'trebles', label: 'Trebles', choices: [['yes', 'Include'], ['no', 'Leave out']], default: 'yes', brief: v => v === 'no' ? 'No trebles' : '' },
+    { key: 'hard', label: 'Hard mode', choices: [['no', 'Off'], ['yes', 'Inner & outer singles']], default: 'no', brief: v => v === 'yes' ? 'Hard mode' : '' },
+    { key: 'goes', label: 'Goes', min: 5, max: 50, default: 20, brief: v => `${v} goes` },
   ],
 
   init(n, opts) {

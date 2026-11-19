@@ -10,7 +10,7 @@ export default {
   blurb: 'Hit 1 through 20 in order, then the bull. First to finish wins.',
   showTotal: false,  // the three-dart sum means nothing in this game
   options: [
-    { key: 'skip', label: 'Doubles & trebles', choices: [['no', 'Count as one'], ['yes', 'Jump ahead 2 / 3']], default: 'no' },
+    { key: 'skip', label: 'Doubles & trebles', choices: [['no', 'Count as one'], ['yes', 'Jump ahead 2 / 3']], default: 'no', brief: v => v === 'yes' ? 'Doubles & trebles jump ahead' : 'Doubles & trebles count as one' },
   ],
 
   init(n) {
@@ -32,6 +32,10 @@ export default {
     const rate = n ? `${Math.round(s.hits[i] / n * 100)}% hit · ${n} dart${n === 1 ? '' : 's'}` : '';
     return { big: s.winner === i ? '✓' : name(s.target[i]), small: rate };
   },
+
+  // The number needed, as the caller says it at the start of each visit and
+  // after each hit.
+  aim(s) { return s.winner == null ? name(s.target[s.current]) : ''; },
 
   hint(s) { return s.turnOver ? '' : `Aim for ${name(s.target[s.current])}`; },
 };

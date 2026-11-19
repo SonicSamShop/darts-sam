@@ -26,8 +26,8 @@ export default {
   blurb: 'Weak hand for your number, hit your double to become a killer, then take lives off the others\' doubles. Last one standing wins.',
   showTotal: false,  // the three-dart sum means nothing in this game
   options: [
-    { key: 'lives', label: 'Lives', choices: [[3, '3'], [5, '5']], default: 5 },
-    { key: 'mode', label: 'Rules', choices: [['house', 'House rules'], ['classic', 'Classic']], default: 'house' },
+    { key: 'lives', label: 'Lives', choices: [[3, '3'], [5, '5']], default: 5, brief: v => `${v} lives` },
+    { key: 'mode', label: 'Rules', choices: [['house', 'House rules'], ['classic', 'Classic']], default: 'house', brief: v => v === 'classic' ? 'Classic rules' : 'House rules' },
   ],
 
   init(n, opts) {

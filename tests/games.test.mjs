@@ -137,6 +137,8 @@ test('cricket: marks, points and win', () => {
 test('around the clock', () => {
   let s = play('clock', ['A'], { skip: 'no' }, [D(1), D(2, 3), D(4)]);
   assert.equal(s.target[0], 3);
+  assert.equal(gameById('clock').aim(s), String(s.target[0]));    // the number needed, for the caller
+  assert.equal(gameById('clock').aim({ ...s, target: [25] }), 'Bull');
   s = play('clock', ['A'], { skip: 'yes' }, [D(1, 3), D(4, 2), D(6)]);
   assert.equal(s.target[0], 7);
   const log = [];
