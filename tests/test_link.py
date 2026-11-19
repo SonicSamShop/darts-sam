@@ -11,7 +11,7 @@ import threading
 import time
 from pathlib import Path
 
-import httpx
+import httpx2 as httpx
 import uvicorn
 import websockets
 
