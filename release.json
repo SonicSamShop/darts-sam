@@ -1,6 +1,7 @@
 {
   "version": "1.2",
   "unreleased": [
+    "On a phone, the Play screen is now three simple steps: Game, Options and Players. Each shows what is chosen at a glance and opens when you tap it, every game says what it is, and Start is always in reach.",
     "Settings now shows the app's build number next to its version, so you can tell exactly which one you have.",
     "Keep track of your darts: add each set you own under Settings › Darts, pick which you're throwing on the Play screen, and see how much each set has been thrown and its stats on their own.",
     "Scores are now called only in your device's own voices. A device with none, such as a Raspberry Pi, no longer uses the old robotic voice and stays quiet instead.",
