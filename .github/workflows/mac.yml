@@ -1,0 +1,100 @@
+# The Mac app, for both kinds of Mac: builds DartsSAM.app, checks that it
+# starts, and wraps it in a .dmg. The .dmg is kept with the run:
+# Actions → the run → Artifacts → DartsSAM-mac-arm64-<version> (Apple silicon) or
+# DartsSAM-mac-x86_64-<version> (Intel). The version is release.json's.
+#
+# The .dmg is not signed by Apple here, so a Mac that downloads it refuses to
+# open the app until its owner allows it in System Settings (see the README).
+# No cameras are plugged into GitHub's machines, so the app is started with
+# --no-cameras: this cannot say whether real cameras work.
+name: Mac
+
+# Builds cost GitHub Actions minutes (Mac ones most), so they run only for a
+# release: when a push raises "version" in release.json (README, "Releasing a
+# new version"), or when started by hand (Actions → this workflow → Run
+# workflow) to check that the apps still build. The server only gives out a
+# build whose version is new, so a test build never reaches anyone.
+on:
+  push:
+    branches: [main]
+    paths: [release.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # Did this push raise the version? Adding lines to "unreleased" doesn't.
+    runs-on: ubuntu-latest
+    outputs:
+      new: ${{ steps.compare.outputs.new }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: compare
+        run: |
+          version() { python3 -c "import json, sys; print(json.load(sys.stdin)['version'])"; }
+          now=$(version < release.json)
+          before=none
+          if [ "${{ github.event_name }}" = push ] && git fetch --quiet --depth=1 origin "${{ github.event.before }}" 2>/dev/null; then
+            before=$(git show FETCH_HEAD:release.json 2>/dev/null | version 2>/dev/null || echo none)
+          fi
+          echo "version before: $before, now: $now (${{ github.event_name }})"
+          if [ "${{ github.event_name }}" != push ] || [ "$before" != "$now" ]; then echo "new=true" >> "$GITHUB_OUTPUT"; fi
+
+  build:
+    needs: release
+    if: needs.release.outputs.new == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-latest, macos-15-intel]  # Apple silicon, Intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # all of history: the build number counts commits (server/build.py)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt -r requirements-mac.txt pyinstaller
+      - run: python tools/build_exe.py
+      - name: The app starts, serves the page and keeps its data in the user's folder
+        run: |
+          dist/DartsSAM.app/Contents/MacOS/DartsSAM --no-browser --no-cameras --port 8123 &
+          up=""
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:8123/version.json; then up=1; break; fi
+            sleep 1
+          done
+          if [ -n "$up" ]; then
+            curl -sf -o /dev/null -w "\npage %{http_code}\n" http://127.0.0.1:8123/
+            curl -sf http://127.0.0.1:8123/api/status
+            # it knows its version: release.json was built in
+            curl -sf http://127.0.0.1:8123/api/update | grep -F "\"version\":\"$(python -c "import json; print(json.load(open('release.json'))['version'])")\"" || { echo "it does not know its version: release.json was not built in"; up=""; }
+          fi
+          kill %1 || true
+          cat "$HOME/Library/Application Support/DartsSAM/DartsSAM.log" || true
+          [ -n "$up" ] || { echo "DartsSAM.app did not answer within 90 seconds"; exit 1; }
+          [ -f "$HOME/Library/Application Support/DartsSAM/data/dartssam.db" ] || { echo "no database in Application Support/DartsSAM"; exit 1; }
+      - id: chip
+        run: echo "chip=$(uname -m)" >> "$GITHUB_OUTPUT"
+      - id: release
+        shell: bash
+        run: echo "version=$(python -c "import json; print(json.load(open('release.json'))['version'])")" >> "$GITHUB_OUTPUT"
+      # Signed with the key only GitHub holds, so the apps' Update can tell the
+      # build is genuine (tools/sign_release.py, server/release.py).
+      - name: Sign the build
+        shell: bash
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: python tools/sign_release.py sign "mac-${{ steps.chip.outputs.chip }}" dist/DartsSAM-*.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DartsSAM-mac-${{ steps.chip.outputs.chip }}-${{ steps.release.outputs.version }}
+          path: |
+            dist/DartsSAM-*.dmg
+            dist/DartsSAM-*.dmg.sig
+            dist/release.json
+          if-no-files-found: error
+          retention-days: 14  # the server fetches a release within minutes, and keeps it

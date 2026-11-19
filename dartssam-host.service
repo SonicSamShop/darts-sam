@@ -1,0 +1,13 @@
+[Unit]
+Description=Darts S.A.M hosted site
+After=network-online.target
+
+[Service]
+User=dartssam
+WorkingDirectory=/opt/dartssam
+ExecStart=/opt/dartssam/.venv/bin/python -m server.host --port 8000 --data /var/lib/dartssam --settings /etc/dartssam/host.json
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

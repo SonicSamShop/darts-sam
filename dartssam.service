@@ -1,0 +1,12 @@
+[Unit]
+Description=Darts S.A.M scoring server
+After=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/dartssam
+ExecStart=/home/pi/dartssam/.venv/bin/python -m server.app
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

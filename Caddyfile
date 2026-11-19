@@ -1,0 +1,18 @@
+# The hosted site's front door (see docs/hosting.md). Caddy gets and renews the
+# https certificate by itself and passes everything, websockets included, to
+# the host, which only listens on this machine.
+# The names on the next line are the home page's address and the app's ("home"
+# and "site" in host.json): the same host answers both and tells them apart.
+dartssam.co.uk, app.dartssam.co.uk {
+	encode gzip
+	# nothing sent here is ever bigger than a problem report (60 MB); the host counts too (server/limits.py)
+	request_body {
+		max_size 64MB
+	}
+	reverse_proxy 127.0.0.1:8000
+}
+
+# People who type www are sent to the plain name (needs a DNS record for www too).
+www.dartssam.co.uk {
+	redir https://dartssam.co.uk{uri} permanent
+}

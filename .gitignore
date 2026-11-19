@@ -1,0 +1,12 @@
+__pycache__/
+.venv/
+config.json
+data/
+*.pem
+.DS_Store
+host.json
+build/
+dist/
+*.spec
+downloads/
+dartssam.txt

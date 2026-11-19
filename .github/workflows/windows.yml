@@ -1,0 +1,127 @@
+# Windows, without owning a Windows machine: runs the tests there, builds
+# DartsSAM.exe and checks that its server starts (with --no-browser, so not
+# its window). The .exe is kept with the run:
+# Actions → the run → Artifacts → DartsSAM-windows-<version>
+# (release.json's version).
+#
+# No cameras are plugged into GitHub's machines, so this cannot say whether
+# real USB cameras work on Windows.
+name: Windows
+
+# Builds cost GitHub Actions minutes (Mac ones most), so they run only for a
+# release: when a push raises "version" in release.json (README, "Releasing a
+# new version"), or when started by hand (Actions → this workflow → Run
+# workflow) to check that the apps still build. The server only gives out a
+# build whose version is new, so a test build never reaches anyone.
+on:
+  push:
+    branches: [main]
+    paths: [release.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # Did this push raise the version? Adding lines to "unreleased" doesn't.
+    runs-on: ubuntu-latest
+    outputs:
+      new: ${{ steps.compare.outputs.new }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: compare
+        run: |
+          version() { python3 -c "import json, sys; print(json.load(sys.stdin)['version'])"; }
+          now=$(version < release.json)
+          before=none
+          if [ "${{ github.event_name }}" = push ] && git fetch --quiet --depth=1 origin "${{ github.event.before }}" 2>/dev/null; then
+            before=$(git show FETCH_HEAD:release.json 2>/dev/null | version 2>/dev/null || echo none)
+          fi
+          echo "version before: $before, now: $now (${{ github.event_name }})"
+          if [ "${{ github.event_name }}" != push ] || [ "$before" != "$now" ]; then echo "new=true" >> "$GITHUB_OUTPUT"; fi
+
+  test:
+    needs: release
+    if: needs.release.outputs.new == 'true'
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # all of history: the build number counts commits (server/build.py)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -r requirements.txt -r requirements-host.txt -r requirements-dev.txt
+      - name: App tests (Node)
+        run: node --test tests/*.mjs
+      - name: Server tests (Python)
+        run: |
+          failed=""
+          for f in tests/test_*.py; do
+            t=$(basename "$f" .py)
+            echo "::group::$t"
+            python -m "tests.$t" || failed="$failed $t"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then echo "Failed on Windows:$failed"; exit 1; fi
+
+  # Not held up by the tests: a first Windows run may show failures in them
+  # that have nothing to do with whether the .exe starts.
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # all of history: the build number counts commits (server/build.py)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt -r requirements-windows.txt pyinstaller
+      - run: python tools/build_exe.py
+      - name: The .exe starts, serves the app and keeps its data in the user's folder
+        shell: pwsh
+        run: |
+          $p = Start-Process dist\DartsSAM.exe -ArgumentList '--no-browser','--port','8123' -PassThru -RedirectStandardOutput out.log -RedirectStandardError err.log
+          $up = $false
+          foreach ($i in 1..90) {
+            try { $v = Invoke-RestMethod http://127.0.0.1:8123/version.json -TimeoutSec 2; $up = $true; break } catch { Start-Sleep 1 }
+          }
+          if ($up) {
+            $page = Invoke-WebRequest http://127.0.0.1:8123/ -UseBasicParsing
+            $status = Invoke-RestMethod http://127.0.0.1:8123/api/status
+            $update = Invoke-RestMethod http://127.0.0.1:8123/api/update
+            $release = Get-Content release.json -Raw | ConvertFrom-Json
+            if ($update.version -ne $release.version) { "it says version $($update.version), not $($release.version): release.json was not built in"; $up = $false }
+            "version $($v.version), page $($page.StatusCode), status: $($status | ConvertTo-Json -Compress -Depth 4)"
+          }
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          Get-Content out.log, err.log
+          Get-Content "$env:LOCALAPPDATA\DartsSAM\DartsSAM.log" -ErrorAction SilentlyContinue
+          if (-not $up) { throw "DartsSAM.exe did not answer within 90 seconds" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\DartsSAM\data\dartssam.db")) { throw "no database in %LOCALAPPDATA%\DartsSAM" }
+      - id: release
+        shell: bash
+        run: echo "version=$(python -c "import json; print(json.load(open('release.json'))['version'])")" >> "$GITHUB_OUTPUT"
+      # Signed with the key only GitHub holds, so the apps' Update can tell the
+      # build is genuine (tools/sign_release.py, server/release.py).
+      - name: Sign the build
+        shell: bash
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: python tools/sign_release.py sign windows dist/DartsSAM.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DartsSAM-windows-${{ steps.release.outputs.version }}
+          path: |
+            dist/DartsSAM.exe
+            dist/DartsSAM.exe.sig
+            dist/release.json
+          if-no-files-found: error
+          retention-days: 14  # the server fetches a release within minutes, and keeps it

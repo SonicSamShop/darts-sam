@@ -1,0 +1,20 @@
+{
+  "version": "1.2",
+  "unreleased": [
+    "Settings now shows the app's build number next to its version, so you can tell exactly which one you have.",
+    "Keep track of your darts: add each set you own under Settings › Darts, pick which you're throwing on the Play screen, and see how much each set has been thrown and its stats on their own.",
+    "Scores are now called only in your device's own voices. A device with none, such as a Raspberry Pi, no longer uses the old robotic voice and stays quiet instead.",
+    "Updates are now checked before they are opened: the app only installs a new version that is signed as genuine."
+  ],
+  "notes": {
+    "1.0": [
+      "First release."
+    ],
+    "1.1": [
+      "The desktop app now tells you when a new version is ready, shows what has changed, and can download it for you."
+    ],
+    "1.2": [
+      "Doubles and trebles are scored more accurately: automatic calibration now allows for the way wide webcams bend the picture. Run Auto calibrate again on each camera to get this."
+    ]
+  }
+}

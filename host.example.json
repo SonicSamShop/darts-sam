@@ -1,0 +1,10 @@
+{
+  "google_client_id": "YOUR-CLIENT-ID.apps.googleusercontent.com",
+  "apple_client_id": "",
+  "site": "https://app.dartssam.co.uk",
+  "home": "https://dartssam.co.uk",
+  "email": {"resend_key": "", "from": "\"Darts S.A.M\" <signin@dartssam.co.uk>"},
+  "analytics_token": "",
+  "admins": ["you@example.com"],
+  "dev": false
+}

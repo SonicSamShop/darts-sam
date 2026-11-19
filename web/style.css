@@ -1,0 +1,689 @@
+:root {
+  --bg: #101418; --panel: #1a2027; --panel2: #232b34; --line: #2f3944;
+  --text: #eef2f5; --muted: #8d9aa8; --accent: #3ddc84; --warn: #ff5d5d; --gold: #ffcc4d;
+  --on-accent: #06210f;
+  --font: -apple-system, system-ui, "Segoe UI", sans-serif; --display: var(--font);
+  --b-surround: #0a0d10; --b-dark: #1c1f22; --b-light: #e9dfc3; --b-red: #d23b3b; --b-green: #2f9d58;
+  --b-wire: #9aa3ab; --b-num: #dfe5ea; --mark: #4db8ff;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* The app is one screen: the page itself never scrolls. Each view lays itself out
+   to fill the window, and fit() in app.js shrinks a view that still doesn't fit.
+   Only the stats scroll, inside their own part of the screen: there the lists are
+   as long as the history behind them. */
+html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 17px/1.4 var(--font);
+  touch-action: manipulation; -webkit-user-select: none; user-select: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+#app { height: 100%; overflow: hidden; }
+h1 { font-size: 28px; margin: 0; letter-spacing: -.5px; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 18px 0 8px; font-weight: 600; }
+button, input { font: inherit; color: inherit; }
+button {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 18px; min-height: 48px; cursor: pointer;
+}
+button:active { filter: brightness(1.3); }
+/* a ring only for someone finding their way with the keyboard, and in the theme's own colour */
+:focus:not(:focus-visible) { outline: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+button.ghost { background: none; }
+button.on { border-color: var(--accent); color: var(--accent); }
+button.danger { color: var(--warn); }
+button:disabled { opacity: .4; }
+:is(input[type=text], input[type=number]) {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; min-height: 48px; width: 100%; -webkit-user-select: text; user-select: text;
+}
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.spacer { flex: 1; }
+.muted { color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; }
+.dot.ok { background: var(--accent); }
+
+/* ---------- home, players & settings ---------- */
+.page { max-width: 1200px; margin: 0 auto; padding: 20px; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+.page > * { flex: none; }
+.page > .fill { flex: 1; min-height: 0; }
+/* Getting about: the name, the connection and the app's four places on every screen but the game.
+   On a computer the places are buttons along the top; on a phone or a tablet (anything held upright,
+   narrow or worked by touch) they are a bar of tabs along the bottom instead. app.js draws both. */
+.head { flex-wrap: nowrap; }
+.head h1 { white-space: nowrap; }
+.head .conn { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.under { margin-top: 10px; flex-wrap: nowrap; }  /* Back and a title, beneath the top line */
+.nav { display: flex; gap: 10px; flex: none; }
+.nav button { white-space: nowrap; }
+/* .page: along the top they are words, not boxes, in every theme: the place you are in is underlined */
+.page .nav.top { gap: 4px; margin-left: 8px; }
+.page .nav.top button {
+  background: none; border: 0; border-radius: 0; box-shadow: none; min-height: 40px; padding: 6px 12px;
+  color: var(--muted); text-decoration: none;
+}
+.page .nav.top button:hover { color: var(--text); }
+.page .nav.top button.on { color: var(--text); box-shadow: inset 0 -2px var(--accent); }
+.nav svg, .nav .short, .nav.foot { display: none; }
+@media (max-width: 1000px) {  /* the top line is short of room: fewer words */
+  .nav .long { display: none; }
+  .nav .short { display: inline; }
+}
+@media (orientation: portrait), (max-width: 800px), (pointer: coarse) {
+  .nav.top { display: none; }
+  .head { flex-wrap: wrap; gap: 0 10px; }  /* the connection goes under the name when it can't sit beside it */
+  .head .conn { max-width: 100%; }
+  .nav.foot { display: flex; gap: 4px; margin-top: auto; padding-top: 6px; border-top: 1px solid var(--line); }
+  .page > :has(+ .nav.foot) { margin-bottom: 10px; }
+  /* .page: the tabs look the same in every theme, whatever it does to its buttons */
+  .page .nav.foot button {
+    flex: 1; min-width: 0; min-height: 48px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    background: none; border: 0; border-radius: 10px; box-shadow: none; color: var(--muted);
+    font-size: 14px; line-height: 1.2; text-decoration: none;
+  }
+  .page .nav.foot button.on { color: var(--accent); }
+  .nav.foot svg { display: block; width: 22px; height: 22px; }
+  .nav.foot .long { display: none; }
+  .nav.foot .short { display: inline; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+}
+/* The menu's Start button. On a computer it ends the right-hand column. On a phone or a tablet the
+   menu scrolls, so a second one (app.js draws both) sits in a bar of its own above the tabs, always in reach. */
+.startbar { display: none; }
+@media (orientation: portrait), (max-width: 800px), (pointer: coarse) {
+  .home-body { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .setup .start, .setup > .spacer { display: none; }
+  .startbar { display: block; padding-top: 10px; }
+}
+/* two columns and tabs along the bottom (a tablet or a big phone on its side): Start stays under the column it ends */
+@media (pointer: coarse) and (orientation: landscape) and (min-width: 801px) {
+  .startbar { padding-left: calc(50% + 14px); }
+}
+/* a phone on its side has no height to spare: each tab's picture and name side by side */
+@media (orientation: landscape) and (max-height: 600px) {
+  .page .nav.foot button { flex-direction: row; gap: 8px; min-height: 40px; }
+}
+.tabs { margin-top: 14px; flex-wrap: nowrap; }
+.tabs button { flex: 1; min-width: 0; padding-left: 6px; padding-right: 6px; }
+.chips { margin-top: 14px; }
+/* stats: who, which game and (once they have some) which darts, as drop-downs side by side */
+.picks { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.picks .pick { position: relative; flex: 1; min-width: min(140px, 100%); }  /* a third (Darts) wraps under on a narrow phone */
+.picks .pick span { position: absolute; left: 16px; top: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); pointer-events: none; }
+.noplayers { padding-top: 14px; }
+/* the settings' Players tab: a narrow list, a name to a line, what can be done to it said quietly after it */
+.editplayers { max-width: 560px; padding-top: 14px; }
+.editplayers .player-row { align-items: center; gap: 4px; margin-bottom: 4px; }
+.editplayers .player-row input { flex: 1; min-width: 0; }
+.editplayers .player-row .ghost { border-color: transparent; padding-left: 12px; padding-right: 12px; }
+.editplayers .player-row:has(#newplayer) { gap: 10px; }
+.editplayers .danger { min-width: 112px; }  /* as wide armed ("Tap again") as not, so the rows line up */
+/* the settings' Darts tab: a player's sets under their name, a weight beside each, put-away ones faded */
+.editdarts h3 { margin: 18px 0 6px; font-size: 15px; color: var(--muted); }
+.editdarts h3:first-child { margin-top: 0; }
+.editdarts .darts-row input[type=number] { flex: 0 0 76px; }
+.editdarts .darts-row:has([data-newdarts]) { gap: 10px; }
+.editdarts .darts-row.away input { opacity: .55; }
+/* a button that reads as a link in a sentence ("add your darts") */
+button.link { background: none; border: 0; padding: 0; min-height: 0; color: var(--accent); text-decoration: underline; font: inherit; cursor: pointer; }
+/* stats: how much each set of darts has been thrown; a line opens that set's stats */
+tr[data-gear] { cursor: pointer; }
+tr[data-gear]:active { filter: brightness(1.3); }
+tr.at td { background: var(--panel2); }
+.picks .pick::after { content: "▾"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+select {
+  font: inherit; color: inherit; width: 100%; min-height: 56px; padding: 20px 36px 4px 15px; cursor: pointer;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
+  -webkit-appearance: none; appearance: none; text-overflow: ellipsis;
+}
+select option { background: var(--bg); color: var(--text); }
+select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label inside it */
+/* The settings. On a computer one section at a time, picked by the tabs. On a phone or a tablet
+   every section on the one page, each under its name, and the page scrolls: on a tablet on its
+   side, in two columns. app.js draws all of them either way. */
+.setbody { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.sect .editplayers { overflow: visible; }  /* the page scrolls, not the list */
+.stabs { display: none; }
+/* a computer: everything the bar of tabs along the bottom is not (see .nav above) */
+@media (orientation: landscape) and (min-width: 801px) and (pointer: fine), (orientation: landscape) and (min-width: 801px) and (pointer: none) {
+  .stabs { display: flex; }
+  .setcol { display: contents; }
+  .page .sect:not(.on), .page .sect > h2 { display: none; }  /* .page: outranks the themes' headings */
+}
+@media (orientation: portrait), (max-width: 800px), (pointer: coarse) {
+  .setbody { margin-top: 4px; }
+  .sect { padding-bottom: 14px; }
+  .sect > h2 + * { margin-top: 0; padding-top: 0; }
+  /* the section's name says it already */
+  .sect .opt.solo { grid-template-columns: minmax(0, 1fr); }
+  .sect .opt.solo > span { display: none; }
+}
+@media (pointer: coarse) and (orientation: landscape) and (min-width: 900px) {
+  .setbody { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 28px; align-items: start; }
+}
+.settings { max-width: 560px; margin-top: 14px; }
+.settings .opt { align-items: start; }
+.settings .opt > span { padding-top: 12px; }
+.settings p { margin: 6px 0 0; }
+
+/* home: pick the game on the left, set it up on the right, the totals in the corner under the games */
+.home-body {
+  flex: 1; min-height: 0; display: grid; gap: 0 28px;
+  grid-template: "pick setup" auto "totals setup" minmax(0, 1fr) / minmax(0, 1fr) minmax(0, 1fr);
+}
+.pick { grid-area: pick; }
+.setup { grid-area: setup; display: flex; flex-direction: column; }
+.setup p { margin: 8px 0; }
+.setup .spacer { min-height: 14px; }
+/* the app's totals, kept as quiet as a version number */
+.totals { grid-area: totals; align-self: end; margin: 0; padding-top: 10px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; opacity: .8; }
+.games { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+/* home: game names only; the chosen game's blurb goes underneath */
+/* every card the same size, however its name wraps */
+.pick .games { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); grid-auto-rows: 1fr; }
+.pick .game-card { padding: 10px 14px; text-align: center; text-wrap: balance; line-height: 1.15; }
+.pick .game-card b { margin: 0; }
+.game-card { text-align: left; padding: 14px 16px; height: 100%; }
+.game-card b { display: block; font-size: 19px; margin-bottom: 4px; }
+.game-card span { color: var(--muted); font-size: 14px; }
+.game-card.on b { color: var(--accent); }
+.blurb { margin: 10px 0 0; }
+.player-row { display: flex; gap: 10px; margin-bottom: 8px; }
+.opt { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 10px; }
+.opt > span { color: var(--muted); }
+.choices { display: flex; gap: 6px; }
+/* one button a theme, in a grid: every one the same size, however its name wraps, and the last not stretched */
+.choices.themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); grid-auto-rows: 1fr; }
+.choices button { flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 8px; line-height: 1.15; text-wrap: balance; }  /* equal widths */
+.stepper { align-items: center; }
+.stepper button { flex: 0 0 64px; font-size: 22px; line-height: 1; }
+.stepper b { flex: 1; text-align: center; font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
+.start { width: 100%; font-size: 20px; min-height: 60px; }
+.chip { border-radius: 999px; }
+.chip.ghost { border-style: dashed; color: var(--muted); }  /* "+ New": one of the row, but not a player */
+.chip i { font-style: normal; background: var(--accent); color: var(--on-accent); border-radius: 50%; display: inline-block;
+  width: 22px; line-height: 22px; text-align: center; font-size: 13px; font-weight: 700; margin-right: 8px; }
+.small { font-size: 14px; }
+.warn { color: var(--warn); margin: 4px 0; }
+.player-row button { white-space: nowrap; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.tile { background: var(--panel); border-radius: 14px; padding: 12px 14px; }
+.tile b { display: block; font-family: var(--display); font-size: 30px; font-variant-numeric: tabular-nums; }
+.tile span { color: var(--muted); font-size: 14px; }
+table.plain { width: 100%; border-collapse: collapse; }
+table.plain th, table.plain td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+table.plain th { color: var(--muted); font-size: 13px; font-weight: 600; }
+/* a tile or a line of a table that can be tapped to see what is behind it */
+.tile.tap { position: relative; cursor: pointer; }
+.tile.tap::after { content: "›"; position: absolute; top: 6px; right: 12px; color: var(--muted); font-size: 20px; }
+.tile.tap:active, tr[data-drill]:active { filter: brightness(1.3); }
+tr[data-drill], [data-sheet] { cursor: pointer; }
+[data-sheet]:active { filter: brightness(1.3); }
+.p-stats, .p-games, .drill, .editplayers { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.p-stats > h2:first-child { margin-top: 14px; }
+/* the list or scoresheet behind a figure */
+.page h1.sub { flex: 1; min-width: 0; font-size: clamp(19px, 5vw, 28px); }  /* .page: outranks the themes' bigger lettering */
+.crumbs { margin: 6px 0 10px; }
+.drill table.plain { font-variant-numeric: tabular-nums; }
+.drill thead th { white-space: nowrap; }
+.drill th[data-sort] { cursor: pointer; }
+.drill th.sorted { color: var(--accent); }
+.drill .facts { margin: 0 0 10px; }
+.drill .tiles { margin-bottom: 10px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.sheet td.at { background: var(--panel2); box-shadow: inset 0 2px var(--accent), inset 0 -2px var(--accent); }
+.sheet td.out { color: var(--gold); font-weight: 700; }
+.sheet .legrow td { padding-top: 18px; color: var(--muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; }
+.sheet .legrow td.at { color: var(--accent); }
+@media (max-width: 700px) {
+  .drill .wide { display: none; }
+  .drill table.plain { font-size: 14px; }
+  .drill table.plain th, .drill table.plain td { padding: 7px 4px; }
+}
+/* players & stats: one tab's pane at a time */
+.panes > div { display: none; height: 100%; }
+.panes.tab-stats > .p-stats, .panes.tab-games > .p-games { display: block; }
+.panes.tab-board > .p-board { display: flex; flex-direction: column; }
+@media (min-width: 1100px) and (min-height: 750px) {
+  /* a big screen has room for the stats and the board side by side */
+  .tabs [data-tab=board] { display: none; }
+  .panes.tab-stats, .panes.tab-board { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 28px; }
+  .panes.tab-stats > .p-board, .panes.tab-board > .p-board { display: flex; flex-direction: column; }
+  .panes.tab-board > .p-stats { display: block; }
+}
+.statboard { flex: 1; min-height: 0; position: relative; }
+.statboard svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* heat map: a board in the standard colours whatever the theme, so the picture always reads the
+   same way; the heat lies over it, see-through enough for the board to show (board.js) */
+svg.heat .b-surround { fill: #0b0b10; stroke: #a9adb8; }
+svg.heat .b-dark { fill: #141414; } svg.heat .b-light { fill: #f0e6c8; }
+svg.heat .b-red { fill: #e3292e; } svg.heat .b-green { fill: #309f6a; }
+svg.heat .b-dark, svg.heat .b-light, svg.heat .b-red, svg.heat .b-green { stroke: #c9c9cf; }
+svg.heat .b-num { fill: #d9dce3; }
+.b-heat { pointer-events: none; opacity: .8; }
+.heatkey { display: flex; align-items: center; justify-content: center; gap: 10px; padding-top: 8px; color: var(--muted); font-size: 14px; }
+.heatkey i { width: min(220px, 40%); height: 10px; border-radius: 5px; border: 1px solid var(--line);
+  background: linear-gradient(90deg, rgb(0 0 4), rgb(87 16 110), rgb(188 55 84), rgb(249 142 9), rgb(252 255 164)); }
+@media (orientation: portrait), (max-width: 800px) {
+  .home-body { grid-template: "pick" auto "setup" auto "totals" minmax(0, 1fr) / minmax(0, 1fr); }
+}
+/* phones: tighter spacing */
+@media (max-width: 600px), (max-height: 600px) {
+  .page { padding: 12px; }
+  h2 { margin: 12px 0 6px; }
+  button, :is(input[type=text], input[type=number]) { min-height: 42px; padding-top: 8px; padding-bottom: 8px; }
+  .pick .games { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; }
+  .pick .game-card { padding: 8px 10px; }
+  .page .pick .game-card b { font-size: 17px; }  /* .page: outranks the themes' bigger lettering */
+  .opt { grid-template-columns: 96px minmax(0, 1fr); margin-bottom: 6px; }
+  .opt > span { font-size: 14px; line-height: 1.15; }
+  .choices button { padding-left: 4px; padding-right: 4px; }
+  .start { min-height: 52px; }
+  .tiles { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
+  .tile { padding: 8px 10px; }
+  .tile b { font-size: 24px; }
+}
+
+/* ---------- game ---------- */
+.game { display: grid; grid-template-columns: minmax(330px, 1fr) minmax(0, 1.25fr); gap: 16px; height: 100%; padding: 14px; }
+.side { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; }
+.side > * { flex-shrink: 0; }  /* nothing is squashed: a side that is too tall is shrunk as a whole (fit in app.js) */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.top b { font-size: 19px; }
+.top button { min-height: 42px; padding: 6px 12px; }
+/* a button with two letterings holds both, one on top of the other, so it is as wide as the wider one whichever
+   shows: asking "are you sure" must not push it onto the next line */
+.swap { display: inline-grid; align-items: center; white-space: nowrap; }
+.swap > * { grid-area: 1 / 1; }
+.swap > .hid { visibility: hidden; }
+.top .conn { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* a fixed width: these letterings have no equal-width figures, and a clock that grows and shrinks by the second
+   pushes the buttons after it on and off the line */
+.clock { display: inline-block; min-width: 5ch; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
+.players { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.pcard { background: var(--panel); border: 2px solid transparent; border-radius: 14px; padding: 10px 14px; opacity: .65; }
+.pcard.cur { border-color: var(--accent); opacity: 1; }
+.pcard.win { border-color: var(--gold); opacity: 1; }
+.players .pcard.out { opacity: .35; }  /* knocked out (Killer) */
+.pcard .name { font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcard .big { font-family: var(--display); font-size: 54px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.pcard .small { font-size: 14px; color: var(--muted); min-height: 20px; }
+.turn { display: grid; grid-template-columns: repeat(3, 1fr) 1.1fr; gap: 8px; }
+.slot { background: var(--panel); border-radius: 12px; text-align: center; padding: 12px 4px; font-family: var(--display); font-size: 26px; font-weight: 700; min-height: 62px; }
+.slot.empty { color: var(--line); }
+.slot.total { background: none; border: 1px solid var(--line); color: var(--accent); }
+.slot.bust { color: var(--warn); border-color: var(--warn); }
+.lastvisit { color: var(--muted); font-size: 20px; line-height: 1.2; text-align: center; }
+.lastvisit b { color: var(--text); font-weight: 700; }
+.hint { min-height: 26px; color: var(--gold); font-size: 18px; text-align: center; }
+.banner { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; text-align: center; font-size: 18px; }
+.banner.bust { border-color: var(--warn); color: var(--warn); font-weight: 800; }
+.banner.win { border-color: var(--gold); color: var(--gold); font-size: 24px; font-weight: 800; }
+.actions { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 8px; margin-top: auto; }
+.actions button { min-height: 72px; font-size: 20px; font-weight: 700; }
+.boardwrap { position: relative; display: flex; align-items: center; justify-content: center; min-height: 0; min-width: 0; }
+.boardwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+[hidden] { display: none !important; }
+.actions.solo { grid-template-columns: 1fr; }
+
+/* typing the visit total instead of tapping the board */
+.pad { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 480px; padding: 10px;
+  height: 100%; max-height: 640px; }
+.pad-out { background: var(--panel); border-radius: 14px; text-align: center; font-family: var(--display);
+  font-size: clamp(44px, 12vh, 96px); font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.pad-out.bad { color: var(--warn); }
+.pad-msg { min-height: 28px; text-align: center; color: var(--muted); }
+.pad-msg.warn { color: var(--warn); }
+.pad-keys { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 10px; }
+.pad-keys button { min-height: 0; padding: 0; font-size: clamp(18px, 4vh, 30px); }
+.pad-keys button.wide { grid-column: 1 / -1; font-size: inherit; }
+/* TV view: the board gets the screen, the scores go in one scoreboard along the bottom (tvHtml() in app.js) */
+.game.tv { grid-template-rows: minmax(0, 1fr) auto; }
+.tvbar { grid-column: 1 / -1; min-width: 0; overflow: hidden; }
+table.tv { width: 100%; border-collapse: separate; border-spacing: 0 3px; font-variant-numeric: tabular-nums; }
+table.tv th, table.tv td { padding: 4px clamp(4px, 1.6vw, 22px); text-align: center; white-space: nowrap; }
+table.tv th { background: var(--accent); color: var(--on-accent); font-size: clamp(10px, 1.9vmin, 15px); font-weight: 700; }
+table.tv th.title { text-align: left; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+table.tv td { background: var(--panel); font-family: var(--display); font-weight: 700; font-size: clamp(15px, 4vmin, 34px); line-height: 1.2; }
+table.tv .gap { background: none; padding: 0; width: clamp(4px, 1vw, 12px); }
+/* the name takes the room the figures leave, and is cut short rather than pushing them off the screen */
+table.tv td.name { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left;
+  background: var(--text); color: var(--bg); opacity: .7; }
+table.tv td.score { background: var(--panel2); font-size: clamp(20px, 5.4vmin, 46px); min-width: 3.4ch; }
+table.tv td.avg { color: var(--accent); min-width: 4.6ch; }
+table.tv tr.cur td.name { opacity: 1; box-shadow: inset clamp(6px, 1vw, 12px) 0 var(--accent); padding-left: clamp(14px, 2.4vw, 34px); }
+table.tv tr.win td.name { opacity: 1; background: var(--gold); }
+@media (orientation: portrait) {
+  /* the scoreboard takes what it needs, the board gets the rest (and always some) */
+  .game { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, auto) minmax(38vh, 1fr); }
+  .game:has(.pad:not([hidden])) { grid-template-rows: minmax(0, auto) minmax(max(330px, 38vh), 1fr); }
+  .game.tv { grid-template-rows: minmax(0, auto) minmax(38vh, 1fr) auto; }
+  .game.tv:has(.pad:not([hidden])) { grid-template-rows: minmax(0, auto) minmax(max(330px, 38vh), 1fr) auto; }
+  .actions { margin-top: 0; }
+}
+
+/* small screens: less air around things, and a wider scoreboard on a phone held sideways */
+@media (max-width: 600px), (max-height: 600px) {
+  .game { padding: 8px; gap: 8px; }
+  .side { gap: 8px; }
+  .actions button { padding-left: 6px; padding-right: 6px; }
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .game { grid-template-columns: minmax(330px, 1.3fr) minmax(0, 1fr); }
+}
+
+table.cricket { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; }
+table.cricket th, table.cricket td { padding: 5px 8px; text-align: center; border-bottom: 1px solid var(--line); }
+table.cricket th { font-size: 13px; color: var(--muted); font-weight: 600; }
+table.cricket th.cur { color: var(--accent); }
+table.cricket td:first-child { font-weight: 700; text-align: left; }
+table.cricket .mark { font-size: 20px; color: var(--accent); }
+table.cricket tr.dead { opacity: .35; }
+
+/* ---------- board ---------- */
+.b-surround { fill: var(--b-surround); stroke: var(--b-num); stroke-width: 2; }  /* the ring round the outside */
+.b-dark { fill: var(--b-dark); } .b-light { fill: var(--b-light); }
+.b-red { fill: var(--b-red); } .b-green { fill: var(--b-green); }
+.b-dark, .b-light, .b-red, .b-green { stroke: var(--b-wire); stroke-width: .6; }
+.b-num { fill: var(--b-num); font-family: var(--display); font-size: 20px; font-weight: 700; pointer-events: none; }
+.b-mark { fill: var(--mark); stroke: #fff; stroke-width: 1.5; pointer-events: none; }
+.b-mark.last { fill: var(--gold); }
+/* press and hold on the board to zoom in (board.js) */
+#board { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.b-aim { pointer-events: none; }
+.b-aim path, .b-aim circle { fill: none; stroke: #fff; stroke-width: 1; filter: drop-shadow(0 0 1px #000); }
+.b-aim text { fill: #fff; stroke: #000; stroke-width: 3px; paint-order: stroke; font-family: var(--display); font-size: 14px; font-weight: 700; }
+#board.zoomed .b-mark { stroke-width: .6; }
+/* the bed to aim at (Random Targets): lit and pulsing, the rest of the board dimmed */
+.b-target { fill: var(--gold); stroke: #fff; stroke-width: 1.2; pointer-events: none; animation: b-pulse .9s ease-in-out infinite alternate; }
+@keyframes b-pulse { from { opacity: .6; } to { opacity: 1; } }
+#board.aiming :is(.b-dark, .b-light, .b-red, .b-green) { opacity: .4; }
+@media (prefers-reduced-motion: reduce) { .b-target { animation: none; } }
+
+/* ---------- calibration ---------- */
+
+/* ---------- the welcome page (hosted, nobody signed in) ---------- */
+/* the one page that scrolls: there is more to say than fits a phone */
+.landing { height: 100%; overflow-y: auto; overflow-x: hidden; padding: 20px 24px 120px; }  /* room underneath for the install bar */
+.landing > * { max-width: 1160px; margin-left: auto; margin-right: auto; }
+.landing a { color: inherit; }
+#app .landing h2 { font-family: var(--display); font-size: clamp(30px, 4.4vw, 46px); line-height: 1.05; letter-spacing: .01em; text-transform: none; color: var(--text); margin: 0 0 12px; font-weight: 400; }
+.landing .eyebrow { color: var(--accent); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; margin: 0 0 10px; }
+.wordmark { font-family: var(--display); font-size: 24px; font-weight: 400; letter-spacing: .03em; }
+/* what SAM stands for, under the name: the initials picked out */
+.brand { display: flex; flex-direction: column; gap: 3px; }
+.strap { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .16em; white-space: nowrap; }
+.strap b { color: var(--accent); font-weight: 800; }
+.land-top { padding-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.land-top a { font-size: 16px; text-underline-offset: 4px; }
+.land-top a.wordmark { text-decoration: none; }
+/* the stage lights: a glow behind the headline and another behind the pictures */
+.hero {
+  position: relative; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 56px; align-items: center;
+  padding: 44px 0 72px;
+}
+.hero::before {
+  content: ""; position: absolute; inset: -120px -24px -40px; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 42% 60% at 72% 46%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 70%),
+    radial-gradient(ellipse 26% 42% at 24% 30%, color-mix(in srgb, var(--b-red) 22%, transparent), transparent 70%);
+}
+.landing { isolation: isolate; }
+#app .hero h1 { font-family: var(--display); font-size: clamp(64px, 10vw, 128px); line-height: .92; letter-spacing: .01em; font-weight: 400; }
+.hero .lead { font-size: 22px; line-height: 1.35; margin: 18px 0 26px; max-width: 26em; text-transform: none; letter-spacing: 0; color: var(--text); }
+.signin-card { background: color-mix(in srgb, var(--panel) 86%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px 16px; max-width: 420px; backdrop-filter: blur(6px); }
+#app .landing .signin-card h2 { font-family: var(--font); font-size: 19px; font-weight: 700; letter-spacing: 0; margin-bottom: 14px; }
+.signin-card .small { margin: 0; text-transform: none; letter-spacing: 0; }
+.signin-card .start { margin-bottom: 14px; }
+/* the app's own address, when the home page is at another: signing in and nothing else */
+.landing > .door-card { max-width: 420px; margin-top: 10vh; }
+#app .door-card h1 { font-family: var(--display); font-size: clamp(56px, 9vw, 96px); line-height: .92; letter-spacing: .01em; font-weight: 400; margin-bottom: 24px; }
+/* the home page at an address of its own is not the app: nothing to install there */
+[data-front] .install { display: none; }
+/* the app's own pictures, framed like a screen */
+.shot { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #0a0a0c; box-shadow: 0 30px 80px rgba(0, 0, 0, .6); }
+.shot img { display: block; width: 100%; height: auto; }
+.hero-shots { position: relative; padding: 0 7% 8% 0; }
+.hero-shots > .shot:first-child { transform: perspective(1600px) rotateY(6deg) rotateX(2deg); transform-origin: right center; }
+.shot.phone { position: absolute; right: 0; bottom: 0; width: 24%; border-radius: 20px; border: 4px solid #2c2c33; box-shadow: 0 20px 50px rgba(0, 0, 0, .7); }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.facts div { padding: 22px 12px; text-align: center; }
+.facts div + div { border-left: 1px solid var(--line); }
+.facts b { display: block; font-family: var(--display); font-size: clamp(34px, 5vw, 54px); line-height: 1; font-weight: 400; color: var(--accent); }
+.facts span { color: var(--muted); font-size: 15px; }
+.feature { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 48px; align-items: center; margin-top: 88px; }
+.feature:nth-of-type(even) .shot { order: 2; }
+.feature p:not(.eyebrow) { font-size: 19px; line-height: 1.45; color: var(--muted); margin: 0; text-transform: none; letter-spacing: 0; font-weight: 400; }
+/* autoscore, and the apps that do it (also web/download.html) */
+.autoscore {
+  display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: 48px; align-items: center; margin-top: 88px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 36px 40px;
+}
+.autoscore p:not(.eyebrow, .small) { font-size: 19px; line-height: 1.45; color: var(--muted); margin: 0; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.autoscore-get { display: flex; flex-direction: column; gap: 10px; }
+.autoscore-get .small { margin: 4px 0 0; text-transform: none; letter-spacing: 0; }
+.dl-head { padding: 44px 0 36px; }
+#app .dl-head h1 { font-family: var(--display); font-size: clamp(48px, 8vw, 96px); line-height: .95; letter-spacing: .01em; font-weight: 400; }
+.dl-head .lead { font-size: 21px; line-height: 1.4; margin: 18px 0 0; max-width: 34em; text-transform: none; letter-spacing: 0; }
+.dl-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.dl-card { display: flex; flex-direction: column; gap: 6px; }
+.dl-cards .dl-card.mine { border-color: var(--accent); }
+.dl-cards .dl-card b { font-size: 24px; margin: 0; }
+.dl-card button { margin-top: auto; }
+.dl-card > span:first-of-type { margin-bottom: 12px; }
+.dl-cards .dl-card .small { font-size: 14px; }
+.dl #dl-where { margin: 18px 0 0; text-transform: none; letter-spacing: 0; }
+.land-games { margin-top: 96px; }
+.land-end { margin-top: 88px; text-align: center; }
+.land-end h2 { margin-bottom: 22px; }
+.land-end .start { width: auto; padding: 0 44px; }
+.signin { display: flex; flex-direction: column; gap: 10px; align-items: start; min-height: 44px; margin-bottom: 14px; }
+.signin p { margin: 0; }
+.signin, .signin button.apple { text-transform: none; letter-spacing: normal; }  /* theirs to letter, not the theme's */
+/* drawn to sit with Google's own button: the same size, white, the same lettering */
+button.apple {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 280px; max-width: 100%;
+  min-height: 40px; padding: 0 12px; border-radius: 4px; background: #fff; border: 1px solid #dadce0; color: #000;
+  font: 500 14px/1 -apple-system, "Helvetica Neue", Roboto, Arial, sans-serif;
+}
+/* the email button is the app's own, so it wears the theme's colour and lettering */
+.signin button.mail {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 280px; max-width: 100%;
+  min-height: 44px; padding: 0 12px; background: var(--accent); border-color: var(--accent); color: var(--on-accent);
+  font-size: 18px; text-transform: none; letter-spacing: normal;
+}
+.mailbox { display: flex; flex-direction: column; gap: 10px; width: 280px; max-width: 100%; text-align: left; }
+.mailbox input {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-height: 48px; width: 100%;
+  font: inherit; color: inherit; text-transform: none; -webkit-user-select: text; user-select: text;
+}
+.mailbox #mail-code { font-size: 24px; letter-spacing: .2em; text-align: center; font-variant-numeric: tabular-nums; }
+.mailbox #mail-code::placeholder { font-size: 16px; letter-spacing: normal; }
+.tour { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 22px; }
+.tour-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+.tour-card b { display: block; font-size: 19px; margin-bottom: 4px; }
+.tour-card span { color: var(--muted); font-size: 16px; font-weight: 400; text-transform: none; letter-spacing: normal; }
+/* everyone's darts, counted by the site (GET /api/tally): shown once it has answered */
+.tally { display: block; padding: 18px 12px; text-align: center; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 17px; font-weight: 400; text-decoration: none; text-transform: none; letter-spacing: 0; }
+.tally b { color: var(--text); font-size: 1.3em; font-variant-numeric: tabular-nums; }
+.tally[hidden] { display: none; }
+/* Getting about before signing in: the welcome page, the questions (web/faq.html) and the downloads
+   (web/download.html). As in the app (see .nav above) the places are drawn twice and one is shown:
+   words along the top on a computer, a bar of tabs along the bottom on a phone or tablet. */
+.land-nav { display: flex; align-items: center; gap: 4px; }
+.land-nav a {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 6px 12px;
+  color: var(--muted); font-size: 16px; text-decoration: none; white-space: nowrap;
+}
+.land-nav a:hover { color: var(--text); }
+.land-nav a.on { color: var(--text); box-shadow: inset 0 -2px var(--accent); }
+.land-nav.top a.go { margin-left: 8px; padding: 6px 18px; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.land-nav svg, .land-nav.foot { display: none; }
+@media (orientation: portrait), (max-width: 800px), (pointer: coarse) {
+  .land-nav.top { display: none; }
+  /* the bar takes its own room under the page, which scrolls above it */
+  #app:has(> .land-nav.foot) { display: flex; flex-direction: column; }
+  #app:has(> .land-nav.foot) > .landing { flex: 1; min-height: 0; height: auto; padding-bottom: 56px; }
+  .land-nav.foot { display: flex; flex: none; padding: 6px 8px; border-top: 1px solid var(--line); background: var(--bg); }
+  .land-nav.foot a { flex: 1; min-width: 0; min-height: 48px; padding: 4px 2px; flex-direction: column; gap: 2px; border-radius: 10px; font-size: 14px; line-height: 1.2; }
+  .land-nav.foot a.on { color: var(--accent); box-shadow: none; }
+  .land-nav.foot svg { display: block; width: 22px; height: 22px; }
+}
+@media (orientation: landscape) and (max-height: 600px) {  /* a phone on its side: picture and name side by side */
+  .land-nav.foot a { flex-direction: row; gap: 8px; min-height: 40px; }
+}
+/* the questions (web/faq.html): reading matter, so it can be selected and copied */
+.faq { -webkit-user-select: text; user-select: text; }
+.faq-jump { display: flex; flex-wrap: wrap; gap: 8px; }
+.faq-jump a { padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 16px; text-decoration: none; }
+.faq-jump a:hover { border-color: var(--accent); }
+.faq section { margin-top: 72px; scroll-margin-top: 20px; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.faq section > p:not(.eyebrow), .faq section > ol { font-size: 19px; line-height: 1.5; color: var(--muted); max-width: 44em; margin: 0 0 14px; }
+.faq section > ol { padding-left: 1.3em; }
+.faq section > ol li + li { margin-top: 8px; }
+.faq section b { color: var(--text); }
+.faq details { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-top: 10px; max-width: 50em; }
+.faq summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; min-height: 56px; cursor: pointer; font-size: 19px; font-weight: 700; list-style: none; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; flex: none; color: var(--accent); font-size: 24px; line-height: 1; font-weight: 400; }
+.faq details[open] summary::after { content: "\2212"; }
+.faq details > div { padding: 0 18px 16px; color: var(--muted); font-size: 17px; line-height: 1.5; }
+.faq details p, .faq details ul, .faq details ol { margin: 0 0 10px; }
+.faq details ul, .faq details ol { padding-left: 1.2em; }
+.faq details > div > :last-child { margin-bottom: 0; }
+.faq .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 50em; margin: 22px 0 0; }
+.land-end .more { margin: 18px 0 0; color: var(--muted); text-transform: none; letter-spacing: 0; }
+@media (max-width: 860px) {
+  .landing { padding-left: 16px; padding-right: 16px; }
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 36px; padding: 20px 0 48px; }
+  .hero .lead { font-size: 19px; }
+  .signin-card { max-width: none; }
+  .signin { align-items: center; }
+  .hero-shots > .shot:first-child { transform: none; }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .facts div:nth-child(3) { border-left: 0; }
+  .facts div:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .feature { grid-template-columns: minmax(0, 1fr); gap: 20px; margin-top: 56px; }
+  .feature:nth-of-type(even) .shot { order: 0; }
+  .land-games, .land-end { margin-top: 56px; }
+  .autoscore { grid-template-columns: minmax(0, 1fr); gap: 22px; margin-top: 56px; padding: 24px 20px; }
+  .dl-head { padding: 20px 0 28px; }
+  .faq section { margin-top: 48px; }
+  .faq section > p:not(.eyebrow), .faq section > ol { font-size: 17px; }
+  .faq summary { font-size: 17px; }
+}
+}
+.settings a { color: inherit; }
+.pairing { max-width: 640px; }
+.pairing ol { padding-left: 22px; line-height: 1.5; }
+.pairing input { flex: 0 1 180px; width: auto; letter-spacing: .15em; text-transform: uppercase; }
+.paircode { font-size: 1.5em; letter-spacing: .12em; }
+.feedback { margin: 18px 0 6px; }
+.feedback textarea { display: block; width: 100%; margin: 6px 0; font: inherit; color: inherit; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; -webkit-user-select: text; user-select: text; }
+/* ---------- cameras ---------- */
+/* which camera; then its picture with, beside it, what that camera needs next.
+   fitCam() in app.js sizes the picture to the room that is left */
+/* lettering, as on every other screen: the display face for the one headline, the body face for
+   what is tapped or has to be done, and .dim (the small print, one size) for what explains it */
+.dim { color: var(--muted); font-size: 14px; }
+.camwait { margin: 18px 0 10px; }
+.camtabs { margin-top: 14px; }
+.camtabs .camnew { border-style: dashed; color: var(--muted); }
+.cambody { display: flex; gap: 16px; margin-top: 12px; }
+.camstage { flex: 1; min-width: 0; min-height: 140px; display: flex; align-items: flex-start; justify-content: center; overflow: hidden; }
+.camside { flex: 0 0 340px; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.camstate { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 16px 20px;
+  --stripe: var(--muted); box-shadow: inset 4px 0 var(--stripe); }
+.camstate.ok { --stripe: var(--accent); }
+.camstate.now { --stripe: var(--text); }
+.camstate.bad { --stripe: var(--warn); }
+.camstate > b { display: block; font-family: var(--display); font-size: 1.2em; line-height: 1.2; font-weight: 700; }
+.camlead { display: block; font-family: var(--display); font-size: 28px; line-height: 1.15; text-wrap: balance; }
+.camstate p { margin: 6px 0 0; }
+.camstate .row { margin-top: 12px; }
+.camstate .primary { flex: 1 0 100%; }
+.camstate button:not(.primary) { flex: 1; white-space: nowrap; padding-left: 10px; padding-right: 10px; }
+.camextra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.camextra > span, .camside .camlink > span { flex: 1 1 150px; }
+.camside .camlink { margin: 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.camside .camlink > span { flex-basis: 100px; }
+.camside .camlink button { padding-left: 12px; padding-right: 12px; }
+.camlink { margin-top: 14px; }
+.camview.tapping img { cursor: crosshair; }
+/* no camera yet, or adding one: one question at a time, in the middle of the screen */
+.camsetup { margin-top: 14px; display: flex; flex-direction: column; }
+.camwizard { width: 100%; max-width: 640px; margin: auto; padding-bottom: 6vh; text-align: center; }
+.camwizard > p { margin: 8px 0 0; text-wrap: balance; }
+.camwizard a { color: inherit; }
+.camwizard ol { display: inline-block; text-align: left; margin: 16px 0 0; padding-left: 24px; line-height: 1.5; }
+/* the kinds of camera: the menu's game cards (a name, a line about it), with an arrow because these lead on */
+.camkinds { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
+.camkinds:has(> :only-child) { grid-template-columns: 1fr; }
+.camkinds .game-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: center; column-gap: 12px; padding: 16px 16px 16px 20px; }
+.camkinds .game-card b, .camkinds .game-card span { grid-column: 1; }
+.camkinds .game-card::after { content: "›"; grid-area: 1 / 2 / span 2; align-self: center; color: var(--muted); font-size: 24px; line-height: 1; }
+.camoff { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px 12px 12px 16px; text-align: left;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.camoff span { flex: 1; }
+.camseek { margin-top: 24px; }
+.camseek .dot { animation: seek 1.2s ease-in-out infinite; }
+@keyframes seek { 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .camseek .dot { animation: none; } }
+.camadd { flex-wrap: nowrap; margin-top: 16px; }
+.camadd input { flex: 1; width: auto; min-width: 0; }
+.camskip { margin-top: 16px; }
+@media (max-width: 560px) { .camkinds { grid-template-columns: 1fr; } }
+@media (orientation: portrait), (max-width: 800px) {
+  .cambody { flex-direction: column; gap: 12px; }
+  .camstage { flex: 1 1 0; align-items: center; }
+  .camside { flex: 0 1 auto; max-height: 55%; }
+}
+.camview { position: relative; line-height: 0; }
+.camview img { border-radius: 8px; }
+.camview i { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid #fff; background: var(--warn); }
+
+/* ---------- "Add to Home Screen" bar (install.js) ---------- */
+.install {
+  position: fixed; z-index: 10; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 24px));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 30px rgba(0, 0, 0, .5);
+  text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 400;
+}
+.install img { width: 44px; height: 44px; border-radius: 10px; }
+.install div { flex: 1; min-width: 0; }
+.install div > b { display: block; font-size: 17px; }
+.install span { color: var(--muted); }
+.install svg { vertical-align: -4px; }
+.install button { white-space: nowrap; }
+body:has(.game) .install { display: none; }  /* never cover the scoreboard mid-game */
+/* on the menu's two-column layout, keep it on the games' side: never over the Start button */
+@media (orientation: landscape) and (min-width: 801px) and (pointer: fine) {
+  body:has(.home-body) .install { left: calc(12px + env(safe-area-inset-left)); transform: none; width: min(560px, calc(50% - 24px)); }
+}
+/* one column (a phone, a tablet held upright) or tabs along the bottom (anything worked by touch):
+   the bar takes its own room under the app instead of lying over it */
+@media (orientation: portrait), (max-width: 800px), (pointer: coarse) {
+  body:has(.install) { display: flex; flex-direction: column; }
+  body:has(.install) #app { flex: 1; min-height: 0; height: auto; }
+  .install { position: static; transform: none; flex: none; align-self: center; margin: 8px 0; }
+}
+
+/* a problem report: lies over the game and, unlike the rest of the app, scrolls (reportProblem() in app.js) */
+.report { position: fixed; inset: 0; z-index: 50; overflow: auto; -webkit-overflow-scrolling: touch; background: var(--bg); padding: 16px; }
+.report-in { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.report h1, .report h3, .report p { margin: 0; }
+.report h3 { margin-top: 8px; }
+.report label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+.report .pics { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+.report figure { margin: 0; }
+.report img { display: block; width: 100%; border-radius: 8px; }
+.report figcaption { margin-top: 4px; color: var(--muted); font-size: 14px; }
+/* the question asked once on the server at home: may what it records be sent? (askShare() in app.js) */
+.shareask .report-in { max-width: 640px; padding-top: 6vh; line-height: 1.45; }
+.shareask ul, .settings ul { margin: 0; padding-left: 20px; }
+.shareask li, .settings li { margin: 4px 0; }
+.shareask a, .settings a { color: inherit; }
+/* number boxes (a set of darts' weight): no spinner arrows, just the number */
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

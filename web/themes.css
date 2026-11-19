@@ -1,0 +1,348 @@
+/* Themes. style.css is the layout and the "Classic" look; each block below
+   restyles it under a .t-<id> class on <html> (set by applyTheme in app.js).
+   Fonts are served from web/fonts so the app looks right with no internet. */
+
+@font-face { font-family: 'Anton'; font-weight: 400; font-display: swap; src: url(fonts/anton-400.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow Condensed'; font-weight: 600; font-display: swap; src: url(fonts/barlow-condensed-600.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow Condensed'; font-weight: 700; font-display: swap; src: url(fonts/barlow-condensed-700.woff2) format('woff2'); }
+@font-face { font-family: 'Bungee'; font-weight: 400; font-display: swap; src: url(fonts/bungee-400.woff2) format('woff2'); }
+@font-face { font-family: 'Cabin Sketch'; font-weight: 700; font-display: swap; src: url(fonts/cabin-sketch-700.woff2) format('woff2'); }
+@font-face { font-family: 'Patrick Hand'; font-weight: 400; font-display: swap; src: url(fonts/patrick-hand-400.woff2) format('woff2'); }
+@font-face { font-family: 'Rokkitt'; font-weight: 500 800; font-display: swap; src: url(fonts/rokkitt-500-800.woff2) format('woff2'); }
+@font-face { font-family: 'Russo One'; font-weight: 400; font-display: swap; src: url(fonts/russo-one-400.woff2) format('woff2'); }
+@font-face { font-family: 'Special Elite'; font-weight: 400; font-display: swap; src: url(fonts/special-elite-400.woff2) format('woff2'); }
+@font-face { font-family: 'VT323'; font-weight: 400; font-display: swap; src: url(fonts/vt323-400.woff2) format('woff2'); }
+
+/* ================= Stage Night: big-stage TV graphics ================= */
+.t-stage {
+  --bg: #0a0a0c; --panel: #1a1a1e; --panel2: #1a1a1e; --line: #55555e;
+  --text: #f2e9d0; --muted: #a8a8b0; --accent: #ffd21f; --on-accent: #0a0a0c; --warn: #ff6b6b; --gold: #ffd21f;
+  --font: 'Barlow Condensed', 'Arial Narrow', sans-serif; --display: 'Anton', Impact, sans-serif;
+  --b-surround: #050506; --b-dark: #121214; --b-light: #f2e9d0; --b-red: #d3252b; --b-green: #0e8a4b;
+  --b-wire: #c9c9cf; --b-num: #f2e9d0; --mark: #fff;
+}
+.t-stage body { font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.t-stage h1 { font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: .02em; }
+.t-stage h2 { font-size: 17px; font-weight: 700; }
+.t-stage p, .t-stage .game-card span, .t-stage input { text-transform: none; letter-spacing: 0; }
+.t-stage button, .t-stage select { border-width: 2px; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.t-stage button.primary { background: var(--text); border-color: var(--text); }
+.t-stage button.on { border-color: var(--accent); }
+.t-stage :is(input[type=text], input[type=number]), .t-stage .tile, .t-stage .banner, .t-stage table.cricket { border-radius: 0; }
+.t-stage .chip i { border-radius: 0; }
+.t-stage .camstate, .t-stage .camoff { border-radius: 0; }
+.t-stage .game-card b { font-family: var(--display); font-weight: 400; font-size: 26px; }
+.t-stage .tile b, .t-stage .b-num { font-weight: 400; }
+.t-stage .boardwrap { background: radial-gradient(circle at 50% 50%, #34343c 0%, #17171b 45%, #0a0a0c 68%); }
+.t-stage .players { grid-template-columns: 1fr; }
+.t-stage .pcard {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 0; border: 0; border-radius: 0; opacity: 1;
+  color: var(--muted);
+}
+.t-stage .pcard .name { align-self: end; padding: 10px 16px 0; font: 400 32px/1.1 var(--display); color: #cfc8b4; }
+.t-stage .pcard .small { padding: 0 16px 8px; color: inherit; font-size: 17px; }
+.t-stage .pcard .big {
+  grid-column: 2; grid-row: 1 / span 2; min-width: 170px; padding: 8px 16px; display: flex; align-items: center;
+  justify-content: center; background: #101013; color: #cfc8b4; font-weight: 400; font-size: 64px; letter-spacing: 0;
+}
+.t-stage .pcard.cur { background: var(--b-red); color: #fff; }
+.t-stage .pcard.cur .name { color: #fff; }
+.t-stage .pcard.cur .big { background: var(--text); color: #0a0a0c; font-size: 88px; }
+.t-stage .pcard.win { background: var(--gold); color: #0a0a0c; }
+.t-stage .pcard.win .name { color: #0a0a0c; }
+.t-stage .pcard.win .big { background: #0a0a0c; color: var(--gold); }
+/* three or more players: two compact strips per row */
+.t-stage .players:has(.pcard:nth-child(3)) { grid-template-columns: 1fr 1fr; }
+.t-stage .players:has(.pcard:nth-child(3)) .pcard .name { font-size: 22px; padding: 8px 10px 0; }
+.t-stage .players:has(.pcard:nth-child(3)) .pcard .small { padding: 0 10px 6px; font-size: 15px; }
+.t-stage .players:has(.pcard:nth-child(3)) .pcard .big { min-width: 96px; font-size: 44px; padding: 6px 10px; }
+.t-stage .turn { padding: 0 8px; }
+.t-stage .slot { border-radius: 0; transform: skewX(-9deg); font-weight: 400; font-size: 34px; }
+.t-stage .slot.empty { background: none; border: 2px solid #33333a; }
+.t-stage .slot.total { background: #0e7a43; border: 0; color: #fff; }
+.t-stage .slot.bust { background: var(--b-red); color: #fff; }
+.t-stage .hint:not(:empty) { background: var(--gold); color: #0a0a0c; font: 400 28px/1.2 var(--display); padding: 8px; }
+.t-stage .banner.win { background: var(--gold); color: #0a0a0c; font-family: var(--display); font-weight: 400; }
+.t-stage .b-mark.last { fill: var(--gold); stroke: #0a0a0c; }
+
+/* ================= Chalk & Oche: the pub chalkboard ================= */
+/* The system, so every screen is drawn the same way:
+   - two letterings, each with one job. Cabin Sketch (the chalky one) for the logo, the headings and the big
+     figures a room reads from across it; Patrick Hand (the clean hand) for everything else, at two sizes: the
+     body's, and the small print's (--plain: descriptions, dates, labels under a figure, tables and status lines),
+     which is smaller and quieter but the same hand. Neither is ever faked bold: a smeared letter is what makes
+     small chalk hard to read. To put something in the small print, add it to the one --plain rule below.
+   - three depths of board instead of a box round everything: --board itself, --raised for what stands proud of it
+     (buttons, tiles, the thrower's card) and --sunk for what is cut into it (dart slots, option tracks). Somewhere
+     to write is a ruled line, not a box.
+     Only what is waiting to be filled in or shouted about keeps a line: an unpicked player, the winner's banner.
+   - cream chalk for what is there, gold for what is chosen or whose turn it is, nothing else. The one choice a
+     screen is about (which game, which theme) is filled gold; a setting within it gets a gold stroke underneath.
+   - one corner (--wobble: slightly uneven, never lopsided) for every surface.
+   - spacing in steps of 4px: 8 inside a group, 12 under a heading, 24 above one. */
+.t-chalk {
+  --bg: #2b1b11; --panel: rgba(255, 255, 255, .05); --panel2: transparent; --line: #7d857c;
+  --text: #efeadb; --muted: #a9ab9f; --accent: #f2d16b; --on-accent: #1e2623; --warn: #f09a90; --gold: #f2d16b;
+  --font: 'Patrick Hand', 'Comic Sans MS', cursive; --display: 'Cabin Sketch', 'Patrick Hand', cursive;
+  --plain: var(--font);  /* the small print: the same hand, smaller and quieter */
+  --b-surround: #0d0d0c; --b-dark: #1b1a18; --b-light: #e6d9b8; --b-red: #c5362f; --b-green: #2d7f4c;
+  --b-wire: #b9b6aa; --b-num: #efeadb; --mark: #efeadb;
+  --board: #1e2623; --raised: #2a3631; --sunk: #151b19; --hair: rgba(239, 234, 219, .12);
+  --frame: 10px solid #6b4423;
+  --wobble: 10px 4px 9px 5px / 5px 9px 4px 10px;
+  /* what the duster left behind: a few smears and a fine grain */
+  --dust:
+    radial-gradient(60% 40% at 18% 12%, rgba(239, 234, 219, .07), transparent 70%),
+    radial-gradient(50% 35% at 85% 78%, rgba(239, 234, 219, .05), transparent 70%),
+    radial-gradient(30% 50% at 60% 30%, rgba(239, 234, 219, .03), transparent 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .94 0 0 0 0 .92 0 0 0 0 .86 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.t-chalk body {
+  font-size: 20px; font-synthesis: none;
+  background: var(--bg) repeating-linear-gradient(90deg, transparent 0 117px, rgba(0, 0, 0, .28) 117px 119px);
+}
+/* the board in its wooden frame: every screen, the score panel, the number pad and the report */
+.t-chalk .page, .t-chalk .side, .t-chalk .report, .t-chalk .boardwrap:has(.pad:not([hidden])) {
+  background: var(--dust), var(--board); border: var(--frame); border-radius: 4px; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .3);
+}
+.t-chalk .side { padding: 12px 16px 16px; }
+
+/* lettering */
+.t-chalk h1 { font-family: var(--display); font-size: 44px; line-height: 1.1; letter-spacing: 0; }
+.t-chalk .head h1 { font-size: 34px; }  /* beside the places, the name keeps to their scale */
+.t-chalk button + h1, .t-chalk .report h1, .t-chalk .camlead { font-size: 30px; }  /* a screen's title: under the logo in rank */
+/* the logo: a chalk dart after the name */
+.t-chalk .page > .row > h1:first-child::after {
+  content: ""; display: inline-block; width: 58px; height: 22px; margin-left: 12px; vertical-align: 4px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 58 22' fill='none' stroke='%23f2d16b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 11h8M10 11l10-3h14l4 3-4 3H20z M38 11h18'/%3E%3Cpath d='M2 11L7 4h6l-3 7 3 7H7z' fill='%23f2d16b' fill-opacity='.35'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+/* headings: the room above one does the separating; a tally of five chalked after it */
+.t-chalk h2 {
+  font-family: var(--display); font-size: 22px; line-height: 1.2; text-transform: none; letter-spacing: 0; color: var(--text);
+  margin: 24px 0 12px; display: flex; align-items: center; gap: 10px;
+}
+.t-chalk h2::after {
+  content: ""; flex: none; width: 30px; height: 16px; opacity: .45;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 16' fill='none' stroke='%23efeadb' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M5 2.5l-.6 11M11 2l.4 12M17 2.6l-.5 11M23 2l.5 11.6M1.5 12L27.5 4'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+.t-chalk h3 { font: 400 20px/1.3 var(--font); color: var(--accent); }
+/* the small print, all of it: the same hand, smaller */
+.t-chalk .small, .t-chalk .muted, .t-chalk .conn, .t-chalk .clock, .t-chalk .totals, .t-chalk .game-card span,
+.t-chalk .tile span, .t-chalk .pcard .small, .t-chalk .heatkey, .t-chalk .pad-msg, .t-chalk .report figcaption,
+.t-chalk .report label, .t-chalk table.plain th, .t-chalk table.plain td, .t-chalk table.cricket th,
+.t-chalk .picks .pick span, .t-chalk .sheet .legrow td, .t-chalk .dim {
+  font-family: var(--plain); font-weight: 400; font-size: 17px; line-height: 1.35; letter-spacing: .01em;
+}
+.t-chalk .picks .pick span, .t-chalk .totals { font-size: 15px; text-transform: none; }
+.t-chalk .sheet .legrow td { text-transform: none; }
+.t-chalk .muted b { color: var(--text); font-weight: 700; }
+.t-chalk .lastvisit { font-family: var(--font); font-size: 22px; letter-spacing: 0; }  /* read from the oche: stays in the hand */
+.t-chalk .lastvisit b { font-size: 32px; font-weight: 400; }
+.t-chalk table.plain th, .t-chalk table.plain td { border-bottom-color: var(--hair); }
+
+/* surfaces: buttons, drop-downs, tiles, notices */
+.t-chalk button, .t-chalk select { background: var(--raised); border: 0; border-radius: var(--wobble); }
+.t-chalk select option { background: var(--board); }
+.t-chalk button.primary { background: var(--text); }
+.t-chalk button.ghost { background: none; text-decoration: underline; text-underline-offset: 4px; }
+.t-chalk .tabs button { white-space: nowrap; }
+.t-chalk .start { font-size: 24px; }
+/* somewhere to write: a ruled line on the board, gold while it is being written on */
+.t-chalk :is(input[type=text], input[type=number]) { background: none; border: 0; border-bottom: 2px solid var(--line); border-radius: 0; padding-left: 4px; padding-right: 4px; }
+.t-chalk :is(input[type=text], input[type=number]):focus { border-bottom-color: var(--accent); outline: none; }
+.t-chalk .game-card b { font-family: var(--font); font-size: 22px; }
+.t-chalk .opt > span { color: var(--text); }
+.t-chalk .stepper b { font-family: var(--font); font-size: 26px; }
+.t-chalk .chip i { font-family: var(--plain); font-size: 15px; }
+.t-chalk .tile { background: var(--raised); border-radius: var(--wobble); }
+.t-chalk .tile b { font-family: var(--font); line-height: 1.2; }
+.t-chalk .camstate, .t-chalk .camoff { background: var(--sunk); border: 0; border-radius: var(--wobble); }  /* cut in: their buttons stand proud */
+.t-chalk .camextra, .t-chalk .camside .camlink { border-top-color: var(--hair); }
+.t-chalk .banner { background: var(--sunk); border: 0; border-radius: var(--wobble); font-size: 20px; }
+.t-chalk .banner.win { background: none; border: 2px dashed var(--gold); font-family: var(--display); }
+.t-chalk .install { background: var(--raised); border: 0; border-radius: var(--wobble); }
+
+/* chosen things */
+/* a setting, a tab: raised, with a gold stroke under it */
+.t-chalk button.on { background: var(--raised); color: var(--text); box-shadow: inset 0 -3px var(--accent); }
+/* an option's settings lie in a track cut into the board; the chosen one stands up out of it */
+.t-chalk .choices:not(.stepper) { background: var(--sunk); border-radius: var(--wobble); padding: 4px; gap: 4px; }
+.t-chalk .choices:not(.stepper) button { background: none; color: var(--muted); min-height: 40px; padding-top: 6px; padding-bottom: 6px; }
+.t-chalk .choices:not(.stepper) button.on { background: var(--raised); color: var(--text); }
+/* the choice the screen is about (which game, which theme): filled gold, a flight pinned to its corner */
+.t-chalk .game-card.on { position: relative; background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.t-chalk .game-card.on b { color: var(--on-accent); }
+.t-chalk .game-card.on span { color: rgba(30, 38, 35, .78); }
+.t-chalk .game-card.on::after {
+  content: ""; position: absolute; top: -7px; right: 8px; width: 16px; height: 22px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 22'%3E%3Cpath d='M8 1l7 5v10l-7-4-7 4V6z' fill='%23c5362f' stroke='%231e2623' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M8 1v21' stroke='%231e2623' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+/* players: not picked is a faint ring waiting to be filled; picked is raised, and its gold number (or, where
+   there is no throwing order, a gold dot) says so */
+.t-chalk .chip { background: none; color: var(--muted); box-shadow: inset 0 0 0 1px var(--hair); }
+.t-chalk .chip.on { background: var(--raised); color: var(--text); box-shadow: none; }
+.t-chalk .chip.on:not(:has(i))::before {
+  content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--accent); vertical-align: 2px;
+}
+.t-chalk .chip.ghost { border: 0; box-shadow: none; text-decoration: underline; text-underline-offset: 4px; }
+
+/* the scoreboard */
+.t-chalk .pcard { background: none; border-radius: var(--wobble); text-align: center; opacity: .8; }
+.t-chalk .pcard .name { font: 400 24px/1.2 var(--font); color: var(--text); }
+.t-chalk .pcard .big { font-size: 78px; line-height: 1; }
+.t-chalk .pcard.cur, .t-chalk .pcard.win { background: var(--raised); border-color: transparent; box-shadow: inset 0 4px var(--accent); opacity: 1; }
+.t-chalk .pcard.cur .name, .t-chalk .pcard.win .big { color: var(--accent); }
+.t-chalk .slot { background: var(--sunk); border-radius: var(--wobble); font-family: var(--font); font-size: 34px; line-height: 1.1; }
+.t-chalk .slot.empty { color: var(--line); }
+.t-chalk .slot.total { background: none; border: 0; border-bottom: 4px double var(--text); border-radius: 0; color: var(--text); }
+.t-chalk .slot.bust { color: var(--warn); border-color: var(--warn); }
+.t-chalk .hint { font-size: 24px; }
+.t-chalk table.cricket { background: none; }
+.t-chalk table.tv td { font-family: var(--font); }
+.t-chalk table.tv td.score { font-family: var(--display); }
+.t-chalk .b-num { font-family: var(--font); font-size: 24px; }
+.t-chalk .b-mark { stroke: #1b1a18; }
+.t-chalk .b-mark.last { fill: var(--gold); }
+
+@media (max-width: 600px), (max-height: 600px) {
+  .t-chalk body { font-size: 18px; }
+  .t-chalk h1 { font-size: 36px; }
+  .t-chalk .head h1 { font-size: 30px; }
+  .t-chalk button + h1, .t-chalk .report h1, .t-chalk .camlead { font-size: 26px; }
+  .t-chalk h2 { font-size: 22px; margin: 16px 0 8px; }
+  .t-chalk .side { padding: 8px 12px 12px; }
+  .t-chalk .opt > span { font-size: 16px; }
+  .t-chalk .start { font-size: 22px; }
+}
+/* ================= Soft-tip Arcade: the electronic dart machine ================= */
+.t-arcade {
+  --bg: #1b1b1f; --panel: #050505; --panel2: #2a2a30; --line: #2f2f35;
+  --text: #d6d6dc; --muted: #a4a4ad; --accent: #38f26b; --on-accent: #04180a; --warn: #ff5a4f; --gold: #ffb21a;
+  --font: 'Russo One', 'Arial Black', sans-serif; --display: 'VT323', 'Courier New', monospace;
+  --b-surround: #08080a; --b-dark: #1f1f24; --b-light: #e4dfd0; --b-red: #e3271f; --b-green: #2a6fe0;
+  --b-wire: #08080a; --b-num: #d6d6dc; --mark: #fff;
+  --led: inset 0 0 18px #000;
+}
+.t-arcade body { font-size: 16px; text-transform: uppercase; letter-spacing: .04em; }
+.t-arcade p, .t-arcade .game-card span { text-transform: none; letter-spacing: 0; font-family: system-ui, sans-serif; }
+.t-arcade h1 {
+  font-family: 'Bungee', var(--font); font-weight: 400; font-size: 26px; letter-spacing: .02em; color: #f6c61a;
+  background: #d8261f; border: 3px solid #f6c61a; border-radius: 10px; padding: 4px 14px;
+}
+.t-arcade h2 { font-size: 14px; font-weight: 400; }
+.t-arcade button, .t-arcade select { text-transform: uppercase; letter-spacing: .04em; border: 2px solid #0a0a0b; border-radius: 8px; box-shadow: 0 4px 0 #000; }
+.t-arcade button:active { transform: translateY(3px); box-shadow: 0 1px 0 #000; }
+.t-arcade button.primary { background: #e3271f; border-color: #7d0f0a; color: #fff; font-weight: 400; }
+.t-arcade button.on { border-color: var(--accent); box-shadow: 0 4px 0 #000, 0 0 12px rgba(56, 242, 107, .4); }
+.t-arcade button.ghost { background: var(--panel2); }
+.t-arcade :is(input[type=text], input[type=number]) {
+  background: #050505; border: 3px solid var(--line); border-radius: 8px; box-shadow: var(--led);
+  font: 26px/1 var(--display); color: var(--gold); text-transform: none;
+}
+.t-arcade .tile { border: 4px solid var(--line); border-radius: 10px; box-shadow: var(--led); }
+.t-arcade .tile b { font-size: 46px; line-height: 1; font-weight: 400; color: var(--gold); text-shadow: 0 0 12px rgba(255, 178, 26, .7); }
+.t-arcade .boardwrap { background: #111114; border: 3px solid var(--line); border-radius: 18px; }
+.t-arcade .pcard { border: 4px solid var(--line); border-radius: 10px; box-shadow: var(--led); opacity: 1; padding: 8px 12px; }
+.t-arcade .pcard .name, .t-arcade .pcard .small { font-size: 14px; }
+.t-arcade .pcard .big { font-weight: 400; font-size: 96px; line-height: .78; text-align: right; color: #c22c23; }
+.t-arcade .pcard.cur { border-color: var(--accent); box-shadow: var(--led), 0 0 14px rgba(56, 242, 107, .35); }
+.t-arcade .pcard.cur .name { color: var(--accent); }
+.t-arcade .pcard.cur .big { color: #ff3a2e; text-shadow: 0 0 14px rgba(255, 58, 46, .75); }
+.t-arcade .pcard.win { border-color: var(--gold); }
+.t-arcade .pcard.win .big { color: var(--gold); text-shadow: 0 0 14px rgba(255, 178, 26, .75); }
+.t-arcade .slot {
+  border: 4px solid var(--line); border-radius: 10px; box-shadow: var(--led); padding: 4px;
+  font-weight: 400; font-size: 46px; line-height: 46px; color: var(--gold); text-shadow: 0 0 12px rgba(255, 178, 26, .7);
+}
+.t-arcade .slot.empty { color: rgba(255, 178, 26, .28); text-shadow: none; }
+.t-arcade .slot.total { background: #050505; border-color: var(--line); color: #fff; text-shadow: 0 0 12px rgba(255, 255, 255, .6); }
+.t-arcade .slot.bust { color: var(--warn); border-color: var(--warn); text-shadow: 0 0 12px rgba(255, 90, 79, .7); }
+.t-arcade .hint:not(:empty) {
+  background: #050505; border: 4px solid var(--line); border-radius: 10px; box-shadow: var(--led);
+  font: 34px/1.1 var(--display); letter-spacing: .1em; color: var(--accent); text-shadow: 0 0 12px rgba(56, 242, 107, .7);
+}
+.t-arcade .banner { border: 4px solid var(--line); border-radius: 10px; }
+.t-arcade .banner.win { border-color: var(--gold); font-weight: 400; }
+.t-arcade .actions { gap: 16px; padding: 6px 6px 12px; }
+.t-arcade .actions button {
+  border-radius: 999px; min-height: 64px; border: 3px solid #050505; color: #1b1300; font-size: 15px;
+  background: radial-gradient(ellipse at 36% 22%, #fff3a8 0%, #f6c61a 45%, #b88f00 100%);
+  box-shadow: 0 0 0 3px #44444c, 0 7px 0 3px #000;
+}
+.t-arcade .actions button:nth-child(2) { color: #fff; background: radial-gradient(ellipse at 36% 22%, #7fb0ff 0%, #2a6fe0 45%, #123a80 100%); }
+.t-arcade .actions button:nth-child(3) { color: #fff; background: radial-gradient(ellipse at 36% 22%, #ff8a80 0%, #e3271f 45%, #7d0f0a 100%); }
+.t-arcade .actions button:active { transform: translateY(5px); box-shadow: 0 0 0 3px #44444c, 0 2px 0 3px #000; }
+.t-arcade table.cricket { border: 4px solid var(--line); }
+.t-arcade .b-dark, .t-arcade .b-light, .t-arcade .b-red, .t-arcade .b-green { stroke-width: 1.6; }
+.t-arcade .b-num { font-family: var(--font); font-weight: 400; font-size: 17px; }
+.t-arcade .b-mark { stroke: #08080a; }
+.t-arcade .b-mark.last { fill: var(--accent); }
+
+/* ================= League Scoresheet: printed, light ================= */
+.t-sheet {
+  --bg: #eadfc4; --panel: transparent; --panel2: transparent; --line: #17130f;
+  --text: #17130f; --muted: #5a5146; --accent: #17693b; --on-accent: #fff; --warn: #b3261e; --gold: #b3261e;
+  --font: 'Rokkitt', Rockwell, Georgia, serif; --display: 'Rokkitt', Rockwell, Georgia, serif;
+  --type: 'Special Elite', 'Courier New', monospace;
+  --b-surround: #17130f; --b-dark: #17130f; --b-light: #eadfc4; --b-red: #b3261e; --b-green: #17693b;
+  --b-wire: #eadfc4; --b-num: #eadfc4; --mark: #17130f;
+}
+.t-sheet body {
+  font-size: 20px; font-weight: 700;
+  background: repeating-linear-gradient(115deg, #b3261e 0 22px, #eadfc4 22px 30px, #17130f 30px 52px, #eadfc4 52px 60px, #17693b 60px 82px, #eadfc4 82px 90px) top / 100% 10px no-repeat, var(--bg);
+}
+.t-sheet .game { padding-top: 22px; }
+.t-sheet .page { padding-top: 32px; }
+.t-sheet p, .t-sheet .small, .t-sheet .muted, .t-sheet .game-card span, .t-sheet .tile span, .t-sheet .totals,
+.t-sheet table.plain td { font-family: var(--type); font-weight: 400; font-size: 15px; }
+.t-sheet h1 { font-weight: 800; font-size: 40px; letter-spacing: -.01em; }
+.t-sheet h2 { font-size: 16px; font-weight: 700; color: var(--text); border-bottom: 2px solid var(--text); padding-bottom: 2px; }
+.t-sheet button, .t-sheet select { border: 2px solid var(--text); border-radius: 0; text-transform: uppercase; letter-spacing: .04em; padding-top: 15px; }
+.t-sheet select { padding-top: 20px; }
+.t-sheet button.primary, .t-sheet button.on { background: var(--text); border-color: var(--text); color: var(--bg); }
+.t-sheet button.ghost { border-color: transparent; }
+.t-sheet .game-card.on b { color: var(--bg); }
+.t-sheet .game-card.on span { color: #d8ccb0; }
+.t-sheet .chip i { background: var(--bg); color: var(--text); border-radius: 0; line-height: 24px; }
+.t-sheet :is(input[type=text], input[type=number]) { background: none; border: 2px solid var(--text); border-radius: 0; font-family: var(--type); font-weight: 400; }
+.t-sheet .tile, .t-sheet .banner { border: 2px solid var(--text); border-radius: 0; }
+.t-sheet .tile b { font-weight: 800; }
+.t-sheet .pcard { border: 2px solid var(--text); border-radius: 0; padding: 0; opacity: 1; text-align: center; }
+.t-sheet .pcard .name {
+  padding: 6px 12px 2px; text-align: left; font: 700 22px/1.2 var(--font); text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text); border-bottom: 2px solid var(--text);
+}
+.t-sheet .pcard .big { font-weight: 500; font-size: 76px; line-height: 1; padding-top: 8px; color: var(--muted); letter-spacing: -.02em; }
+.t-sheet .pcard .small { padding-bottom: 4px; }
+.t-sheet .pcard.cur .name { background: var(--text); color: var(--bg); }
+.t-sheet .pcard.cur .big, .t-sheet .pcard.win .big { font-weight: 800; color: var(--text); }
+.t-sheet .pcard.win { border-color: var(--warn); }
+.t-sheet .pcard.win .name { background: var(--warn); border-color: var(--warn); color: #fff; }
+.t-sheet .slot { border: 2px solid var(--text); border-radius: 0; font-weight: 800; font-size: 34px; }
+.t-sheet .slot.empty { color: #8a7f6c; }
+.t-sheet .slot.total { background: var(--accent); border-color: var(--text); color: #fff; }
+.t-sheet .slot.bust { background: var(--warn); color: #fff; }
+.t-sheet .hint:not(:empty) {
+  align-self: center; border: 4px double var(--warn); padding: 6px 20px 1px; transform: rotate(-2deg);
+  font-size: 24px; text-transform: uppercase; letter-spacing: .08em;
+}
+.t-sheet .banner.win { border-color: var(--warn); }
+.t-sheet table.cricket { border: 2px solid var(--text); border-radius: 0; }
+.t-sheet .b-num { font-weight: 800; font-size: 24px; }
+.t-sheet .b-mark { stroke: var(--bg); }
+.t-sheet .b-mark.last { fill: #fff; stroke: var(--text); }
+
+/* number pad */
+.t-stage .pad-out { border-radius: 0; font-weight: 400; }
+.t-stage .pad-keys button { font-family: var(--display); font-weight: 400; }
+.t-chalk .pad-out { background: var(--sunk); border-radius: var(--wobble); font-size: clamp(40px, 9vh, 80px); line-height: 1.1; }
+.t-chalk .pad-keys button { font-family: var(--font); line-height: 1; }
+.t-chalk .pad { gap: 8px; }
+.t-chalk .pad-keys { gap: 8px; }
+.t-arcade .pad-out {
+  border: 4px solid var(--line); border-radius: 10px; box-shadow: var(--led); font-weight: 400; line-height: 1;
+  color: #ff3a2e; text-shadow: 0 0 14px rgba(255, 58, 46, .75);
+}
+.t-arcade .pad-keys button { font-size: 24px; }
+.t-sheet .pad-out { border: 2px solid var(--text); border-radius: 0; }
+.t-sheet .pad-keys button { font-weight: 800; }

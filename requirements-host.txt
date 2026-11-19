@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+websockets
+google-auth
+requests
+pyjwt[crypto]
