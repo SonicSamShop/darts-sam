@@ -1,3 +1,7 @@
+// Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+// AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Reloading onto a new version: when the app's files on the Pi change while
 // the app is open, it reloads itself, but only once nobody is in the middle
 // of anything (app.js says when that is).

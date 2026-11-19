@@ -1,1 +1,10 @@
-{"type":"module","private":true}
+{
+  "name": "darts-sam",
+  "description": "Darts S.A.M: a darts scoreboard that scores by itself with cameras. This file only tells Node the app's files are modules, and how to run their tests.",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.mjs"
+  }
+}

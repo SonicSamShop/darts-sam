@@ -1,12 +1,17 @@
-"""Darts S.A.M server: runs on the Raspberry Pi.
+# Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+# AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+# SPDX-License-Identifier: AGPL-3.0-only
+
+"""Darts S.A.M server: runs on the computer the cameras are plugged into (a
+Raspberry Pi, or a Mac or PC; the desktop apps are this in a window).
 
   python -m server.app            # finds USB cameras; add a phone on the app's Cameras screen
 
 For development: --no-cameras leaves the cameras alone, and --camera SOURCE
 names them outright instead of what was found and added.
 
-Serves the iPad web app, watches the cameras, and pushes dart events to the
-app over a WebSocket.
+Serves the web app (web/), watches the cameras, and pushes dart events to the
+app over a WebSocket. docs/architecture.md says where everything else is.
 """
 import argparse
 import asyncio
@@ -309,7 +314,7 @@ def snapshot(cam_id: int, overlay: bool = False):
     img = _frame(cam_id)
     pts = config["calibration"].get(key(cam_id))
     if overlay and pts:
-        report.draw_board(img, calib.view(pts))
+        calib.draw_board(img, pts)
     return _jpeg(img)
 
 
@@ -710,7 +715,7 @@ def main():
                     help="for development: use only this camera, not those found or added in the app: a stream address such as "
                          "http://192.168.1.50:8080/video, or a camera number. Repeat for more cameras.")
     ap.add_argument("--cert", help="https certificate file. The app only installs itself for offline "
-                                   "use when it is served over https (see the README).")
+                                   "use when it is served over https (see docs/setup.md).")
     ap.add_argument("--key", help="the certificate's private key file")
     ap.add_argument("--host", metavar="URL", help="the hosted site's address, to use these cameras with an "
                                                   "account there (instead of \"host\" in config.json)")

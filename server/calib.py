@@ -1,3 +1,7 @@
+# Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+# AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Camera calibration: where the board is in a camera's picture.
 
 A calibration is saved in config.json in one of two shapes:
@@ -95,3 +99,28 @@ def view(saved) -> View:
         return View(homography(saved["points"]), float(saved.get("lens") or 0.0),
                     tuple(saved.get("size") or (1, 1)))
     return View(homography(saved))
+
+
+def draw_board(img, saved, colour=(0, 255, 0), thickness=1, numbers=False):
+    """Draw the board's wires on a camera's picture where this calibration
+    (anything view() takes) says they are. If the lines sit on the real wires,
+    the calibration is good. The 20 is marked, so a calibration that is turned
+    round can be spotted; `numbers` marks every segment."""
+    v = view(saved)
+
+    def project(xy):
+        return np.round(v.to_picture(xy)).reshape(-1, 1, 2).astype(np.int32)
+    ang = np.radians(np.arange(0, 361, 3))
+    for r in (board.R_BULL, board.R_OUTER_BULL, board.R_TRIPLE_IN, board.R_TRIPLE_OUT,
+              board.R_DOUBLE_IN, board.R_DOUBLE_OUT):
+        ring = np.column_stack([r * np.sin(ang), r * np.cos(ang)])
+        cv2.polylines(img, [project(ring)], False, colour, thickness, cv2.LINE_AA)
+    for i in range(20):
+        a, b = board.polar(9 + 18 * i, board.R_OUTER_BULL), board.polar(9 + 18 * i, board.R_DOUBLE_OUT)
+        cv2.polylines(img, [project([a, b])], False, colour, thickness, cv2.LINE_AA)
+    for i, seg in enumerate(board.SEGMENTS if numbers else board.SEGMENTS[:1]):
+        text, bold = str(seg), 2 if i == 0 else 1
+        (w, h), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, bold)
+        x, y = project([board.polar(18 * i, 135)])[0][0]
+        cv2.putText(img, text, (int(x) - w // 2, int(y) + h // 2), cv2.FONT_HERSHEY_SIMPLEX, 0.6, colour, bold, cv2.LINE_AA)
+    return img

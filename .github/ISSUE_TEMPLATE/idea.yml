@@ -1,0 +1,22 @@
+name: An idea
+description: Something you'd like Darts S.A.M to do, or do differently.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like?
+      description: What you are trying to do, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: How might it work?
+      description: Only if you have a picture of it in mind. A new game? Say its rules, or where they are written down.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Would you like to build it?
+      options:
+        - label: I could have a go at this myself (CONTRIBUTING.md says how).

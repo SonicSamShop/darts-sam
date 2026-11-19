@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A question about using it
+    url: https://dartssam.co.uk/faq.html
+    about: Setting up cameras, connecting to your account, what works offline. Look here first.
+  - name: A security problem
+    url: https://github.com/SonicSamShop/darts-sam/security/policy
+    about: Please report these privately, not as an issue.

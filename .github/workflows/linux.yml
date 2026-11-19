@@ -10,9 +10,9 @@
 name: Linux
 
 # Builds cost GitHub Actions minutes (Mac ones most), so they run only for a
-# release: when a push raises "version" in release.json (README, "Releasing a
-# new version"), or when started by hand (Actions → this workflow → Run
-# workflow) to check that the apps still build. The server only gives out a
+# release: when a push raises "version" in release.json (docs/releasing.md),
+# or when started by hand (Actions → this workflow → Run workflow) to check
+# that the apps still build. (The tests run on every push: tests.yml.) The server only gives out a
 # build whose version is new, so a test build never reaches anyone.
 on:
   push:

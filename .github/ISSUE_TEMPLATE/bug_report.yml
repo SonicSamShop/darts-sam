@@ -1,0 +1,51 @@
+name: Something isn't working
+description: The app, a game, the stats, signing in, the desktop app. (Cameras have a form of their own.)
+labels: [bug]
+body:
+  - type: dropdown
+    id: where
+    attributes:
+      label: How are you using Darts S.A.M?
+      options:
+        - The website (dartssam.co.uk)
+        - The desktop app on a Mac
+        - The desktop app on Windows
+        - The desktop app on Linux
+        - From the code, on a Raspberry Pi
+        - From the code, on something else
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: 'The line at the bottom of Settings → Games, such as "Darts S.A.M version 1.2 (build 61, a140399)".'
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone, tablet or computer, and browser
+      placeholder: 'iPad, Safari. Or Windows 11, the desktop app.'
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you saw, and what you expected instead. A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Start a 501 game with two players
+        2. ...
+  - type: textarea
+    id: log
+    attributes:
+      label: What the server said
+      description: >-
+        If you run the desktop app or the code: the last lines of DartsSAM.log (the app's Data menu opens its
+        folder) or of the terminal. Take out the tokens under "link" and "share" before pasting any of config.json.
+      render: text

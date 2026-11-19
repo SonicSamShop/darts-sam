@@ -1,3 +1,7 @@
+# Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+# AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """The relay between helpers and apps. Run: python -m tests.test_relay"""
 import asyncio
 import base64

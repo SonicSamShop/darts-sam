@@ -1,3 +1,7 @@
+# Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+# AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Test automatic calibration against simulated cameras.
 
 Renders the board (with wires, blur, uneven light and noise) as cameras in
@@ -6,7 +10,12 @@ rough "tap" in the 20, and checks the result against the true geometry.
 
   python -m tests.test_calib
 """
+import contextlib
+import io
+import json
 import math
+import tempfile
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -101,6 +110,78 @@ def bent_lens(rng):
         assert np.abs(back - true_px).max() < 1.0
 
 
+def no_tap(rng):
+    """With no tap, the 20 is taken to be straight up the picture from the
+    bull: right for a camera the right way up in front of the board, tilted a
+    little or not. And it always gives an answer, however steep the view."""
+    for name, kw in (("in front", dict(angle=180, radius=60, height=420)),
+                     ("in front, tilted", dict(angle=180, radius=60, height=420, roll=12)),
+                     ("in front, off to one side", dict(angle=120, radius=150, height=420, roll=50))):
+        P = camera(**kw)
+        res = autocalib.detect(render(P, rng))
+        true_px = np.array([project(P, np.array([x, y, 0.0])) for x, y in CHECK])
+        err = np.linalg.norm(res.view().to_board(true_px) - np.array(CHECK), axis=1)
+        print(f"{name:26s} no tap: joins {res.joins}/40  error max {err.max():.2f} mm")
+        assert err.max() < 0.6, f"{name}: with no tap the board came out {err.max():.0f} mm out (turned round?)"
+    # From the light ring the board is seen from the side and "up" is not the 20,
+    # so the answer may be turned, but only ever by whole red blocks.
+    P = camera(**CAMERAS["ring 120"])
+    img = render(P, rng)
+    turned, tapped = autocalib.detect(img), autocalib.detect(img, project(P, np.array([*board.polar(5, 60), 0.0])))
+    mm = turned.view().to_board(tapped.view().to_picture(CHECK))
+    turn = np.degrees(np.arctan2(mm[1][0], mm[1][1]) - np.arctan2(CHECK[1][0], CHECK[1][1])) % 36
+    assert min(turn, 36 - turn) < 0.5, f"with no tap the board was turned by something other than whole blocks ({turn:.1f})"
+
+
+def by_itself(rng):
+    """The parts for using it without the server: the Result's own view, the
+    pictures that explain a result, and the command."""
+    P, k = camera(**CAMERAS["low and close"]), 0.5
+    img = bend(render(P, rng), k)
+    tap = bend_point(project(P, np.array([*board.polar(5, 60), 0.0])), k)
+    res = autocalib.detect(img, tap)
+    # the Result's view is the one the server rebuilds from what it saves
+    px = np.array([bend_point(project(P, np.array([x, y, 0.0])), k) for x, y in CHECK])
+    assert np.abs(res.view().to_board(px) - calib.view(res.saved()).to_board(px)).max() < 0.05
+    assert np.abs(res.view().to_picture(CHECK) - px).max() < 1.0
+
+    # the board is drawn from a calibration in either shape it is saved in, as the app's Cameras screen does
+    for saved in (res.saved(), res.points):
+        assert (calib.draw_board(img.copy(), saved) != img).any()
+
+    seen = autocalib.explain(img, res)
+    assert list(seen) == ["colours", "joins", "unrolled", "overlay"]
+    assert all(seen[n].shape == img.shape for n in ("colours", "joins", "overlay"))
+    assert (seen["overlay"] != img).any() and (seen["joins"] != img).any()
+    # unrolled through a good calibration, the double ring is a straight band: red or green all the way along
+    rows = seen["unrolled"][26:]  # under the numbers
+    y = int((autocalib.UNROLL_MM - (board.R_DOUBLE_IN + board.R_DOUBLE_OUT) / 2) * autocalib.UNROLL_PX_PER_MM)
+    band = cv2.cvtColor(rows[y:y + 1], cv2.COLOR_BGR2HSV)[0]
+    blocks = band[np.arange(len(band)) % (18 * autocalib.UNROLL_PX_PER_DEG) > 6]  # clear of the wires and their lines
+    assert (blocks[:, 1] > 60).mean() > 0.9, "the unrolled double ring isn't a straight coloured band"
+    assert list(autocalib.explain(np.full((H, W, 3), 60, np.uint8))) == ["colours"]  # nothing found: still a picture
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        cv2.imwrite(str(tmp / "board.png"), img)
+        said = io.StringIO()
+        with contextlib.redirect_stdout(said):
+            code = autocalib.main([str(tmp / "board.png"), "--twenty", f"{tap[0]:.0f},{tap[1]:.0f}", "--json",
+                                   "--out", str(tmp / "found.jpg"), "--debug", str(tmp / "steps")])
+        out = json.loads(said.getvalue())
+        assert code == 0 and out["joins"] == res.joins and out["lens"] == res.lens and out["size"] == [W, H]
+        assert np.abs(np.array(out["points"]) - np.array(res.points)).max() < 0.05
+        # what it printed is a calibration the server can use as it is
+        assert np.abs(calib.view(out).to_board(px) - np.array(CHECK)).max() < 1.0
+        assert cv2.imread(str(tmp / "found.jpg")).shape == img.shape
+        assert sorted(f.name for f in (tmp / "steps").iterdir()) == ["1-colours.jpg", "2-joins.jpg", "3-unrolled.jpg", "4-overlay.jpg"]
+        # a picture with no board in it: says why, and the first picture is still saved
+        cv2.imwrite(str(tmp / "blank.png"), np.full((H, W, 3), 60, np.uint8))
+        with contextlib.redirect_stderr(io.StringIO()) as why:
+            assert autocalib.main([str(tmp / "blank.png"), "--debug", str(tmp / "blank")]) == 1
+        assert "red and green rings" in why.getvalue() and (tmp / "blank" / "1-colours.jpg").is_file()
+
+
 def main(seed=3):
     rng = np.random.default_rng(seed)
     auto, tapped = [], []
@@ -123,6 +204,8 @@ def main(seed=3):
               f"error mean {err.mean():.2f} max {err.max():.2f} mm   (4 taps: mean {tap_err.mean():.2f} max {tap_err.max():.2f})")
     assert max(auto) < 0.6, "auto-calibration is too far out"
     bent_lens(rng)
+    no_tap(rng)
+    by_itself(rng)
 
     # A picture with no board in it must be refused, not guessed at.
     try:

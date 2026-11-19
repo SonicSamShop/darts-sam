@@ -1,3 +1,7 @@
+# Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+# AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Automatic calibration: find the board in a camera picture by its colours.
 
 Tapping four wire crossings gives a homography from exactly four points, so
@@ -18,6 +22,9 @@ Steps:
   5. The last ambiguity (which red block is the 20) cannot be seen from the
      colours, so the caller passes one pixel known to be in the 20 segment:
      a single rough tap, or the old calibration's idea of where the 20 is.
+     With none, the 20 is taken to be the red block straight up the picture
+     from the bull, which is right for a camera the right way up in front of
+     the board.
   6. Webcams bend the picture (see calib.py), which a homography can't
      follow: fitted to the joins, it put the real double ring a few mm outside
      the board near the picture's edges. So steps 1-5 are run on the picture
@@ -25,8 +32,28 @@ Steps:
      the edges of both coloured rings, all the way round, best fit a flat board.
 
 The board must be empty and fully in view.
+
+It needs only board.py, calib.py, NumPy and OpenCV, so it can be used without
+the rest of the server. From Python:
+
+    import cv2
+    from server import autocalib, board
+    found = autocalib.detect(cv2.imread("docs/img/calibration/sample.jpg"), twenty_px=(590, 204))
+    view = found.view()                           # picture px <-> board mm
+    board.score(*view.to_board([(700, 300)])[0])  # {"seg": 13, "mult": 1}
+
+and on a picture, a camera number or a stream address, with nothing else running:
+
+    python -m server.autocalib docs/img/calibration/sample.jpg --twenty 590,204 --out found.jpg
+
+docs/calibration.md explains each step, with pictures.
 """
+import argparse
+import json
+import sys
+import time
 from dataclasses import dataclass
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -65,6 +92,10 @@ class Result:
         """What config.json keeps for this camera (calib.view() reads it back)."""
         return {"points": self.points, "lens": round(float(self.lens), 3), "size": list(self.size)}
 
+    def view(self) -> calib.View:
+        """The calibration ready to use: view().to_board(px), view().to_picture(mm)."""
+        return calib.View(self.H, float(self.lens), tuple(self.size))
+
 
 def _rot(deg: float) -> np.ndarray:
     """Board rotation that turns the board's clock angles back by `deg`."""
@@ -87,6 +118,11 @@ def _colour_mask(img) -> np.ndarray:
 def _green_mask(img) -> np.ndarray:
     h, s, v = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HSV))
     return ((h >= 35) & (h <= 95) & (s >= MIN_SAT) & (v >= MIN_VAL)).astype(np.uint8) * 255
+
+
+def _lab_a(img) -> np.ndarray:
+    """Lab's "a" channel: red is high, green is low, black and cream are near 0."""
+    return cv2.cvtColor(cv2.GaussianBlur(img, (3, 3), 0), cv2.COLOR_BGR2LAB)[..., 1].astype(np.float32) - 128
 
 
 def _outlines(img, mask) -> list:
@@ -268,7 +304,7 @@ def _band_edges(chan, H):
 def _edge_misfit(img, H) -> float:
     """How far (px, root mean square) the coloured rings' edges are from the
     best flat board through them. Low when the lens's bend is taken out."""
-    chan = cv2.cvtColor(cv2.GaussianBlur(img, (3, 3), 0), cv2.COLOR_BGR2LAB)[..., 1].astype(np.float32) - 128
+    chan = _lab_a(img)
     px, mm = _band_edges(chan, H)
     if len(px) < 40:
         return float("inf")
@@ -278,9 +314,13 @@ def _edge_misfit(img, H) -> float:
     return float(np.sqrt(np.mean(np.sum((_apply(H_inv, mm) - px) ** 2, axis=1))))
 
 
-def detect(img, twenty_px) -> Result:
-    """Calibrate from one picture of the empty board. `twenty_px` is any pixel
-    inside the 20 segment."""
+def detect(img, twenty_px=None) -> Result:
+    """Calibrate from one picture (BGR, as OpenCV reads it) of the empty board.
+
+    `twenty_px` is any pixel (x, y) inside the 20 segment: it says which way up
+    the board is. Left out, the 20 is taken to be straight up the picture from
+    the bull. Raises Failed, with a message for the user, rather than return a
+    calibration it can't trust."""
     size = (img.shape[1], img.shape[0])
     tried = {}  # bend -> (edge misfit, Result) or the reason it failed
 
@@ -290,7 +330,7 @@ def detect(img, twenty_px) -> Result:
             straight = img if not k else cv2.remap(img, *calib.straighten_maps(k, size), cv2.INTER_LINEAR,
                                                    borderMode=cv2.BORDER_CONSTANT)
             try:
-                res = _flat(straight, calib.straighten([twenty_px], k, size)[0])
+                res = _flat(straight, None if twenty_px is None else calib.straighten([twenty_px], k, size)[0])
                 res.lens, res.size = k, size
                 tried[k] = (_edge_misfit(straight, res.H), res)
             except Failed as e:
@@ -311,8 +351,7 @@ def detect(img, twenty_px) -> Result:
 
 def _flat(img, twenty_px) -> Result:
     """Steps 1-5, taking the picture's lens to be perfect."""
-    # Lab's "a" channel: red is high, green is low, black and cream are near 0.
-    chan = cv2.cvtColor(cv2.GaussianBlur(img, (3, 3), 0), cv2.COLOR_BGR2LAB)[..., 1].astype(np.float32) - 128
+    chan = _lab_a(img)
     H = _coarse(img, chan)
     double = np.arange(board.R_DOUBLE_IN + 1, board.R_DOUBLE_OUT - 1, 1.0)
     H = _rot(_pattern(chan, H, double)[1]) @ H
@@ -340,10 +379,167 @@ def _flat(img, twenty_px) -> Result:
     if inliers < MIN_JOINS or rms > MAX_RMS_PX:
         raise Failed(f"The fit wasn't good enough to trust ({inliers}/40 joins, {rms:.1f} px off). Calibrate by tapping instead.")
 
-    x, y = _apply(H, [twenty_px])[0]
-    if np.hypot(x, y) > board.R_DOUBLE_OUT:
-        raise Failed("That tap wasn't on the board. Tap anywhere inside the 20 segment.")
+    if twenty_px is None:
+        # No tap: the 20 is whichever way is straight up the picture from the bull.
+        bull = _apply(np.linalg.inv(H), [[0.0, 0.0]])[0]
+        x, y = _apply(H, [bull + (0.0, -1.0)])[0]
+    else:
+        x, y = _apply(H, [twenty_px])[0]
+        if np.hypot(x, y) > board.R_DOUBLE_OUT:
+            raise Failed("That tap wasn't on the board. Tap anywhere inside the 20 segment.")
     turn = 36 * round(np.degrees(np.arctan2(x, y)) / 36)
     H = _rot(turn) @ H
     points = _apply(np.linalg.inv(H), [p["xy"] for p in board.CALIBRATION_POINTS]).tolist()
     return Result(H=H, points=points, joins=inliers, rms_px=rms)
+
+
+# ---------- looking at what it did, and using it by itself ----------
+UNROLL_PX_PER_DEG, UNROLL_PX_PER_MM, UNROLL_MM = 3, 2, 190.0
+
+
+def explain(img, found: Result | None = None) -> dict:
+    """Pictures of what detect() made of `img`, by name: to see how it works,
+    and to see why when it fails or gets a board wrong.
+
+      colours   what counted as red or green (the rest is greyed out), and in
+                yellow the outlines tried as the outside of the double ring
+    and, given the Result:
+      joins     the joins between red and green blocks: a cross where the
+                result says each one is, a dot where it was measured (green if
+                they agree, red if that join was left out of the fit)
+      unrolled  the board unrolled through the result, the 20 first: angle
+                across, the bull at the bottom. Right, every ring is a straight
+                band under its line and every wire stands upright under its own
+      overlay   the wires and numbers drawn on the picture
+    """
+    grey = cv2.cvtColor(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
+    mask = _colour_mask(img)
+    colours = np.where(mask[..., None] > 0, img, grey // 3 + 30)
+    for hull in _outlines(img, mask):
+        cv2.ellipse(colours, cv2.fitEllipse(hull), (0, 255, 255), 2, cv2.LINE_AA)
+    out = {"colours": colours}
+    if found is None:
+        return out
+    view = found.view()
+
+    # The joins are measured in the picture with the lens's bend taken out, as detect() did.
+    straight = img if not found.lens else cv2.remap(img, *calib.straighten_maps(found.lens, found.size),
+                                                    cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+    px, mm = _joins(_lab_a(straight), found.H)
+    joins = img.copy()
+    if len(px):
+        agree = np.linalg.norm(px - _apply(np.linalg.inv(found.H), mm), axis=1) <= RANSAC_PX
+        for (ex, ey), (fx, fy), ok in zip(view.to_picture(mm), view.bend(px), agree):
+            cv2.drawMarker(joins, (int(round(ex)), int(round(ey))), (255, 255, 255), cv2.MARKER_CROSS, 13, 1, cv2.LINE_AA)
+            cv2.circle(joins, (int(round(fx)), int(round(fy))), 3, (0, 255, 0) if ok else (0, 0, 255), -1, cv2.LINE_AA)
+    out["joins"] = joins
+
+    thetas = np.arange(-9, 351, 1 / UNROLL_PX_PER_DEG)
+    radii = np.arange(UNROLL_MM, 0, -1 / UNROLL_PX_PER_MM)
+    a = np.radians(thetas)
+    grid = np.stack([np.outer(radii, np.sin(a)), np.outer(radii, np.cos(a))], -1).reshape(-1, 2)
+    at = view.to_picture(grid).reshape(len(radii), len(thetas), 2).astype(np.float32)
+    flat = cv2.remap(img, at[..., 0], at[..., 1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+    lines = flat.copy()
+    for r in (board.R_OUTER_BULL, board.R_TRIPLE_IN, board.R_TRIPLE_OUT, board.R_DOUBLE_IN, board.R_DOUBLE_OUT):
+        y = int(round((UNROLL_MM - r) * UNROLL_PX_PER_MM))
+        cv2.line(lines, (0, y), (lines.shape[1], y), (0, 255, 0), 1)
+    for i in range(1, 20):
+        cv2.line(lines, (i * 18 * UNROLL_PX_PER_DEG, 0), (i * 18 * UNROLL_PX_PER_DEG, lines.shape[0]), (0, 255, 0), 1)
+    flat = cv2.addWeighted(flat, 0.5, lines, 0.5, 0)
+    head = np.zeros((26, flat.shape[1], 3), np.uint8)
+    for i, seg in enumerate(board.SEGMENTS):
+        (w, _), _ = cv2.getTextSize(str(seg), cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
+        cv2.putText(head, str(seg), ((i * 18 + 9) * UNROLL_PX_PER_DEG - w // 2, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.55,
+                    (0, 255, 0), 1, cv2.LINE_AA)
+    out["unrolled"] = np.vstack([head, flat])
+
+    out["overlay"] = calib.draw_board(img.copy(), view, numbers=True)
+    return out
+
+
+def _picture(source: str, size: tuple[int, int]) -> np.ndarray:
+    """The picture to look at: a file, or one frame from a camera number or a stream address."""
+    if Path(source).is_file():
+        img = cv2.imread(source)
+        if img is None:
+            raise SystemExit(f"{source} isn't a picture OpenCV can read.")
+        return img
+    if not source.isdigit() and "://" not in source:
+        raise SystemExit(f"There is no file called {source}. Give a picture, a camera number or a stream address.")
+    from . import cameras  # only needed here: finding a board in a picture needs no camera code
+    cam = cameras.Camera(0, int(source) if source.isdigit() else source, *size, 15)
+    try:
+        deadline = time.time() + 10
+        while not cam.ok and time.time() < deadline:
+            time.sleep(0.1)
+        if not cam.ok:
+            raise SystemExit(f"No picture came from {'camera ' + source if source.isdigit() else source}.")
+        time.sleep(1.5)  # let it settle on its exposure: the first frames are often dark
+        return cam.frame.copy()
+    finally:
+        cam.stop()
+        cam.join()
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(
+        prog="python -m server.autocalib",
+        description="Find the dartboard in a picture and say where it is. The board must be empty, "
+                    "evenly lit and wholly in the picture.")
+    ap.add_argument("source", help="a picture file, a camera number (0, 1, ...) or a stream address (http://..., rtsp://...)")
+    ap.add_argument("--twenty", metavar="X,Y", help="a pixel anywhere inside the 20 segment, to say which way up the board "
+                                                    "is. Without it the 20 is taken to be at the top of the picture.")
+    ap.add_argument("--out", metavar="FILE", help="save the picture with the board's wires and numbers drawn on it")
+    ap.add_argument("--debug", metavar="FOLDER", help="save a picture of each step there (see explain() in this file)")
+    ap.add_argument("--json", action="store_true", help="print the calibration as JSON instead of in words")
+    ap.add_argument("--size", metavar="WxH", default="1280x720", help="for a camera: the picture size to ask it for (default %(default)s)")
+    args = ap.parse_args(argv)
+    try:
+        twenty = tuple(float(v) for v in args.twenty.split(",")) if args.twenty else None
+        size = tuple(int(v) for v in args.size.lower().split("x"))
+        if (twenty is not None and len(twenty) != 2) or len(size) != 2:
+            raise ValueError
+    except ValueError:
+        ap.error("--twenty is two numbers, such as 640,120, and --size is like 1280x720")
+    img = _picture(args.source, size)
+
+    def save(folder, pictures):
+        folder.mkdir(parents=True, exist_ok=True)
+        for n, (name, picture) in enumerate(pictures.items(), 1):
+            cv2.imwrite(str(folder / f"{n}-{name}.jpg"), picture, [cv2.IMWRITE_JPEG_QUALITY, 90])
+
+    try:
+        found = detect(img, twenty)
+    except Failed as e:
+        print(e, file=sys.stderr)
+        if args.debug:
+            save(Path(args.debug), explain(img))
+            print(f"{Path(args.debug) / '1-colours.jpg'} shows what was taken for the red and green rings.", file=sys.stderr)
+        return 1
+    if args.debug:
+        save(Path(args.debug), explain(img, found))
+    if args.out:
+        if not cv2.imwrite(args.out, calib.draw_board(img.copy(), found.view(), numbers=True)):
+            raise SystemExit(f"Couldn't save {args.out}.")
+    if args.json:
+        # "points", "lens" and "size" are what config.json keeps under "calibration" for a camera.
+        print(json.dumps({**found.saved(), "joins": found.joins, "rms_px": round(found.rms_px, 3),
+                          "homography": found.H.tolist()}, indent=2))
+        return 0
+    bull = found.view().to_picture([[0.0, 0.0]])[0]
+    print(f"Board found: {found.joins} of 40 joins agree, within {found.rms_px:.2f} px. Lens bend {found.lens:+.2f}.")
+    print(f"The bull is at ({bull[0]:.1f}, {bull[1]:.1f}) in the picture.")
+    if twenty is None:
+        print("The 20 was taken to be at the top of the picture. If the numbers come out turned round, "
+              "say where it is with --twenty X,Y.")
+    for where in (args.out, args.debug):
+        if where:
+            print(f"Saved {where}")
+    if not (args.out or args.debug):
+        print("Add --out FILE to see it drawn on the picture, or --json for the numbers.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

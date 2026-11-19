@@ -1,3 +1,7 @@
+// Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+// AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // "Treble 16", "Single 16": a single is spelled out, since only that bed counts.
 const name = t => (t.seg === 25 ? (t.mult === 2 ? 'Bull' : 'Outer bull (25)') : ['Single ', 'Double ', 'Treble '][t.mult - 1] + t.seg);
 

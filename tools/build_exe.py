@@ -1,3 +1,7 @@
+# Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+# AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Build Darts S.A.M into one program that needs no Python:
 
   Windows   dist/DartsSAM.exe, one file to double-click (its window needs
@@ -107,14 +111,14 @@ def mac_finish(dist: Path):
 
 
 def linux_finish(dist: Path):
-    """The program, its icon and install.sh in one .tar.gz, in a folder of their own."""
+    """The program, its icon, install.sh and the licence in one .tar.gz, in a folder of their own."""
     tgz = dist / f"DartsSAM-linux-{platform.machine()}.tar.gz"
     files = {"DartsSAM": dist / "DartsSAM", "install.sh": ROOT / "tools" / "linux" / "install.sh",
-             "dartssam.png": ROOT / "web" / "icon-512.png"}
+             "dartssam.png": ROOT / "web" / "icon-512.png", "LICENSE": ROOT / "LICENSE", "NOTICE": ROOT / "NOTICE"}
 
     def mode(name):
         def set_mode(info):
-            info.mode = 0o755 if name != "dartssam.png" else 0o644
+            info.mode = 0o755 if name in ("DartsSAM", "install.sh") else 0o644
             info.uid = info.gid = 0
             info.uname = info.gname = ""
             return info
@@ -141,6 +145,9 @@ options = [
     "--add-data", f"{ROOT / 'web'}{os.pathsep}web",
     "--add-data", f"{ROOT / 'release.json'}{os.pathsep}.",  # which version this is (server/release.py)
     "--add-data", f"{ROOT / 'build' / 'build.json'}{os.pathsep}.",  # and which build (server/build.py)
+    # the licence goes wherever the program does
+    "--add-data", f"{ROOT / 'LICENSE'}{os.pathsep}.",
+    "--add-data", f"{ROOT / 'NOTICE'}{os.pathsep}.",
     # uvicorn picks its event loop, protocols and logging by name at run time
     "--collect-submodules", "uvicorn",
     "--collect-submodules", "websockets",

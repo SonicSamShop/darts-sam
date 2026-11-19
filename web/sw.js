@@ -1,8 +1,12 @@
+// Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+// AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Service worker: keeps a copy of the app's own files on the device so the
 // app opens and runs with no Pi and no network at all.
 // It still tries the Pi first, so editing files on the Pi updates the app; if
 // the Pi doesn't answer quickly the saved copy is used instead.
-// Browsers only run this over https or on localhost (see the README).
+// Browsers only run this over https or on localhost (see docs/setup.md).
 const CACHE = 'dartssam-v15';
 const DATA = 'dartssam-data';  // stats saved by app.js for showing offline
 const WAIT = 2500;             // ms to give the Pi before using the saved copy

@@ -1,12 +1,25 @@
+# Python and Node
 __pycache__/
 .venv/
+.pytest_cache/
+node_modules/
+
+# What a running server keeps: settings, pairing tokens, players and games
 config.json
-data/
-*.pem
-.DS_Store
 host.json
+data/
+downloads/
+
+# https certificates and keys
+*.pem
+
+# What building the desktop app leaves behind
 build/
 dist/
 *.spec
-downloads/
+
+# This computer's own
+.DS_Store
+.idea/
+.vscode/
 dartssam.txt

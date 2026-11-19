@@ -1,3 +1,7 @@
+# Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+# AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Problem reports: what the cameras saw when a dart was scored wrongly.
 
 The app's Report button (in a game) asks for one. It is a folder,
@@ -53,31 +57,13 @@ def _nums(v, places=1) -> list:
     return [round(float(x), places) for x in np.asarray(v).ravel()]
 
 
-def draw_board(img, view, thickness=1):
-    """Draw the board's wires as the calibration (a calib.View) thinks they
-    are. If the green lines sit on the real wires, calibration is good."""
-    def project(xy):
-        return np.round(view.to_picture(xy)).reshape(-1, 1, 2).astype(np.int32)
-    ang = np.radians(np.arange(0, 361, 3))
-    for r in (board.R_BULL, board.R_OUTER_BULL, board.R_TRIPLE_IN, board.R_TRIPLE_OUT,
-              board.R_DOUBLE_IN, board.R_DOUBLE_OUT):
-        ring = np.column_stack([r * np.sin(ang), r * np.cos(ang)])
-        cv2.polylines(img, [project(ring)], False, (0, 255, 0), thickness, cv2.LINE_AA)
-    for i in range(20):
-        a, b = board.polar(9 + 18 * i, board.R_OUTER_BULL), board.polar(9 + 18 * i, board.R_DOUBLE_OUT)
-        cv2.polylines(img, [project([a, b])], False, (0, 255, 0), thickness, cv2.LINE_AA)
-    # Mark the 20 so a calibration that is turned round can be spotted.
-    x, y = project([board.polar(0, 135)])[0][0]
-    cv2.putText(img, "20", (int(x) - 12, int(y) + 7), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2, cv2.LINE_AA)
-
-
 def annotate(after, mask, sighting, H, event=None):
     """The after picture with what detection made of it drawn on."""
     img = after.copy()
     changed = mask > 0
     img[changed] = (0.45 * img[changed] + 0.55 * np.array([0, 0, 255])).astype(np.uint8)
     view = calib.view(H)
-    draw_board(img, view)
+    calib.draw_board(img, view)
     if sighting is not None and sighting.ends_px is not None:
         a, b = (tuple(int(v) for v in p) for p in sighting.ends_px)
         cv2.line(img, a, b, (0, 255, 255), 2, cv2.LINE_AA)

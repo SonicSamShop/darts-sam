@@ -1,3 +1,7 @@
+// Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+// AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import { GAMES } from './games/index.js';
 import { gameById, newMatch, compute, elapsed, clock, previousVisit } from './engine.js';
 import { buildBoard, label, spoken, value } from './board.js';

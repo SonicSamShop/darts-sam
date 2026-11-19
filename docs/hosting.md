@@ -2,7 +2,22 @@
 
 The hosted site is `python -m server.host`: one address where people sign in
 with Google, Apple or a code sent by email and have their own players, games and stats. It needs no cameras
-and no OpenCV. This page takes a new server from nothing to running.
+and no OpenCV (`requirements-host.txt`). Nobody plays there without signing in:
+a signed-out visitor gets the welcome page (`renderLanding()` in `web/app.js`),
+and their first sign-in makes the account and a first player with their first
+name (someone signing in by email is asked for it). This page takes a new
+server from nothing to running.
+
+It is written as it was done for the official site, so the commands name
+`dartssam.co.uk`. **For a site of your own, put your own names in their
+place**, in the commands, in `host.json` and in the `Caddyfile`. The
+[NOTICE](../NOTICE) file says what the licence asks of you: show the credit
+"Based on Darts S.A.M by Sam Cramphorn" in the app's settings and your
+documentation, and if you have changed the code, say so, call it something
+other than Darts S.A.M, and give its users your source (`SOURCE` in
+`web/app.js` is the link the app shows). Desktop apps you give out should
+point at your site, not the official one (`DEFAULT_HOST` in `server/link.py`),
+and `REPO` in `tools/fetch_apps.py` is where your site fetches their builds from.
 
 Steps 1 to 4, and step 5's backup and nightly schedule, were followed on
 2026-11-16 to put `dartssam.co.uk` on a Google Cloud `e2-micro` running Ubuntu
@@ -172,8 +187,8 @@ sleep 5; curl -s localhost:8000/api/me; echo     # {"hosted":true, … "account"
 nothing, run it again; if it still prints nothing, `journalctl -u
 dartssam-host -e --no-pager | tail -30` says why.)
 
-Then the front door. Copy the Caddyfile (it already names `dartssam.co.uk` and `app.dartssam.co.uk`) and
-reload:
+Then the front door. Copy the Caddyfile (it names `dartssam.co.uk` and `app.dartssam.co.uk`: for a site of
+your own, change them to your names first) and reload:
 
 ```bash
 cp /opt/dartssam/Caddyfile /etc/caddy/Caddyfile
@@ -187,7 +202,9 @@ Caddy fetches the https certificate by itself within a minute. Open
 ## 5. Backups
 
 Everything the site keeps is in `/var/lib/dartssam`: `host.db` (accounts and
-sign-ins) and `accounts/<id>/darts.db` (each account's games).
+sign-ins), `accounts/<id>/darts.db` (each account's games) and
+`reports/<id>/` (the problem reports people sent). The backup is of the
+databases. It leaves the reports out: they are big, and deleted after 60 days.
 
 ```bash
 runuser -u dartssam -- /opt/dartssam/tools/backup.sh      # prints the file it made
@@ -200,9 +217,15 @@ Run it every night:
 echo '15 3 * * * dartssam /opt/dartssam/tools/backup.sh >/dev/null' | tee /etc/cron.d/dartssam-backup
 ```
 
-**A backup that only exists on the server is lost with the server.** The
-script has one marked line (`SAM:`) where the file should be sent somewhere
-else; fill it in.
+**A backup that only exists on the server is lost with the server.** After
+making the file the script runs `/etc/dartssam/after-backup`, if there is one,
+with the file's name: make that a small program that sends it somewhere else.
+For example, with [rclone](https://rclone.org) set up for the `dartssam` user:
+
+```bash
+printf '#!/bin/sh\nrclone copy "$1" remote:dartssam-backups\n' > /etc/dartssam/after-backup
+chmod 755 /etc/dartssam/after-backup
+```
 
 ### Restoring
 
@@ -262,8 +285,8 @@ keep 1 GB; watch the server's disk with `df -h /var/lib/dartssam`.
 ## People's cameras
 
 The site itself has no cameras. Someone with cameras runs the ordinary server
-at home (it knows the site's address), pairs it once with a code (the
-README's "Using your cameras with the hosted site"), and it then stays
+at home (it knows the site's address), pairs it once with a code
+([setup.md](setup.md#using-your-cameras-with-the-hosted-site)), and it then stays
 connected to the site. Nothing needs opening on their router: the connection
 goes out from their home. The site keeps these connections in memory, so after
 a restart every helper reconnects by itself within half a minute.
@@ -286,8 +309,7 @@ The server fetches them from GitHub by itself: `tools/fetch_apps.py` asks for
 the newest Mac, Windows and Linux builds from `main` and fetches any whose
 **version** is newer than the file in the folder. GitHub only builds when the
 version in `release.json` goes up (or when a build is started by hand, which
-is not given out) (see "Releasing a new version" in the
-README). It also writes `releases.json` in the folder: each file's version and
+is not given out) (see [releasing.md](releasing.md)). It also writes `releases.json` in the folder: each file's version and
 what changed, which the desktop apps ask about when they start. Set it up once:
 
 1. Make a token that can only read this repository's builds. On GitHub: your

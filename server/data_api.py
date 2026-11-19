@@ -1,3 +1,7 @@
+# Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+# AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """The saved-data addresses: players, their darts, settings, matches and stats (see db.py).
 
 Shared by the server at home (app.py), which keeps everything in one file, and

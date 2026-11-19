@@ -1,3 +1,7 @@
+// Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+// AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Match engine. A match is just {gameId, players, opts, log}; the current
 // state is always recomputed by replaying the log, which makes undo trivial
 // (drop the last entry) and keeps every game a small pure module.

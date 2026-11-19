@@ -1,3 +1,7 @@
+// Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+// AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // The hosted version: who is signed in on this device.
 //
 // The server at home has no accounts and no /api/me address; finding one is

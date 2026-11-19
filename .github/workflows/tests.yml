@@ -1,0 +1,46 @@
+# Runs every test on every push to main and every pull request: the server's
+# (Python) and the app's (Node). The same as `python -m tests` on your own
+# computer (CONTRIBUTING.md).
+#
+# On Linux, with the oldest Python the code is meant for (what Raspberry Pi OS
+# has) and the one the desktop apps are built with. The vision tests draw their
+# own cameras' pictures, so no cameras are needed. Building the apps is
+# separate (mac.yml, windows.yml, linux.yml) and only happens for a release.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request replaces the run before it.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -r requirements.txt -r requirements-host.txt -r requirements-dev.txt
+      - name: Server tests (Python)
+        run: python -m tests --no-node
+      - name: App tests (Node)
+        run: node --test tests/*.mjs

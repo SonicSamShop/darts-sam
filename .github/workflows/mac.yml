@@ -4,15 +4,15 @@
 # DartsSAM-mac-x86_64-<version> (Intel). The version is release.json's.
 #
 # The .dmg is not signed by Apple here, so a Mac that downloads it refuses to
-# open the app until its owner allows it in System Settings (see the README).
+# open the app until its owner allows it in System Settings (see docs/setup.md).
 # No cameras are plugged into GitHub's machines, so the app is started with
 # --no-cameras: this cannot say whether real cameras work.
 name: Mac
 
 # Builds cost GitHub Actions minutes (Mac ones most), so they run only for a
-# release: when a push raises "version" in release.json (README, "Releasing a
-# new version"), or when started by hand (Actions → this workflow → Run
-# workflow) to check that the apps still build. The server only gives out a
+# release: when a push raises "version" in release.json (docs/releasing.md),
+# or when started by hand (Actions → this workflow → Run workflow) to check
+# that the apps still build. (The tests run on every push: tests.yml.) The server only gives out a
 # build whose version is new, so a test build never reaches anyone.
 on:
   push:

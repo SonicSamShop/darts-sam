@@ -1,3 +1,7 @@
+// Darts S.A.M. Copyright (C) 2026 Sam Cramphorn. Free software under the GNU
+// AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Killer. First everyone gets a number: one dart each with the weak hand, and
 // the segment it lands in is theirs (a miss, the bull or a number already
 // taken: throw again). Then hit your own double to become a killer. A killer

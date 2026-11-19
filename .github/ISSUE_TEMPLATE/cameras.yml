@@ -1,0 +1,62 @@
+name: The cameras got it wrong
+description: A dart scored wrongly or not at all, or Find the board failing or landing off the wires.
+labels: [cameras]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The pictures are what make these fixable, so please attach them. They show whatever your cameras see:
+        check there is nothing and nobody in them you'd rather not post publicly.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What went wrong?
+      options:
+        - A dart was scored as the wrong number
+        - A dart wasn't scored at all
+        - A dart was scored that wasn't thrown
+        - Pulling the darts out didn't move the game on
+        - Find the board failed
+        - Find the board worked, but the green lines aren't on the wires
+        - A camera isn't found, or shows no picture
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: 'The line at the bottom of Settings → Games, such as "Darts S.A.M version 1.2 (build 61, a140399)".'
+    validations:
+      required: true
+  - type: textarea
+    id: rig
+    attributes:
+      label: Your set-up
+      description: The cameras (which, how many, where they sit), the computer they plug into, the board and its surround, and the lighting.
+      placeholder: 3 × OV9732 100° on a Corona Vision ring, Raspberry Pi 5, Winmau Blade 6 with a black surround.
+    validations:
+      required: true
+  - type: textarea
+    id: dart
+    attributes:
+      label: For a dart - the report
+      description: >-
+        Press Report in the game straight away, before pulling the darts, and say what the dart should have been.
+        The report is a folder, data/reports/<date_time>/, beside the code or in the desktop app's data folder (its
+        Data menu opens it). Attach its report.json and its *-seen.jpg pictures here. The whole folder is what
+        detection can be run on again, but it is usually too big to attach: say if you can share it another way.
+        docs/detection.md explains what is in it.
+  - type: textarea
+    id: board
+    attributes:
+      label: For Find the board - the pictures
+      description: >-
+        With the board empty, open http://localhost:8000/api/cameras/0/snapshot.jpg on the computer by the board
+        (0 is the first camera, 1 the second) and save that picture: it has no lines drawn on it. Attach it, and
+        say what the Cameras screen said. If you run from the code, also run
+        `python -m server.autocalib picture.jpg --twenty X,Y --debug steps` there (X,Y is any pixel in the 20) and
+        attach the files in the steps folder and what it printed. docs/calibration.md explains each one.
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
