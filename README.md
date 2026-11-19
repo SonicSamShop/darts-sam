@@ -50,7 +50,7 @@ finds the red and green rings, measures the 40 places where a red block meets
 a green one, fits the board to all of them, and measures how much the lens
 bends the picture while it is at it.
 
-![A camera's picture with the board found: every wire and number drawn on it](docs/img/calibration/found.jpg)
+![A real camera's picture with the board found: every wire and number drawn on it](docs/img/calibration/real-found.jpg)
 
 In simulation it lands within 0.2 mm everywhere on the board, where four taps
 a couple of pixels out are 5 to 14 mm off at the worst point.
@@ -60,8 +60,11 @@ picture, from the code's folder, with nothing else running:
 
 ```bash
 pip install opencv-python-headless numpy
-python -m server.autocalib docs/img/calibration/sample.jpg --out found.jpg
+python -m server.autocalib docs/img/calibration/real.jpg --twenty 530,183 --out found.jpg
 ```
+
+That picture came from a webcam on the light ring; `--twenty` is any pixel in
+the 20, to say which way up the board is.
 
 ## Three ways to use it
 
@@ -111,7 +114,7 @@ scored correctly, 0.4 mm from the truth on average, and the board found within
 `python -m tests.test_calib` print the numbers).
 
 **On real cameras:** it runs on a real three-camera rig. Finding the board
-worked on every one of 30 pictures from it
+worked on every one of 30 pictures from it, one of which is the picture above
 ([the numbers](docs/calibration.md#how-good-is-it)). Scoring darts works, but
 real wires, shadows and flights still fool it now and then: expect to tune it
 on your own board ([what to tune](docs/detection.md#tuning)), and please
@@ -130,9 +133,9 @@ on your own board ([what to tune](docs/detection.md#tuning)), and please
 - Scores are called in the device's own voice. A device with none (a Pi, most
   Linux PCs) doesn't call them aloud.
 
-**Not yet tried:** real USB cameras on Windows and with the Linux app; the
-Windows and Linux apps on a real desktop; the Intel Mac build; a build signed
-by Apple; and Sign in with Apple on the hosted site.
+**Not yet tried:** the Windows app on a real PC, and real USB cameras on
+Windows; real USB cameras with the Linux app; a build signed by Apple; and
+Sign in with Apple on the hosted site.
 
 ## Contributing
 
@@ -160,4 +163,6 @@ License (Special Elite: Apache License 2.0). Each one's licence is in
 `web/fonts/licences/`.
 
 Contributions are welcome: open an issue or a pull request. By sending a pull
-request you agree it is released under the same licence.
+request you agree to the [contribution terms](CONTRIBUTING.md#licence): it is
+released under the same licence, and Sam Cramphorn may also release it under
+other terms, which is what lets the app be published in the app stores.

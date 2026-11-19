@@ -25,6 +25,7 @@ from server.calib import homography
 from tests.test_vision import H, K, W, bend, bend_point, board_texture, project
 
 SCALE = 3.0
+REAL = Path(__file__).resolve().parent.parent / "docs" / "img" / "calibration" / "real.jpg"
 
 
 def wired_texture():
@@ -182,6 +183,25 @@ def by_itself(rng):
         assert "red and green rings" in why.getvalue() and (tmp / "blank" / "1-colours.jpg").is_file()
 
 
+def real_picture():
+    """A real camera's picture, as it came: a 720p webcam on a light ring,
+    looking across a board with a red surround bigger than the board. There is
+    no truth to measure against, but the board must be found, its bull must be
+    the bull in the picture (looked up by eye: the middle of the red is at
+    711, 247), and its numbers must be the ones printed round the real board."""
+    img = cv2.imread(str(REAL))
+    res = autocalib.detect(img, (530, 183))  # a pixel in the 20
+    view = res.view()
+    bull = view.to_picture([(0, 0)])[0]
+    print(f"real picture   joins {res.joins}/40  fit {res.rms_px:.2f} px  lens {res.lens:+.2f}  "
+          f"bull at ({bull[0]:.1f}, {bull[1]:.1f})")
+    assert res.joins >= 34, f"only {res.joins} of the real board's 40 joins agreed"
+    assert np.hypot(*(bull - (711, 247))) < 4, f"the real board's bull was put at {bull}, outside the bullseye"
+    assert 0.4 <= res.lens <= 1.0, f"this camera's lens bends about 0.7, not {res.lens}"
+    for px, seg in (((947, 326), 3), ((572, 424), 11), ((805, 128), 6), ((686, 119), 4)):
+        assert board.score(*view.to_board([px])[0]) == {"seg": seg, "mult": 1}, f"{px} is in the {seg} on the real board"
+
+
 def main(seed=3):
     rng = np.random.default_rng(seed)
     auto, tapped = [], []
@@ -206,6 +226,7 @@ def main(seed=3):
     bent_lens(rng)
     no_tap(rng)
     by_itself(rng)
+    real_picture()
 
     # A picture with no board in it must be refused, not guessed at.
     try:

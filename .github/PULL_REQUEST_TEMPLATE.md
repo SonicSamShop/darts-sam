@@ -10,3 +10,4 @@
 - [ ] `python -m tests` passes
 - [ ] If a player would notice it: a plain-English line added to `"unreleased"` in `release.json`
 - [ ] No tokens from `config.json` or `host.json`, and nothing private in any picture
+- [ ] I agree to the [contribution terms](https://github.com/SonicSamShop/darts-sam/blob/main/CONTRIBUTING.md#licence): this is released under the AGPL-3.0, and Sam Cramphorn may also release it under other terms (such as in the app stores)

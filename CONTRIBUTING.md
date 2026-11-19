@@ -11,8 +11,8 @@ Everyone taking part is expected to follow the [code of conduct](CODE_OF_CONDUCT
 
 ## What helps most
 
-- **What your cameras saw.** The camera scoring is tested on simulated
-  pictures; real boards, lights and cameras are where it goes wrong. When a
+- **What your cameras saw.** The camera scoring is tested almost wholly on
+  simulated pictures; real boards, lights and cameras are where it goes wrong. When a
   dart is scored wrongly, press **Report** in the game and say what it should
   have been. When **Find the board** fails or lands off the wires, the picture
   it was looking at says why. The issue forms ask for the right files.
@@ -147,5 +147,15 @@ Before posting pictures, logs or files anywhere public:
 ## Licence
 
 Darts S.A.M is under the [GNU AGPL v3.0](LICENSE) with the extra terms in
-[NOTICE](NOTICE). By sending a pull request you agree your contribution is
-released under the same licence.
+[NOTICE](NOTICE). By sending a pull request you agree that:
+
+- your contribution is released under that same licence; and
+- you also give Sam Cramphorn, who holds the project's copyright, the right,
+  for good and at no charge, to use your contribution and to release it under
+  other licence terms as part of Darts S.A.M. This is what lets the app be
+  published in the app stores, whose terms don't fit the AGPL. It is not
+  exclusive: your contribution stays yours, and stays free for everyone under
+  the AGPL.
+
+Only send work that is yours to give: your own, or sent with the say-so of
+whoever owns it (an employer, for instance).

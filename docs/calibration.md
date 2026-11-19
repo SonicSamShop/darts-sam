@@ -12,16 +12,18 @@ board to all of them. It also measures how much the lens bends the picture.
 The only help it needs is one rough tap anywhere in the 20, once, because the
 colours can't say which way up the board is.
 
-![A camera's picture with the board found: every wire and number drawn on it](img/calibration/found.jpg)
+![A real camera's picture with the board found: every wire and number drawn on it](img/calibration/real-found.jpg)
 
 The code is [`server/autocalib.py`](../server/autocalib.py). It needs only
 [`board.py`](../server/board.py), [`calib.py`](../server/calib.py), NumPy and
 OpenCV, so it can be [tried by itself](#try-it) and
 [used in other projects](#using-it-in-your-own-code).
 
-The pictures on this page are of a simulated board (the one the tests draw),
-so anyone can make exactly these again with `python tools/calib_figures.py`.
-[How good is it](#how-good-is-it) says what it does on real cameras.
+The picture above is a real one: a 720p webcam on the light ring, looking
+across the board, exactly as it came from the camera. The step-by-step
+pictures below are of a simulated board (the one the tests draw), where the
+right answer is known. `python tools/calib_figures.py` makes all of them again.
+[How good is it](#how-good-is-it) says what it does in each case.
 
 ## Try it
 
@@ -29,26 +31,27 @@ With the code and its two libraries (`pip install opencv-python-headless numpy`)
 from the top folder:
 
 ```bash
-python -m server.autocalib docs/img/calibration/sample.jpg --out found.jpg
+python -m server.autocalib docs/img/calibration/real.jpg --twenty 530,183 --out found.jpg
 ```
 
 ```
-Board found: 40 of 40 joins agree, within 0.42 px. Lens bend +0.50.
-The bull is at (630.9, 336.3) in the picture.
-The 20 was taken to be at the top of the picture. If the numbers come out turned round, say where it is with --twenty X,Y.
+Board found: 40 of 40 joins agree, within 1.28 px. Lens bend +0.70.
+The bull is at (710.9, 247.4) in the picture.
 Saved found.jpg
 ```
 
-`found.jpg` is the picture above. On your own board:
+`real.jpg` is that real camera's picture and `found.jpg` is the picture above
+(with thinner lines). `sample.jpg`, beside it, is the simulated one. On your
+own board:
 
 ```bash
-python -m server.autocalib my-board.jpg --twenty 590,204 --out found.jpg
+python -m server.autocalib my-board.jpg --twenty X,Y --out found.jpg
 ```
 
 | | |
 |---|---|
 | `my-board.jpg` | A picture of the **empty** board, all of the double ring in view. Instead of a file it can be a camera number (`0`, `1`, …) or a stream address (`http://192.168.1.50:8080/video`), and one frame is taken from it. |
-| `--twenty X,Y` | Any pixel inside the 20 segment. Leave it out and the 20 is taken to be straight up the picture from the bull, which is right for a camera the right way up in front of the board, and usually wrong for one looking across it from the side. |
+| `--twenty X,Y` | Any pixel inside the 20 segment. Leave it out and the 20 is taken to be straight up the picture from the bull, which is right for a camera the right way up in front of the board, and usually wrong for one looking across it from the side: try it on `real.jpg`, and the lines still land on the wires but the numbers come out turned round. |
 | `--out FILE` | Save the picture with the wires and numbers drawn where it found them. The lines should sit on the real wires. |
 | `--debug FOLDER` | Save four of the pictures on this page: the colours, the joins, the board unrolled, and the result drawn on the picture. The first is saved even when the board can't be found, and shows why. |
 | `--json` | Print the calibration as JSON instead: what the server keeps (see [What it saves](#what-it-saves)), plus how well it fitted (`joins`, `rms_px`) and the 3 × 3 matrix. |
@@ -134,6 +137,10 @@ picture's longer side) shows up at `r × (1 + k r²)`.
 
 ![The double ring unrolled: fitted as if the lens were perfect it wanders off its lines; with the bend taken out it stays between them](img/calibration/lens.jpg)
 
+### The result
+
+![The simulated camera's picture with the board found](img/calibration/found.jpg)
+
 ### The check: unroll the board
 
 Unrolled through the finished calibration, every ring should be a straight
@@ -166,8 +173,16 @@ with a red surround, it found the board every time: 33 to 40 of the 40 joins
 agreeing, within 1.1 to 1.4 px, with `k` between 0.5 and 0.8, in about a
 second each on a laptop. Calibrating the same cameras again from pictures
 taken a few minutes apart moved the board by about half a millimetre on
-average, and 1.7 mm at the worst point. Those pictures are not in this
-repository; yours would be welcome (see [Where it could be better](#where-it-could-be-better)).
+average, and 1.7 mm at the worst point.
+
+One of those pictures is `docs/img/calibration/real.jpg`, the one at the top
+of this page. Unrolled through its calibration, the real rings lie straight
+under their lines and the real wires stand under theirs:
+
+![The real board unrolled through its calibration](img/calibration/real-unrolled.jpg)
+
+That is one board, one surround and one kind of camera. Pictures of yours
+would be welcome (see [Where it could be better](#where-it-could-be-better)).
 
 ## Using it in your own code
 
@@ -175,18 +190,18 @@ repository; yours would be welcome (see [Where it could be better](#where-it-cou
 import cv2
 from server import autocalib, board, calib
 
-img = cv2.imread("my-board.jpg")              # BGR, as OpenCV reads it
+img = cv2.imread("docs/img/calibration/real.jpg")  # BGR, as OpenCV reads it
 try:
-    found = autocalib.detect(img, twenty_px=(590, 204))
+    found = autocalib.detect(img, twenty_px=(530, 183))
 except autocalib.Failed as why:
     raise SystemExit(str(why))                # a sentence meant for the user
 
-print(found.joins, found.rms_px, found.lens)  # 40 joins, 0.42 px, k = 0.5
+print(found.joins, found.rms_px, found.lens)  # 40 joins, 1.28 px, k = 0.7
 
 view = found.view()                           # a calib.View: picture <-> board
-x, y = view.to_board([(700, 300)])[0]         # picture px -> board mm
-board.score(x, y)                             # {"seg": 13, "mult": 1}
-view.to_picture([(0, 0)])                     # board mm -> picture px: the bull
+x, y = view.to_board([(947, 326)])[0]         # picture px -> board mm
+board.score(x, y)                             # {"seg": 3, "mult": 1}
+view.to_picture([(0, 0)])                     # board mm -> picture px: the bull, (710.9, 247.4)
 
 calib.draw_board(img, view, numbers=True)     # draw it, to look at
 saved = found.saved()                         # a dict to keep (JSON-safe)
@@ -218,8 +233,8 @@ and mind the [licence](#licence).
 `--json` prints the same with `"joins"`, `"rms_px"` and `"homography"` added:
 
 ```json
-{"points": [[603.7, 176.5], [894.4, 340.8], [688.8, 676.5], [296.7, 330.6]],
- "lens": 0.5,
+{"points": [[512.8, 150.3], [852.2, 120.2], [986.7, 385.1], [481.4, 454.9]],
+ "lens": 0.7,
  "size": [1280, 720]}
 ```
 
@@ -284,16 +299,16 @@ is unlike the ones it was written against:
 The board's own sizes (ring radii in millimetres) are in `server/board.py`.
 
 Change one, then run `python -m tests.test_calib`: it must still find every
-simulated board, and refuse a blank picture.
+simulated board and the real one, and refuse a blank picture.
 
 ## Where it could be better
 
 Help with any of these is welcome ([CONTRIBUTING.md](../CONTRIBUTING.md)):
 
-- **Real pictures to test against.** The tests use a simulated board. A few
-  pictures of real, empty boards (different boards, lights, cameras and
-  surrounds), each with the four points marked carefully, would let every
-  change be checked against the real thing.
+- **Real pictures to test against.** The tests use a simulated board and one
+  real picture. A few more pictures of real, empty boards (different boards,
+  lights, cameras and surrounds), each with the four points marked carefully,
+  would let every change be checked against the real thing.
 - **No tap at all.** Reading the number ring would say which block is the 20.
 - **A finer lens.** The bend is found to the nearest 0.1, with one number,
   about the middle of the picture. A finer search, a second term or a lens

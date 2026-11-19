@@ -194,7 +194,7 @@ the data folder.
 It is built on GitHub's Macs by `.github/workflows/mac.yml`, which also checks
 the built app starts. On a Mac, `pip install -r requirements.txt -r
 requirements-mac.txt pyinstaller` then `python tools/build_exe.py` builds it
-for that Mac's chip. **Not yet tried:** the Intel build, and a signed build.
+for that Mac's chip. **Not yet tried:** a signed build.
 
 ### On Linux: DartsSAM-linux-x86_64.tar.gz
 
@@ -220,8 +220,7 @@ It is built on GitHub by `.github/workflows/linux.yml`, which also checks the
 program starts and that `install.sh` installs and uninstalls it. On Linux,
 `pip install -r requirements.txt pyinstaller` then `python tools/build_exe.py`
 builds it. A Raspberry Pi runs it from the code instead (section 2). **Not yet
-tried:** real USB cameras with the built program, and the program on a real
-Linux desktop.
+tried:** real USB cameras with the built program.
 
 ## 4. Cameras
 
