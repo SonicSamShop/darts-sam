@@ -3,7 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 const TARGETS = [20, 19, 18, 17, 16, 15, 25];
-const MARK = ['', '/', 'X', '⦻'];
+// The marks as a chalker draws them: one stroke, a cross, then a ring round the cross to close the number.
+// Drawn rather than typed: few devices have a letter for the third.
+const stroke = d => `<svg viewBox="0 0 20 20" aria-hidden="true">${d}</svg>`;
+const MARK = ['', stroke('<path d="M5.5 16 14.5 4"/>'), stroke('<path d="M5.5 16 14.5 4M5.5 4l9 12"/>'),
+  stroke('<path d="M5.5 16 14.5 4M5.5 4l9 12"/><circle cx="10" cy="10" r="8.6"/>')];
+const SAID = ['', 'one mark', 'two marks', 'closed'];
 
 export default {
   id: 'cricket',
@@ -41,7 +46,7 @@ export default {
     const rows = TARGETS.map(t => {
       const dead = s.marks.every(m => m[t] === 3);
       return `<tr class="${dead ? 'dead' : ''}"><td>${t === 25 ? 'Bull' : t}</td>` +
-        s.marks.map(m => `<td class="mark">${MARK[m[t]]}</td>`).join('') + '</tr>';
+        s.marks.map(m => `<td class="mark"${m[t] ? ` aria-label="${SAID[m[t]]}"` : ''}>${MARK[m[t]]}</td>`).join('') + '</tr>';
     }).join('');
     return `<table class="cricket"><tr><th></th>${head}</tr>${rows}</table>`;
   },

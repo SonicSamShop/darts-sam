@@ -5,8 +5,8 @@ The desktop app's version, and what changed in each one, are in
 goes in `"unreleased"`. To release, say 1.1: set `"version"` to `"1.1"`, move
 the `"unreleased"` lines into `"notes"` under `"1.1"`, empty `"unreleased"`, and
 add a section for it at the top of `web/releases.html` (the release notes
-page: each note word for word under a short heading, with "Latest" moved up
-from the version below; the tests fail if a note is missing), and
+page: each note word for word, with "Latest" moved up from the version below;
+the tests fail if a note is missing), and
 push to `main`. GitHub builds the apps (named with the version, such as
 `DartsSAM-windows-1.1`), the server puts them on the download page
 (`tools/fetch_apps.py`), and each desktop app that starts after that offers the

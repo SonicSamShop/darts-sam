@@ -2,7 +2,7 @@
    AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
    SPDX-License-Identifier: AGPL-3.0-only */
 
-/* Themes. style.css is the layout and the "Classic" look; each block below
+/* Themes. style.css is the layout and the plain "Classic" look; each block below
    restyles it under a .t-<id> class on <html> (set by applyTheme in app.js).
    Fonts are served from web/fonts so the app looks right with no internet. */
 
@@ -23,7 +23,7 @@
   --text: #f2e9d0; --muted: #a8a8b0; --accent: #ffd21f; --on-accent: #0a0a0c; --warn: #ff6b6b; --gold: #ffd21f;
   --font: 'Barlow Condensed', 'Arial Narrow', sans-serif; --display: 'Anton', Impact, sans-serif;
   --b-surround: #050506; --b-dark: #121214; --b-light: #f2e9d0; --b-red: #d3252b; --b-green: #0e8a4b;
-  --b-wire: #c9c9cf; --b-num: #f2e9d0; --mark: #fff;
+  --b-wire: #c9c9cf; --b-num: #f2e9d0; --mark: #fff; --round: 2px;
 }
 .t-stage body { font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .t-stage h1 { font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: .02em; }
@@ -93,7 +93,7 @@
   --b-wire: #b9b6aa; --b-num: #efeadb; --mark: #efeadb;
   --board: #1e2623; --raised: #2a3631; --sunk: #151b19; --hair: rgba(239, 234, 219, .12);
   --frame: 10px solid #6b4423;
-  --wobble: 10px 4px 9px 5px / 5px 9px 4px 10px;
+  --wobble: 10px 4px 9px 5px / 5px 9px 4px 10px; --round: var(--wobble);
   /* what the duster left behind: a few smears and a fine grain */
   --dust:
     radial-gradient(60% 40% at 18% 12%, rgba(239, 234, 219, .07), transparent 70%),
@@ -105,8 +105,8 @@
   font-size: 20px; font-synthesis: none;
   background: var(--bg) repeating-linear-gradient(90deg, transparent 0 117px, rgba(0, 0, 0, .28) 117px 119px);
 }
-/* the board in its wooden frame: every screen, the score panel, the number pad and the report */
-.t-chalk .page, .t-chalk .side, .t-chalk .report, .t-chalk .boardwrap:has(.pad:not([hidden])) {
+/* the board in its wooden frame: every screen, the score panel, the number pad, the report and the site's pages */
+.t-chalk .page, .t-chalk .side, .t-chalk .report, .t-chalk .boardwrap:has(.pad:not([hidden])), .t-chalk .site {
   background: var(--dust), var(--board); border: var(--frame); border-radius: 4px; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .3);
 }
 .t-chalk .side { padding: 12px 16px 16px; }
@@ -120,14 +120,10 @@
   content: ""; display: inline-block; width: 58px; height: 22px; margin-left: 12px; vertical-align: 4px;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 58 22' fill='none' stroke='%23f2d16b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 11h8M10 11l10-3h14l4 3-4 3H20z M38 11h18'/%3E%3Cpath d='M2 11L7 4h6l-3 7 3 7H7z' fill='%23f2d16b' fill-opacity='.35'/%3E%3C/svg%3E") no-repeat center / contain;
 }
-/* headings: the room above one does the separating; a tally of five chalked after it */
+/* headings: the room above one does the separating */
 .t-chalk h2 {
   font-family: var(--display); font-size: 22px; line-height: 1.2; text-transform: none; letter-spacing: 0; color: var(--text);
-  margin: 24px 0 12px; display: flex; align-items: center; gap: 10px;
-}
-.t-chalk h2::after {
-  content: ""; flex: none; width: 30px; height: 16px; opacity: .45;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 16' fill='none' stroke='%23efeadb' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M5 2.5l-.6 11M11 2l.4 12M17 2.6l-.5 11M23 2l.5 11.6M1.5 12L27.5 4'/%3E%3C/svg%3E") no-repeat center / contain;
+  margin: 24px 0 12px;
 }
 .t-chalk h3 { font: 400 20px/1.3 var(--font); color: var(--accent); }
 /* the small print, all of it: the same hand, smaller */
@@ -158,8 +154,8 @@
 .t-chalk .opt > span { color: var(--text); }
 .t-chalk .stepper b { font-family: var(--font); font-size: 26px; }
 .t-chalk .chip i { font-family: var(--plain); font-size: 15px; }
-.t-chalk .tile { background: var(--raised); border-radius: var(--wobble); }
-.t-chalk .tile b { font-family: var(--font); line-height: 1.2; }
+.t-chalk .tile { border-bottom-color: var(--hair); }
+.t-chalk .tile b { font-family: var(--font); font-size: 26px; line-height: 1.1; }
 .t-chalk .camstate, .t-chalk .camoff { background: var(--sunk); border: 0; border-radius: var(--wobble); }  /* cut in: their buttons stand proud */
 .t-chalk .camextra, .t-chalk .camside .camlink { border-top-color: var(--hair); }
 .t-chalk .banner { background: var(--sunk); border: 0; border-radius: var(--wobble); font-size: 20px; }
@@ -225,7 +221,7 @@
   --font: 'Russo One', 'Arial Black', sans-serif; --display: 'VT323', 'Courier New', monospace;
   --b-surround: #08080a; --b-dark: #1f1f24; --b-light: #e4dfd0; --b-red: #e3271f; --b-green: #2a6fe0;
   --b-wire: #08080a; --b-num: #d6d6dc; --mark: #fff;
-  --led: inset 0 0 18px #000;
+  --led: inset 0 0 18px #000; --round: 8px;
 }
 .t-arcade body { font-size: 16px; text-transform: uppercase; letter-spacing: .04em; }
 .t-arcade p, .t-arcade .game-card span { text-transform: none; letter-spacing: 0; font-family: system-ui, sans-serif; }
@@ -243,7 +239,12 @@
   background: #050505; border: 3px solid var(--line); border-radius: 8px; box-shadow: var(--led);
   font: 26px/1 var(--display); color: var(--gold); text-transform: none;
 }
-.t-arcade .tile { border: 4px solid var(--line); border-radius: 10px; box-shadow: var(--led); }
+/* stats: here each figure keeps a lit display of its own, instead of a line of the ledger */
+.t-arcade .tiles { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.t-arcade .drill .tiles { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.t-arcade .tile { display: block; padding: 10px 12px; background: var(--panel); border: 4px solid var(--line); border-radius: 10px; box-shadow: var(--led); }
+.t-arcade .tile span { display: block; font-size: 12px; }
+.t-arcade .tile.tap::after { top: 14px; right: 10px; }
 .t-arcade .tile b { font-size: 46px; line-height: 1; font-weight: 400; color: var(--gold); text-shadow: 0 0 12px rgba(255, 178, 26, .7); }
 .t-arcade .boardwrap { background: #111114; border: 3px solid var(--line); border-radius: 18px; }
 .t-arcade .pcard { border: 4px solid var(--line); border-radius: 10px; box-shadow: var(--led); opacity: 1; padding: 8px 12px; }
@@ -289,7 +290,7 @@
   --font: 'Rokkitt', Rockwell, Georgia, serif; --display: 'Rokkitt', Rockwell, Georgia, serif;
   --type: 'Special Elite', 'Courier New', monospace;
   --b-surround: #17130f; --b-dark: #17130f; --b-light: #eadfc4; --b-red: #b3261e; --b-green: #17693b;
-  --b-wire: #eadfc4; --b-num: #eadfc4; --mark: #17130f;
+  --b-wire: #eadfc4; --b-num: #eadfc4; --mark: #17130f; --round: 0px;
 }
 .t-sheet body {
   font-size: 20px; font-weight: 700;
@@ -300,7 +301,8 @@
 .t-sheet p, .t-sheet .small, .t-sheet .muted, .t-sheet .game-card span, .t-sheet .tile span, .t-sheet .totals,
 .t-sheet table.plain td { font-family: var(--type); font-weight: 400; font-size: 15px; }
 .t-sheet h1 { font-weight: 800; font-size: 40px; letter-spacing: -.01em; }
-.t-sheet h2 { font-size: 16px; font-weight: 700; color: var(--text); border-bottom: 2px solid var(--text); padding-bottom: 2px; }
+.t-sheet h2 { font-size: 16px; font-weight: 700; color: var(--text); border-bottom: 2px solid var(--text); padding-bottom: 2px; text-transform: uppercase; letter-spacing: .08em; }
+.t-sheet .picks .pick span { text-transform: uppercase; letter-spacing: .08em; }
 .t-sheet button, .t-sheet select { border: 2px solid var(--text); border-radius: 0; text-transform: uppercase; letter-spacing: .04em; padding-top: 15px; }
 .t-sheet select { padding-top: 20px; }
 .t-sheet button.primary, .t-sheet button.on { background: var(--text); border-color: var(--text); color: var(--bg); }
@@ -309,7 +311,8 @@
 .t-sheet .game-card.on span { color: #d8ccb0; }
 .t-sheet .chip i { background: var(--bg); color: var(--text); border-radius: 0; line-height: 24px; }
 .t-sheet :is(input[type=text], input[type=number]) { background: none; border: 2px solid var(--text); border-radius: 0; font-family: var(--type); font-weight: 400; }
-.t-sheet .tile, .t-sheet .banner { border: 2px solid var(--text); border-radius: 0; }
+.t-sheet .banner { border: 2px solid var(--text); }
+.t-sheet .tile { border-bottom: 1px solid var(--text); }
 .t-sheet .tile b { font-weight: 800; }
 .t-sheet .pcard { border: 2px solid var(--text); border-radius: 0; padding: 0; opacity: 1; text-align: center; }
 .t-sheet .pcard .name {
@@ -350,3 +353,60 @@
 .t-arcade .pad-keys button { font-size: 24px; }
 .t-sheet .pad-out { border: 2px solid var(--text); border-radius: 0; }
 .t-sheet .pad-keys button { font-weight: 800; }
+
+/* ================= Classic: plain and dark ================= */
+/* Its colours and corners are style.css's own (see :root there). What is chosen is filled in cream,
+   the way a marker shades a box on a scoresheet, and the one button that moves the game on is green. */
+.t-classic { --go: #23804a; }
+.t-classic button.primary { background: var(--go); border-color: var(--go); color: #fff; }
+.t-classic button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.t-classic .game-card.on b, .t-classic .pickrow.on u { color: var(--on-accent); }
+.t-classic button.on :is(span, small, .muted) { color: inherit; }
+.t-classic button.on :is(small, .muted), .t-classic .game-card.on span { opacity: .75; }
+.t-classic .chip.on i { background: var(--on-accent); color: var(--accent); }
+.t-classic [aria-checked=true] > .switch { background: var(--go); }
+.t-classic [aria-checked=true] > .switch::after { background: #fff; }
+.t-classic .signin button.mail { background: var(--go); border-color: var(--go); color: #fff; }
+
+/* ================= the site's pages, in each theme ================= */
+/* What style.css's .site needs changing for a theme. #app, as there: to outrank the headings. */
+/* Chalk & Oche: the page is the board in its frame, like every screen of the app */
+.t-chalk .site { max-width: 1200px; margin: 0 auto; font-size: 20px; --line: rgba(239, 234, 219, .2); }
+.t-chalk #app .site h3 { font-family: var(--display); font-size: 21px; }
+/* the hand has no bold of its own: what is pressed harder is in the chalky lettering */
+.t-chalk .site :is(b, dt, tbody th) { font-family: var(--display); font-weight: 700; }
+.t-chalk .site .strap b { font-family: inherit; font-weight: inherit; }
+.t-chalk .signin-box { background: var(--sunk); border: 0; border-radius: var(--wobble); }
+/* the chalk dart after the name, as on the app's screens (see the logo above) */
+.t-chalk .wordmark::after {
+  content: ""; display: inline-block; width: 44px; height: 17px; margin-left: 10px; vertical-align: 2px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 58 22' fill='none' stroke='%23f2d16b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 11h8M10 11l10-3h14l4 3-4 3H20z M38 11h18'/%3E%3Cpath d='M2 11L7 4h6l-3 7 3 7H7z' fill='%23f2d16b' fill-opacity='.35'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+.t-chalk .shot img { border-color: rgba(0, 0, 0, .55); }
+/* Stage Night: the headings in the big lettering, which has one weight */
+.t-stage #app .site :is(h1, h2), .t-stage .wordmark { font-weight: 400; }
+.t-stage .wordmark { font-size: 30px; }
+/* Soft-tip Arcade: reading matter in a plain face (as the theme's paragraphs are), headings on the displays' lettering */
+.t-arcade .site { font-family: system-ui, sans-serif; }
+.t-arcade #app .site h1 {
+  background: none; border: 0; border-radius: 0; padding: 0; font-weight: 400; font-size: clamp(42px, 5.6vw, 66px); line-height: .92;
+  color: var(--gold); text-shadow: 0 0 12px rgba(255, 178, 26, .6);
+}
+.t-arcade #app .site h2 { font-weight: 400; font-size: 34px; line-height: 1; }
+.t-arcade #app .site h3, .t-arcade .site :is(dt, tbody th), .t-arcade .site-nav {
+  font-family: var(--font); font-weight: 400; font-size: 14px; text-transform: uppercase; letter-spacing: .04em;
+}
+/* the name on its marquee, as on the app's screens */
+.t-arcade .wordmark {
+  align-self: flex-start; font: 400 20px/1.2 'Bungee', var(--font); letter-spacing: .02em; color: #f6c61a;
+  background: #d8261f; border: 3px solid #f6c61a; border-radius: 10px; padding: 2px 12px;
+}
+/* League Scoresheet: typed, with the headings and what is picked out in the printed face */
+.t-sheet .site { padding-top: 30px; font-family: var(--type); }
+.t-sheet .site :is(p, li, dd, td, figcaption) { font-size: 16px; }
+.t-sheet .site .lead { font-size: 18px; }
+.t-sheet #app .site :is(h1, h2, h3), .t-sheet .wordmark { font-weight: 800; }
+.t-sheet #app .site h3, .t-sheet .site :is(b, dt, th, .site-nav) { font-family: var(--font); }
+.t-sheet .site :is(b, dt, tbody th) { font-weight: 800; }
+.t-sheet .site-nav { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: 15px; }
+.t-sheet .signin-box { background: none; border-width: 2px; }

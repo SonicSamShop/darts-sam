@@ -104,7 +104,7 @@ const THEMES = [
   { id: 'stage', name: 'Stage Night', blurb: 'Big-stage TV graphics under a spotlight.', bar: '#0a0a0c' },
   { id: 'arcade', name: 'Soft-tip Arcade', blurb: 'Glowing displays and chunky buttons.', bar: '#1b1b1f' },
   { id: 'sheet', name: 'League Scoresheet', blurb: 'A printed league-night scoresheet. Light.', bar: '#eadfc4' },
-  { id: 'classic', name: 'Classic', blurb: 'The original plain dark look.', bar: '#101418' },
+  { id: 'classic', name: 'Classic', blurb: 'Plain and dark, in the board\'s own colours.', bar: '#111111' },
 ];
 function applyTheme() {
   const theme = THEMES.find(t => t.id === settings.theme) ?? THEMES[0];
@@ -671,58 +671,34 @@ function open(want) {
 // The hosted version with nobody signed in (account.locked): what the app is,
 // and the buttons to sign in with. There is no sign-up form: the first sign-in
 // makes the account, called by the person's first name, with a player of that name.
-// The walk through the app: a picture of it (web/shots, taken from the app itself) and what it shows.
-const TOUR = [
-  ['tv', 'On the big screen', 'Put it on the telly',
-    'TV view gives the board the screen and runs the scores along the bottom, the way you see it on the big stage. Legs, 100+, 140+, 180s and averages keep themselves up to date.'],
-  ['stats', 'Stats for every player', 'Know your game',
-    'Three-dart and first-nine averages, checkout rate, highest checkout and 180s, and a heat map of where your darts really land. Tap any number to see the legs behind it.'],
-];
-const EXTRAS = [
-  ['Every dart called', 'The caller reads out each dart, the visit\'s total and what you require for the finish.'],
-  ['Any screen', 'A phone at the oche, a tablet on the wall or the big TV. Add it to your home screen and it runs like an app.'],
-  ['Your look', 'Five themes, from big-stage TV graphics to the pub chalkboard.'],
-];
-// The two ways to play, side by side: [what, tapping the board, with cameras]. true is a tick;
-// words say how. What it claims is what web/faq.html says: change one, change the other.
-const FEATURES = () => [
-  ['Price', 'Free', 'Free'],
+// It is a page of plain writing, in the README's words, with pictures of the app in it
+// (web/shots: taken from the app itself, and one camera's picture of a real board).
+
+// The two ways to play, where they differ: [what, tapping the board, with cameras].
+// What it claims is what web/faq.html says: change one, change the other.
+// A small number as it is written in a sentence: 8 -> "eight".
+const inWords = n => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][n] ?? String(n);
+const WAYS = [
   ['What you need', 'A phone, tablet, TV or computer', 'Also a Mac, Windows or Linux PC and two or three webcams'],
   ['Scoring', 'Tap the board or type the visit', 'The cameras score each dart. Tap to put one right'],
-  ['Every dart called', true, true],
-  [`All ${GAMES.length} games`, true, true],
-  ['Stats and heat map', true, true],
-  ['TV view', true, true],
-  ['Every screen you sign in on', true, true],
-  [`${THEMES.length} themes`, true, true],
   ['Without the internet', 'Once on your home screen', 'Needs the internet'],
-  ['Adverts', 'None', 'None'],
 ];
-const TICK = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Yes"><path d="m5 12 5 5 9-10"/></svg>';
-const featureTable = () => `<div class="land-games">
-      <p class="eyebrow">Side by side</p>
-      <h2>What you get</h2>
-      <div class="feat-wrap"><table class="feat">
-        <thead><tr><th scope="col"><span class="sr">Feature</span></th><th scope="col">Tap to score</th><th scope="col">Autoscore</th></tr></thead>
-        <tbody>${FEATURES().map(([what, ...ways]) => `<tr><th scope="row">${what}</th>${ways.map(w =>
-          `<td>${w === true ? TICK : esc(w)}</td>`).join('')}</tr>`).join('')}</tbody>
-      </table></div>
-    </div>`;
 const APPLE_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>';
 const MAIL_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
 const icon = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
-// Getting about before signing in: this page, the questions and the downloads (the same bar is
-// written out in web/faq.html, web/download.html, web/releases.html and web/opensource.html). Drawn twice, like the app's own (see nav()).
-const LAND_PLACES = [  // [its address, what it does here instead of going there, its name, its picture, its class]
-  ['./', 'land-home', 'Home', icon('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'), 'on'],
-  ['faq.html', '', 'FAQ', icon('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/>'), ''],
-  ['download.html', '', 'Download', icon('<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>'), ''],
-  ['releases.html', '', "What's new", icon('<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.2 10.8 15.5 12 13.2 13.2 12 15.5 10.8 13.2 8.5 12 10.8 10.8Z"/>'), ''],
-  ['opensource.html', '', 'Open source', icon('<path d="m8 7-5 5 5 5M16 7l5 5-5 5"/>'), ''],
-  ['./', 'land-top', 'Sign in', icon('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'), 'go'],
-];
-const landNav = where => `<nav class="land-nav ${where}" aria-label="Darts S.A.M">${LAND_PLACES.map(([href, act, name, pic, cls]) =>
-  `<a href="${href}"${act ? ` data-act="${act}"` : ''}${cls ? ` class="${cls}"` : ''}${cls === 'on' ? ' aria-current="page"' : ''}>${pic}<span>${name}</span></a>`).join('')}</nav>`;
+// Getting about before signing in: the name leads back here, then the questions, the downloads,
+// what is new and the source. The same lines are written out at the top and bottom of web/faq.html,
+// web/download.html, web/releases.html, web/opensource.html and web/privacy.html: change one, change them all.
+const SITE_PLACES = [['faq.html', 'FAQ'], ['download.html', 'Download'], ['releases.html', "What's new"], ['opensource.html', 'Open source']];
+const BRAND = '<b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span>';
+const siteHead = () => `<header class="site-head"><a class="brand" href="./" data-act="land-home">${BRAND}</a>
+      <nav class="site-nav" aria-label="Darts S.A.M">${SITE_PLACES.map(([href, name]) => `<a href="${href}">${name}</a>`).join('')}
+        <a href="./" class="go" data-act="land-top">Sign in</a></nav></header>`;
+const siteFoot = () => `<footer class="site-foot">
+      <p>Darts S.A.M is free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>.
+        Copyright © 2026 Sam Cramphorn. <a href="${SOURCE}" target="_blank" rel="noopener">The source code is on GitHub</a>.</p>
+      <p>${SITE_PLACES.map(([href, name]) => `<a href="${href}">${name}</a>`).join(' · ')} · <a href="privacy.html">What is stored about you</a></p>
+    </footer>`;
 // Everyone's darts between them, as the site counts them (GET /api/tally). Asked for once,
 // and written into the page already drawn: drawing it again would lose an address half typed.
 let tally = null;
@@ -740,19 +716,18 @@ let mailTo = '';       // the address it went to
 let newcomer = false;  // they signed up just now (see synced())
 function renderLanding() {
   screen = 'landing';
-  const shot = (name, alt, w = 1800, h = 1125, lazy = true) =>
-    `<img src="shots/${name}.webp" alt="${alt}" width="${w}" height="${h}" ${lazy ? 'loading="lazy"' : ''}>`;
+  const pic = (file, alt, w, h, lazy = true) =>
+    `<img src="shots/${file}" alt="${alt}" width="${w}" height="${h}"${lazy ? ' loading="lazy"' : ''}>`;
   // The home page at an address of its own (account.front) has no signing in: it sends people to the app's.
   document.documentElement.toggleAttribute('data-front', account.front);  // no "Install" bar there either (style.css)
   if (account.front && location.hash === '#signin') return location.replace(account.app + '/#signin');
-  const brand = '<span class="brand"><b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></span>';
-  const card = account.front ? `<div class="signin-card" id="signin">
+  const card = account.front ? `<div class="signin-box" id="signin">
       <h2>Play in your browser. It's free.</h2>
       <button class="primary start" data-act="land-top">Open the app</button>
       <p class="muted small">Signing in takes one tap: no forms to fill in.
         <a href="privacy.html" target="_blank" rel="noopener">What is stored about you</a></p>
     </div>`
-    : `<div class="signin-card" id="signin">
+    : `<div class="signin-box" id="signin">
       <h2>Sign in to play. It's free.</h2>
       <div class="signin">
         <div id="gbtn"></div>
@@ -773,69 +748,73 @@ function renderLanding() {
     </div>`;
   // The app's own address, when the home page is elsewhere: signing in and nothing else.
   if (account.home && !account.front) {
-    $app.innerHTML = `<div class="landing door">
-      <div class="land-top">${brand}<a href="${esc(account.home)}/">About Darts S.A.M</a></div>
-      <div class="door-card"><h1>Game on.</h1>${card}</div>
+    $app.innerHTML = `<div class="site door">
+      <header class="site-head"><span class="brand">${BRAND}</span>
+        <nav class="site-nav"><a href="${esc(account.home)}/">About Darts S.A.M</a></nav></header>
+      <main><h1>Game on</h1>${card}</main>
     </div>`;
     googleButton();
     appleReady();
     return;
   }
-  $app.innerHTML = `<div class="landing">
-    <div class="land-top">${brand}${landNav('top')}</div>
-    <div class="hero">
-      <div class="hero-text">
-        <p class="eyebrow">Darts scorer for phone, tablet and TV</p>
-        <h1>Game on.</h1>
-        <p class="lead">Darts S.A.M keeps the score, calls every dart and remembers every leg. Autoscore is built in: add cameras and the darts score themselves.</p>
+  $app.innerHTML = `<div class="site">
+    ${siteHead()}
+    <main>
+    <div class="intro">
+      <div>
+        <h1>A darts scoreboard that scores by itself</h1>
+        <p class="lead">Point two or three webcams at the board and Darts S.A.M sees where each dart lands. No cameras? Tap the board instead.
+          Either way it calls every dart, does the adding up and keeps your stats.</p>
         ${card}
       </div>
-      <div class="hero-shots">
-        <div class="shot">${shot('game', 'A game of 501 in Darts S.A.M: the scores beside the board', 1800, 1125, false)}</div>
-        <div class="shot phone">${shot('game-phone', 'The same game on a phone', 780, 1560, false)}</div>
-      </div>
-    </div>
-    <div class="facts">
-      <div><b>${GAMES.length}</b><span>games</span></div>
-      <div><b>180!</b><span>every dart called</span></div>
-      <div><b>${THEMES.length}</b><span>themes</span></div>
-      <div><b>Auto</b><span>scoring built in</span></div>
+      <figure class="shot">${pic('game.webp', 'A game of 501 in Darts S.A.M: the scores beside the board', 1800, 1125, false)}
+        <figcaption>A game of 501: the scores chalked up beside the board, and each dart marked where it landed.</figcaption></figure>
     </div>
     <a class="tally" id="tally" href="faq.html#numbers" hidden></a>
-    <div class="autoscore">
+    <section class="intro">
       <div>
-        <p class="eyebrow">Autoscore built in</p>
-        <h2>Throw. It scores.</h2>
-        <p>Point cameras at your board and Darts S.A.M sees where each dart lands and scores it for you: no tapping, no adding up.
-          The cameras plug into a Mac, Windows or Linux PC near the board, and every phone, tablet and TV you sign in on follows along.</p>
+        <h2>Scoring by camera</h2>
+        <p>USB webcams round the board watch for each dart, work out where it landed and move on to the next player when the darts are pulled out.
+          There is nothing to stick on the board: each camera finds the wires by itself, once, when you set it up.</p>
+        <p>The cameras plug into a Mac, Windows or Linux computer near the board, and every phone, tablet and TV you sign in on follows along.</p>
+        <p class="acts"><button class="primary" data-act="download">Download for Mac, Windows or Linux</button>
+          <a href="faq.html#connect">How to set it up</a></p>
       </div>
-      <div class="autoscore-get">
-        <button class="primary" data-act="download">Download for Mac</button>
-        <button data-act="download">Download for Windows</button>
-        <button data-act="download">Download for Linux</button>
-        <p class="muted small">No cameras? Sign in and score by tapping the board.</p>
+      <figure class="shot">${pic('camera.webp', 'A webcam\'s picture of a dartboard, with every wire and number drawn over it in green', 1280, 720)}
+        <figcaption>What one camera sees: a real board, with its wires and numbers drawn where Darts S.A.M found them.</figcaption></figure>
+    </section>
+    <section>
+      <h2>${inWords(GAMES.length).replace(/^./, c => c.toUpperCase())} games</h2>
+      <dl class="menu">${GAMES.map(g => `<div><dt>${g.name}</dt><dd>${g.blurb}</dd></div>`).join('')}</dl>
+    </section>
+    <section>
+      <h2>Stats, the telly and your phone</h2>
+      <div class="row3">
+        <figure class="shot">${pic('stats.webp', 'Stats: averages, checkout rate and a heat map', 1800, 1125)}
+          <figcaption><b>Stats for every player.</b> Three-dart and first-nine averages, checkout rate, highest checkout and 180s,
+            and a heat map of where your darts land. Tap any number to see the legs behind it.</figcaption></figure>
+        <figure class="shot">${pic('tv.webp', 'TV view: the board with the scores along the bottom', 1800, 1125)}
+          <figcaption><b>TV view.</b> The board gets the screen and the scores run along the bottom, the way a match is shown on television.</figcaption></figure>
+        <figure class="shot tall">${pic('game-phone.webp', 'The same game on a phone', 780, 1560)}
+          <figcaption><b>On a phone.</b> At the oche, or added to your home screen.</figcaption></figure>
       </div>
-    </div>
-    ${TOUR.map(([name, eyebrow, title, text]) => `<div class="feature">
-      <div class="shot">${shot(name, title)}</div>
-      <div><p class="eyebrow">${eyebrow}</p><h2>${title}</h2><p>${text}</p></div></div>`).join('')}
-    <div class="land-games">
-      <p class="eyebrow">${GAMES.length} games in the box</p>
-      <h2>More than 501</h2>
-      <div class="tour">${GAMES.map(g => `<div class="tour-card"><b>${g.name}</b><span>${g.blurb}</span></div>`).join('')}</div>
-    </div>
-    <div class="land-games">
-      <p class="eyebrow">And the rest</p>
-      <h2>Built for the oche</h2>
-      <div class="tour">${EXTRAS.map(([title, text]) => `<div class="tour-card"><b>${title}</b><span>${text}</span></div>`).join('')}</div>
-    </div>
-    ${featureTable()}
-    <div class="land-end">
-      <h2>Ready when you are.</h2>
-      <button class="primary start" data-act="land-top">Sign in to play</button>
-      <p class="more">Questions first? <a href="faq.html">How it connects, how it works and what is stored</a></p>
-    </div>
-  </div>${landNav('foot')}`;
+      <p>Every dart is called aloud, with the visit's total and what you require for a finish. And there are ${inWords(THEMES.length)} themes to choose from,
+        from the pub chalkboard to big-stage TV graphics.</p>
+    </section>
+    <section>
+      <h2>With cameras or without</h2>
+      <table class="ways">
+        <thead><tr><td></td><th scope="col">Tapping the board</th><th scope="col">With cameras</th></tr></thead>
+        <tbody>${WAYS.map(([what, ...ways]) => `<tr><th scope="row">${what}</th>${ways.map(w => `<td>${w}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+      <p>Everything else is the same either way: the caller, all ${inWords(GAMES.length)} games, the stats, TV view and the themes.
+        Both are free, with no adverts.</p>
+      <p class="acts"><button class="primary" data-act="land-top">Sign in to play</button>
+        <a href="faq.html">Questions first? How it connects, how it works and what is stored</a></p>
+    </section>
+    </main>
+    ${siteFoot()}
+  </div>`;
   if (!account.front) { googleButton(); appleReady(); }
   askTally();
   // "Sign in" on the questions and the downloads leads here (./#signin): straight to the buttons
@@ -2580,7 +2559,7 @@ $app.addEventListener('click', e => {
   if (camview && e.target.tagName === 'IMG') return calibTap(+camview.dataset.cam, e.target, e);
   const b = e.target.closest('button, a[data-act], [data-drill], [data-sort], [data-sheet], [data-gear]');  // tiles and lines can be tapped too
   if (!b) return;
-  if (b.tagName === 'A') e.preventDefault();  // a link that does something on this page instead (see landNav)
+  if (b.tagName === 'A') e.preventDefault();  // a link that does something on this page instead (see siteHead)
   const d = b.dataset;
   if (d.act !== 'remove') removeArmed = false;
   if (d.act !== 'addplayer' && d.act !== 'rename' && d.act !== 'remove') formError = '';
@@ -2734,7 +2713,7 @@ $app.addEventListener('click', e => {
     case 'feedback': return sendFeedback();
     case 'apple': return appleSignIn();
     case 'download': return location.assign('download.html');
-    case 'land-home': return document.querySelector('.landing').scrollTo({ top: 0, behavior: 'smooth' });
+    case 'land-home': return document.querySelector('.site').scrollTo({ top: 0, behavior: 'smooth' });
     case 'land-top': if (account.front) return location.assign(account.app);  // signing in is at the app's address
       return document.getElementById('signin').scrollIntoView({ behavior: 'smooth', block: 'center' });
     case 'mail': mailStep = 'ask'; landNote = ''; renderLanding(); return document.getElementById('mail-addr').focus();

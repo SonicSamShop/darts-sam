@@ -7,7 +7,7 @@
 // It still tries the Pi first, so editing files on the Pi updates the app; if
 // the Pi doesn't answer quickly the saved copy is used instead.
 // Browsers only run this over https or on localhost (see docs/setup.md).
-const CACHE = 'dartssam-v15';
+const CACHE = 'dartssam-v16';
 const DATA = 'dartssam-data';  // stats saved by app.js for showing offline
 const WAIT = 2500;             // ms to give the Pi before using the saved copy
 

@@ -20,64 +20,54 @@ catch (e) { document.documentElement.className = 't-chalk'; }
      signed in or not. Which files are there to give is asked of the site
      (GET /api/downloads, server/host.py): one that has not been put on the
      server yet says "Coming soon" instead of offering a link that goes nowhere. -->
-<div id="app"><div class="landing dl">
-  <div class="land-top"><span class="brand"><a class="wordmark" href="./">Darts S.A.M</a><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></span>
-    <nav class="land-nav top" aria-label="Darts S.A.M">
-      <a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span>Home</span></a>
-      <a href="faq.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/></svg><span>FAQ</span></a>
-      <a href="download.html" class="on" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></a>
-      <a href="releases.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.2 10.8 15.5 12 13.2 13.2 12 15.5 10.8 13.2 8.5 12 10.8 10.8Z"/></svg><span>What's new</span></a>
-      <a href="opensource.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span>Open source</span></a>
-      <a href="./#signin" class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Sign in</span></a>
-    </nav></div>
-  <div class="dl-head">
-    <p class="eyebrow">Autoscore built in</p>
-    <h1>Throw. It scores.</h1>
-    <p class="lead">Point cameras at your board and Darts S.A.M sees where each dart lands and scores it for you.
-      The cameras plug into a Mac, a Windows PC or a Linux PC near the board. This is the app that runs on it.</p>
-  </div>
+<div id="app"><div class="site">
+  <header class="site-head"><a class="brand" href="./"><b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></a>
+    <nav class="site-nav" aria-label="Darts S.A.M"><a href="faq.html">FAQ</a><a href="download.html" aria-current="page">Download</a><a href="releases.html">What's new</a><a href="opensource.html">Open source</a>
+      <a href="./#signin" class="go">Sign in</a></nav></header>
+  <main>
+  <h1>Download Darts S.A.M</h1>
+  <p class="lead">Point cameras at your board and Darts S.A.M sees where each dart lands and scores it for you.
+    The cameras plug into a Mac, a Windows PC or a Linux PC near the board. This is the app that runs on it.</p>
   <p class="warn" id="dl-note" hidden></p>
-  <div class="dl-cards" id="dl-cards"></div>
+  <div class="dl-list" id="dl-cards"></div>
   <p class="muted" id="dl-where" hidden>You are on a phone or tablet. Open this page on the computer your cameras are plugged into:
     <b>dartssam.co.uk/download.html</b></p>
 
-  <div class="land-games">
-    <p class="eyebrow">Three steps</p>
+  <section>
     <h2>From download to the first dart</h2>
-    <div class="tour">
-      <div class="tour-card"><b>1. Open it</b><span>Plug in your cameras and start Darts S.A.M. Its page opens in your browser.</span></div>
-      <div class="tour-card"><b>2. Line up the cameras</b><span>The app opens on Cameras. Take the darts out of the board and press Find the board for each camera.</span></div>
-      <div class="tour-card"><b>3. Connect to your account</b><span>Press Connect to your account there. It shows a 6-letter code: type it on this site under Cameras. Now any phone, tablet or TV you sign in on scores by itself.</span></div>
-    </div>
-  </div>
+    <ol>
+      <li><b>Open it.</b> Plug in your cameras and start Darts S.A.M. Its page opens in your browser.</li>
+      <li><b>Line up the cameras.</b> The app opens on Cameras. Take the darts out of the board and press Find the board for each camera.</li>
+      <li><b>Connect to your account.</b> Press Connect to your account there. It shows a 6-letter code: type it on this site under Cameras. Now any phone, tablet or TV you sign in on scores by itself.</li>
+    </ol>
+  </section>
 
-  <div class="land-games">
-    <p class="eyebrow">The first time you open it</p>
-    <h2>Your computer will ask</h2>
-    <div class="tour">
-      <div class="tour-card"><b>On a Mac</b><span>Open the download and drag Darts S.A.M to Applications. The first time, macOS won't open it: go to System Settings → Privacy &amp; Security, scroll down and click Open Anyway. It then asks once whether it may use the cameras.</span></div>
-      <div class="tour-card"><b>On Windows</b><span>Double-click DartsSAM.exe. The first time, Windows says "Windows protected your PC": click More info, then Run anyway. Darts S.A.M opens in its own window: close it when you've finished playing.</span></div>
-      <div class="tour-card"><b>On Linux</b><span>Unpack the download, open the DartsSAM folder in a terminal and type ./install.sh. Start Darts S.A.M from your app menu: a terminal window shows it is running and its page opens in your browser. Close that window when you've finished playing.</span></div>
-      <div class="tour-card"><b>No cameras?</b><span>You don't need this app. Sign in on the site and score by tapping the board.</span></div>
-    </div>
-  </div>
-  <div class="land-end">
-    <p class="more">Stuck, or want to know more first? <a href="faq.html#connect">How to connect, step by step</a> · <a href="releases.html">What's new in each version</a></p>
-  </div>
-</div>
-<nav class="land-nav foot" aria-label="Darts S.A.M">
-  <a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span>Home</span></a>
-  <a href="faq.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/></svg><span>FAQ</span></a>
-  <a href="download.html" class="on" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></a>
-  <a href="releases.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.2 10.8 15.5 12 13.2 13.2 12 15.5 10.8 13.2 8.5 12 10.8 10.8Z"/></svg><span>What's new</span></a>
-  <a href="opensource.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span>Open source</span></a>
-  <a href="./#signin" class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Sign in</span></a>
-</nav></div>
+  <section>
+    <h2>The first time, your computer will ask</h2>
+    <dl class="says">
+      <dt>On a Mac</dt>
+      <dd>Open the download and drag Darts S.A.M to Applications. The first time, macOS won't open it: go to System Settings → Privacy &amp; Security, scroll down and click Open Anyway. It then asks once whether it may use the cameras.</dd>
+      <dt>On Windows</dt>
+      <dd>Double-click DartsSAM.exe. The first time, Windows says "Windows protected your PC": click More info, then Run anyway. Darts S.A.M opens in its own window: close it when you've finished playing.</dd>
+      <dt>On Linux</dt>
+      <dd>Unpack the download, open the DartsSAM folder in a terminal and type ./install.sh. Start Darts S.A.M from your app menu: a terminal window shows it is running and its page opens in your browser. Close that window when you've finished playing.</dd>
+      <dt>No cameras?</dt>
+      <dd>You don't need this app. Sign in on the site and score by tapping the board.</dd>
+    </dl>
+    <p>Stuck, or want to know more first? <a href="faq.html#connect">How to connect, step by step</a> · <a href="releases.html">What's new in each version</a></p>
+  </section>
+  </main>
+  <footer class="site-foot">
+    <p>Darts S.A.M is free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>.
+      Copyright © 2026 Sam Cramphorn. <a href="https://github.com/SonicSamShop/darts-sam" target="_blank" rel="noopener">The source code is on GitHub</a>.</p>
+    <p><a href="faq.html">FAQ</a> · <a href="download.html">Download</a> · <a href="releases.html">What's new</a> · <a href="opensource.html">Open source</a> · <a href="privacy.html">What is stored about you</a></p>
+  </footer>
+</div></div>
 <script>
 // Someone signed in on this device (app.js keeps who under 'owner') is offered the app, not the sign-in.
 try {
-  if (JSON.parse(localStorage.getItem('owner'))) for (const a of document.querySelectorAll('.land-nav a.go')) {
-    a.href = './'; a.querySelector('span').textContent = 'Play';
+  if (JSON.parse(localStorage.getItem('owner'))) for (const a of document.querySelectorAll('.site-nav a.go')) {
+    a.href = './'; a.textContent = 'Play';
   }
 } catch (e) { /* nothing kept: the page is right as it stands */ }
 const APPS = [
@@ -95,12 +85,12 @@ const size = bytes => bytes < 1e6 ? Math.max(1, Math.round(bytes / 1e3)) + ' KB'
 function draw(there) {
   // the computer this page was opened on comes first, and its button stands out
   const apps = [...APPS].sort((a, b) => (b.os === mine) - (a.os === mine));
+  const day = t => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
   document.getElementById('dl-cards').innerHTML = apps.map(a => {
     const f = there?.[a.id];
-    return `<div class="tour-card dl-card${a.os === mine ? ' mine' : ''}">
-      <b>${a.name}</b><span>${a.who}</span>
-      ${f ? `<button class="${a.os === mine || !mine ? 'primary' : ''}" data-file="${f.file}">Download · ${size(f.size)}</button>
-          <span class="small">${f.file} · ${new Date(f.updated).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}</span>`
+    return `<div class="dl-row">
+      <div><b>${a.name}</b><span>${a.who}</span>${f ? `<span>${f.file} · ${day(f.updated)}</span>` : ''}</div>
+      ${f ? `<button class="${a.os === mine || !mine ? 'primary' : ''}" data-file="${f.file}">Download · ${size(f.size)}</button>`
         : `<button disabled>${there ? 'Coming soon' : '…'}</button>`}
     </div>`;
   }).join('');

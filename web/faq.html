@@ -20,30 +20,16 @@ catch (e) { document.documentElement.className = 't-chalk'; }
      the project is for. Anyone can open this page, signed in or not. What it says about the
      data is the short form of web/privacy.html: change one, change the other. The totals at
      the end are asked of the site (GET /api/tally, server/host.py). -->
-<div id="app"><div class="landing faq">
-  <div class="land-top"><span class="brand"><a class="wordmark" href="./">Darts S.A.M</a><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></span>
-    <nav class="land-nav top" aria-label="Darts S.A.M">
-      <a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span>Home</span></a>
-      <a href="faq.html" class="on" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/></svg><span>FAQ</span></a>
-      <a href="download.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></a>
-      <a href="releases.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.2 10.8 15.5 12 13.2 13.2 12 15.5 10.8 13.2 8.5 12 10.8 10.8Z"/></svg><span>What's new</span></a>
-      <a href="opensource.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span>Open source</span></a>
-      <a href="./#signin" class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Sign in</span></a>
-    </nav></div>
-  <div class="dl-head">
-    <p class="eyebrow">Questions and answers</p>
-    <h1>How it all works.</h1>
-    <p class="lead">How to connect your cameras, how the scoring works, what happens to your data and what the project is for.</p>
-  </div>
-  <div class="faq-jump">
-    <a href="#connect">How to connect</a>
-    <a href="#how">How it works</a>
-    <a href="#data">Your data</a>
-    <a href="#project">The project</a>
-  </div>
+<div id="app"><div class="site">
+  <header class="site-head"><a class="brand" href="./"><b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></a>
+    <nav class="site-nav" aria-label="Darts S.A.M"><a href="faq.html" aria-current="page">FAQ</a><a href="download.html">Download</a><a href="releases.html">What's new</a><a href="opensource.html">Open source</a>
+      <a href="./#signin" class="go">Sign in</a></nav></header>
+  <main>
+  <h1>Questions and answers</h1>
+  <p class="lead">How to connect your cameras, how the scoring works, what happens to your data and what the project is for.</p>
+  <p class="jump">On this page: <a href="#connect">How to connect</a> · <a href="#how">How it works</a> · <a href="#data">Your data</a> · <a href="#project">The project</a></p>
 
   <section id="connect">
-    <p class="eyebrow">Getting set up</p>
     <h2>How do I connect?</h2>
     <p>To keep score by hand you need nothing but this site: sign in and tap the board where each dart landed.
       To have the darts score themselves, connect the cameras at your board to your account:</p>
@@ -53,91 +39,101 @@ catch (e) { document.documentElement.className = 't-chalk'; }
       <li><b>Connect to your account.</b> Press <b>Connect to your account</b> in the app. It shows a 6-letter code: type it on this site under <b>Cameras</b>.</li>
     </ol>
     <p>From then on every phone, tablet and TV you sign in on scores by itself.</p>
-    <details><summary>What do I need?</summary><div><ul>
+    <h3>What do I need?</h3>
+    <ul>
       <li>A Mac, a Windows 10 or 11 PC, or a Linux PC (Ubuntu 22.04 or newer) near the board, to plug the cameras into.</li>
       <li>A camera that sees the whole board: a USB webcam is what most people use. A phone running an IP-webcam app on the same Wi-Fi works too.</li>
-      <li>A phone, tablet or TV to show the scores.</li></ul></div></details>
-    <details><summary>How many cameras do I need?</summary><div><p>Two or three, looking at the board from different sides: the tip of the dart is found where their views of it cross. One camera will score, but less surely.</p></div></details>
-    <details><summary>I don't have cameras. Can I still use it?</summary><div><p>Yes. Sign in and tap the board where each dart landed, or type in each visit's score. Everything else is the same: the caller, the games and the stats.</p></div></details>
-    <details><summary>How do I sign in?</summary><div><p>With the buttons on the <a href="./#signin">home page</a>. There is no form to fill in and no password to remember: the first time you sign in makes your account.</p></div></details>
-    <details><summary>Can I use more than one screen?</summary><div><p>Yes. Sign in with the same account on each one. A phone at the oche, a tablet on the wall and the TV all show the same cameras' darts.</p></div></details>
-    <details><summary>How do I put it on my home screen?</summary><div><p>On an iPhone or iPad, open the site in Safari, tap Share, then <b>Add to Home Screen</b>. On Android, open it in Chrome, tap the menu <b>⋮</b>, then <b>Add to Home screen</b>. It then opens full screen, like any other app.</p></div></details>
-    <details><summary>How do I get it on the TV?</summary><div><p>Open the site on the TV, or on a computer plugged into it, and sign in. In a game, press <b>TV view</b>: the board takes the screen and the scores run along the bottom.</p></div></details>
-    <details><summary>The app will not open the first time.</summary><div><p>Mac and Windows both ask before opening an app they have not seen before; on Linux you run install.sh once. The <a href="download.html">download page</a> says what to do on each.</p></div></details>
+      <li>A phone, tablet or TV to show the scores.</li></ul>
+    <h3>How many cameras do I need?</h3>
+    <p>Two or three, looking at the board from different sides: the tip of the dart is found where their views of it cross. One camera will score, but less surely.</p>
+    <h3>I don't have cameras. Can I still use it?</h3>
+    <p>Yes. Sign in and tap the board where each dart landed, or type in each visit's score. Everything else is the same: the caller, the games and the stats.</p>
+    <h3>How do I sign in?</h3>
+    <p>With the buttons on the <a href="./#signin">home page</a>. There is no form to fill in and no password to remember: the first time you sign in makes your account.</p>
+    <h3>Can I use more than one screen?</h3>
+    <p>Yes. Sign in with the same account on each one. A phone at the oche, a tablet on the wall and the TV all show the same cameras' darts.</p>
+    <h3>How do I put it on my home screen?</h3>
+    <p>On an iPhone or iPad, open the site in Safari, tap Share, then <b>Add to Home Screen</b>. On Android, open it in Chrome, tap the menu <b>⋮</b>, then <b>Add to Home screen</b>. It then opens full screen, like any other app.</p>
+    <h3>How do I get it on the TV?</h3>
+    <p>Open the site on the TV, or on a computer plugged into it, and sign in. In a game, press <b>TV view</b>: the board takes the screen and the scores run along the bottom.</p>
+    <h3>The app will not open the first time.</h3>
+    <p>Mac and Windows both ask before opening an app they have not seen before; on Linux you run install.sh once. The <a href="download.html">download page</a> says what to do on each.</p>
   </section>
 
   <section id="how">
-    <p class="eyebrow">Under the bonnet</p>
     <h2>How does it work?</h2>
     <p>Darts S.A.M is a scoreboard that runs in your browser. Tell it where each dart landed and it does the adding up,
       calls the score, says what you need for the finish and keeps your stats. With cameras, the telling is done for you.</p>
-    <details><summary>How do the cameras score a dart?</summary><div><p>Each camera compares its picture from just before the dart landed with the one just after. What changed is the dart. Darts S.A.M follows the line of the dart down to the board, and where the lines from the cameras meet is the tip. It then looks up which bed that is: a treble 20, a double 16, the bull.</p>
-      <p>This is done by the app on your own computer, by the board.</p></div></details>
-    <details><summary>What does "Find the board" do?</summary><div><p>It works out where the board is in each camera's picture, so that a spot in the picture can be turned into a place on the board. Do it once when you set up, and again if a camera is moved or knocked.</p></div></details>
-    <details><summary>What if it scores a dart wrongly?</summary><div><p>Press <b>Undo</b> and tap the board where the dart really is. If you have a moment, press <b>Report</b> as well: it saves what the cameras saw for the last few darts, which is what is needed to find out why.</p></div></details>
-    <details><summary>Which games can I play?</summary><div><p>X01 (301, 501 and 701, with legs and sets), Cricket, Around the Clock, Count Up, 121 Checkout, Random Targets, Killer and Free Mode.</p></div></details>
-    <details><summary>What stats does it keep?</summary><div><p>For every player: three-dart and first-nine averages, checkout rate, highest checkout, 180s and 140s, legs won, and a heat map of where your darts land. Tap any number to see the legs behind it.</p></div></details>
-    <details><summary>Does it work without the internet?</summary><div><p>Scoring by hand does. Once the site is on your home screen it opens and runs with no connection, keeps your games on the device and sends them when you are next online.</p>
-      <p>Camera scoring through this site needs the computer by the board and the screen you are scoring on to both be online.</p></div></details>
+    <h3>How do the cameras score a dart?</h3>
+    <p>Each camera compares its picture from just before the dart landed with the one just after. What changed is the dart. Darts S.A.M follows the line of the dart down to the board, and where the lines from the cameras meet is the tip. It then looks up which bed that is: a treble 20, a double 16, the bull.</p>
+      <p>This is done by the app on your own computer, by the board.</p>
+    <h3>What does "Find the board" do?</h3>
+    <p>It works out where the board is in each camera's picture, so that a spot in the picture can be turned into a place on the board. Do it once when you set up, and again if a camera is moved or knocked.</p>
+    <h3>What if it scores a dart wrongly?</h3>
+    <p>Press <b>Undo</b> and tap the board where the dart really is. If you have a moment, press <b>Report</b> as well: it saves what the cameras saw for the last few darts, which is what is needed to find out why.</p>
+    <h3>Which games can I play?</h3>
+    <p>X01 (301, 501 and 701, with legs and sets), Cricket, Around the Clock, Count Up, 121 Checkout, Random Targets, Killer and Free Mode.</p>
+    <h3>What stats does it keep?</h3>
+    <p>For every player: three-dart and first-nine averages, checkout rate, highest checkout, 180s and 140s, legs won, and a heat map of where your darts land. Tap any number to see the legs behind it.</p>
+    <h3>Does it work without the internet?</h3>
+    <p>Scoring by hand does. Once the site is on your home screen it opens and runs with no connection, keeps your games on the device and sends them when you are next online.</p>
+      <p>Camera scoring through this site needs the computer by the board and the screen you are scoring on to both be online.</p>
   </section>
 
   <section id="data">
-    <p class="eyebrow">Your data</p>
     <h2>How do we use the data?</h2>
     <p>For two things: to keep your games and stats, so they are there on any device you sign in on, and to find out
       how well the camera scoring works and where it goes wrong, so it can be improved.</p>
     <p>Nothing is sold or passed on, and there are no adverts and no tracking cookies. The full account is on
       <a href="privacy.html">What is stored about you</a>.</p>
-    <details><summary>What is stored about me?</summary><div><ul>
+    <h3>What is stored about me?</h3>
+    <ul>
       <li>A number that stands for your sign-in, so the site knows it is you next time. Your email address and picture are not stored.</li>
       <li>Your first name, which becomes your first player. You can change it.</li>
       <li>Your players, and every game you save with each dart in it.</li>
       <li>When you joined and when you last used the site.</li>
-      <li>Problem reports and feedback, only when you choose to send them.</li></ul></div></details>
-    <details><summary>Do the camera pictures leave my computer?</summary><div><p>The video is worked on by the app on your own computer. What it sends to the site is each dart: its score and where on the board it landed.</p>
-      <p>Pictures are sent in two cases. When you open <b>Cameras</b> on the site, it shows you what each camera sees: those pictures pass through and are not kept. When you press <b>Report</b>, the cameras' pictures of the last few darts are saved with it, and deleted after 60 days.</p></div></details>
-    <details><summary>Who can see my games?</summary><div><p>You, on any device you sign in on, and the person running the trial. Nobody else.</p></div></details>
-    <details><summary>What is the number of darts on the home page?</summary><div><p>Every dart thrown by everyone, added together, and the number of games they were thrown in. Two totals: nothing in them says who threw what.</p></div></details>
-    <details><summary>How do I delete my data?</summary><div><p>In the app, go to <b>Settings</b>, then <b>Account</b>, and press <b>Delete my account</b>. Your account, games, stats and reports are removed straight away and for good.</p></div></details>
-    <details><summary>What about the desktop app, used without an account?</summary><div><p>The first time it opens, it asks whether it may send what it records to Darts S.A.M. Say no and nothing leaves your computer. Say yes and it sends your games (players as "Player 1", "Player 2", never their names), how the cameras did, and any reports or feedback you choose to send. You can switch it off, and delete what has been sent, in <b>Settings</b> under <b>Sharing</b>.</p></div></details>
+      <li>Problem reports and feedback, only when you choose to send them.</li></ul>
+    <h3>Do the camera pictures leave my computer?</h3>
+    <p>The video is worked on by the app on your own computer. What it sends to the site is each dart: its score and where on the board it landed.</p>
+      <p>Pictures are sent in two cases. When you open <b>Cameras</b> on the site, it shows you what each camera sees: those pictures pass through and are not kept. When you press <b>Report</b>, the cameras' pictures of the last few darts are saved with it, and deleted after 60 days.</p>
+    <h3>Who can see my games?</h3>
+    <p>You, on any device you sign in on, and the person running the trial. Nobody else.</p>
+    <h3>What is the number of darts on the home page?</h3>
+    <p>Every dart thrown by everyone, added together, and the number of games they were thrown in. Two totals: nothing in them says who threw what.</p>
+    <h3>How do I delete my data?</h3>
+    <p>In the app, go to <b>Settings</b>, then <b>Account</b>, and press <b>Delete my account</b>. Your account, games, stats and reports are removed straight away and for good.</p>
+    <h3>What about the desktop app, used without an account?</h3>
+    <p>The first time it opens, it asks whether it may send what it records to Darts S.A.M. Say no and nothing leaves your computer. Say yes and it sends your games (players as "Player 1", "Player 2", never their names), how the cameras did, and any reports or feedback you choose to send. You can switch it off, and delete what has been sent, in <b>Settings</b> under <b>Sharing</b>.</p>
   </section>
 
   <section id="project">
-    <p class="eyebrow">The project</p>
     <h2>What is Darts S.A.M for?</h2>
     <p>Darts S.A.M, your <b>S</b>coring <b>A</b>ssisted <b>M</b>arker, sets out to give any dartboard a scorer that does the job by itself:
       ordinary cameras pointed at the board, the screens you already own, and no adding up.</p>
     <p>It is being tried out now by a small group of players on their own boards. The trial is to find out how well
       the camera scoring holds up in real rooms, with real lighting and real throws, and to put right what it gets wrong.</p>
-    <details><summary>Does it cost anything?</summary><div><p>The trial is free, and there are no adverts.</p></div></details>
-    <details><summary>How can I help?</summary><div><p>Play. When the cameras get a dart wrong, press <b>Report</b>. And tell us what works, what doesn't and what's missing: there is a box for it in <b>Settings</b> under <b>Send feedback</b>.</p></div></details>
-    <details><summary>Who do I ask about something else?</summary><div><p>Write to <a href="mailto:sonicsamshop@gmail.com">sonicsamshop@gmail.com</a>.</p></div></details>
-    <div id="numbers" hidden>
-      <div class="facts">
-        <div><b id="n-darts"></b><span>darts thrown so far</span></div>
-        <div><b id="n-games"></b><span>games played</span></div>
-      </div>
-    </div>
+    <h3>Does it cost anything?</h3>
+    <p>The trial is free, and there are no adverts.</p>
+    <h3>How can I help?</h3>
+    <p>Play. When the cameras get a dart wrong, press <b>Report</b>. And tell us what works, what doesn't and what's missing: there is a box for it in <b>Settings</b> under <b>Send feedback</b>.</p>
+    <h3>Who do I ask about something else?</h3>
+    <p>Write to <a href="mailto:sonicsamshop@gmail.com">sonicsamshop@gmail.com</a>.</p>
+    <p id="numbers" hidden>So far, <b id="n-darts"></b> darts have been thrown on Darts S.A.M, in <b id="n-games"></b> games.</p>
   </section>
 
-  <div class="land-end">
-    <h2>Ready when you are.</h2>
-    <p class="more"><a href="./#signin">Sign in to play</a> · <a href="download.html">Download for Mac, Windows and Linux</a></p>
-  </div>
-</div>
-<nav class="land-nav foot" aria-label="Darts S.A.M">
-  <a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span>Home</span></a>
-  <a href="faq.html" class="on" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01"/></svg><span>FAQ</span></a>
-  <a href="download.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></a>
-  <a href="releases.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5 13.2 10.8 15.5 12 13.2 13.2 12 15.5 10.8 13.2 8.5 12 10.8 10.8Z"/></svg><span>What's new</span></a>
-  <a href="opensource.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><span>Open source</span></a>
-  <a href="./#signin" class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Sign in</span></a>
-</nav></div>
+  <p class="acts"><a href="./#signin">Sign in to play</a> <a href="download.html">Download for Mac, Windows and Linux</a></p>
+  </main>
+  <footer class="site-foot">
+    <p>Darts S.A.M is free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>.
+      Copyright © 2026 Sam Cramphorn. <a href="https://github.com/SonicSamShop/darts-sam" target="_blank" rel="noopener">The source code is on GitHub</a>.</p>
+    <p><a href="faq.html">FAQ</a> · <a href="download.html">Download</a> · <a href="releases.html">What's new</a> · <a href="opensource.html">Open source</a> · <a href="privacy.html">What is stored about you</a></p>
+  </footer>
+</div></div>
 <script>
 // Someone signed in on this device (app.js keeps who under 'owner') is offered the app, not the sign-in.
 try {
-  if (JSON.parse(localStorage.getItem('owner'))) for (const a of document.querySelectorAll('.land-nav a.go')) {
-    a.href = './'; a.querySelector('span').textContent = 'Play';
+  if (JSON.parse(localStorage.getItem('owner'))) for (const a of document.querySelectorAll('.site-nav a.go')) {
+    a.href = './'; a.textContent = 'Play';
   }
 } catch (e) { /* nothing kept: the page is right as it stands */ }
 

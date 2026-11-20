@@ -61,8 +61,9 @@ def _pause():
         input("\nPress Enter to close this window.")
 
 
+# (the colours are those of the app's usual look, so the window does not change colour as the app arrives)
 _PAGE = """<body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
-background:#101418;color:#eef2f5;font:17px -apple-system,sans-serif;text-align:center">
+background:#2b1b11;color:#efeadb;font:17px -apple-system,sans-serif;text-align:center">
 <div style="max-width:30em;padding:2em">%s</div>"""
 
 
@@ -123,7 +124,7 @@ def _window_app(address: str, browser: bool):
 
     window = webview.create_window(
         "Darts S.A.M", html=_PAGE % "Darts S.A.M is starting…",
-        width=1200, height=820, min_size=(360, 520), background_color="#101418", text_select=True)
+        width=1200, height=820, min_size=(360, 520), background_color="#2b1b11", text_select=True)
 
     def show():
         """The page once the server answers, or why there is none."""

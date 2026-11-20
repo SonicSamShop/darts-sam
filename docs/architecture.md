@@ -90,7 +90,8 @@ It must run without OpenCV installed (`requirements-host.txt`).
 | `voice.js` | Calling the scores in the device's own voice. |
 | `bot.js` | Computer players: the levels, and how one throws a dart. Which bed to aim at is each game's own `bot()`; `tools/bot_levels.mjs` works the levels out. |
 | `update.js`, `sw.js`, `install.js` | Reloading onto new files; keeping a copy for offline; "Add to Home Screen". |
-| `index.html`, `faq.html`, `download.html`, `privacy.html`, `opensource.html` | The app's one page, and the site's plain pages. |
+| `index.html`, `faq.html`, `download.html`, `releases.html`, `opensource.html`, `privacy.html` | The app's one page, and the site's plain pages. |
+| `shots/` | Pictures of the app, taken from the app itself, for the welcome page and the README; and one camera's picture of a real board. |
 | `style.css`, `themes.css`, `fonts/` | How it looks, in each theme. |
 
 ## How a dart gets to the screen
