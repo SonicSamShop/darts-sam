@@ -77,7 +77,8 @@ loadPlayers();
 let darts = store.get('darts', []);  // every player's sets of darts: [{id, player, name, grams, created, retired}]
 // players: ids in throwing order. darts: {player id: the set of darts they are throwing}
 let setup = store.get('setup', { gameId: 'x01', players: [], opts: {} });
-let settings = store.get('settings', { voice: true });
+// Sound starts off; once on, the visit's total is called, and each dart only if asked for.
+let settings = store.get('settings', { voice: false });
 // A phone or a tablet (anything held upright, narrow or worked by touch), as style.css has it:
 // tabs along the bottom, and the settings as a list that opens a section at a time instead of tabs.
 const STACKED = matchMedia('(orientation: portrait), (max-width: 800px), (pointer: coarse)');
@@ -449,10 +450,12 @@ function push(ev) {
   // below). Called once, at the start of the visit ("Sam, you require 121"),
   // not again after each dart.
   const left = gameById(match.gameId).left?.(after);
-  // Every dart is called as it lands, in every game, ahead of anything else
-  // there is to say (the visit's total, a bust, game shot).
+  // Each dart is called as it lands, ahead of anything else there is to say
+  // (the visit's total, a bust, game shot), when that is asked for in the
+  // settings. Games with no total to call (Cricket, Killer and the like) call
+  // every dart regardless: there the dart is the score.
   const game = gameById(match.gameId);
-  const dart = ev.t === 'dart' ? spoken(ev) : '';
+  const dart = ev.t === 'dart' && (settings.eachDart || game.showTotal === false) ? spoken(ev) : '';
   const require = left && !after.turn.length
     ? (after.players.length > 1 ? `${after.players[after.current]}, you require ${left}` : `You require ${left}`) : '';
   let rest = [];
@@ -1941,8 +1944,9 @@ function renderSettings(jump) {
     pickRow(t.name, t.id === theme.id, `data-theme="${t.id}"`, t.blurb)).join('')}</div></div>`;
   const hints = settings.checkouts !== false;
   const game = `<div class="settings"><div class="rows">
-    ${switchRow('Call scores aloud', settings.voice, `data-voice="${settings.voice ? 'off' : 'on'}"`)}
-    ${voicePicker()}
+    ${switchRow('Sound', settings.voice, `data-voice="${settings.voice ? 'off' : 'on'}"`, 'Calls each visit\'s total, busts, what you require and game shot.')}
+    ${settings.voice ? `${switchRow('Call each dart', !!settings.eachDart, `data-eachdart="${settings.eachDart ? 'off' : 'on'}"`, 'Say every dart as it lands too, not just the total. Cricket, Killer and the practice games call each dart anyway.')}
+    ${voicePicker()}` : ''}
     ${switchRow('Checkout hints', hints, `data-checkouts="${hints ? 'off' : 'on'}"`, 'Switch off to practise working out your finishes yourself.')}
     ${switchRow('Show the bot\'s darts landing', settings.flight !== false, `data-flight="${settings.flight !== false ? 'off' : 'on'}"`, 'Against the computer, each of its darts flies in to where it lands on the board.')}
     </div></div>`;
@@ -1951,7 +1955,7 @@ function renderSettings(jump) {
     account.hosted && account.account ? [['acct', 'Account', 'Account', esc(account.account.nickname ?? ''), accountPanel()]] : [],
     [['players', 'Players and darts', 'Players', esc(players.map(p => p.name).join(', ')) || 'Nobody yet', playersPanel()]],
     [['look', 'Theme', 'Theme', theme.name, look],
-      ['game', 'In a game', 'In a game', `${settings.voice && !voice.none() ? 'Scores called aloud' : 'Scores not called'} · ${hints ? 'checkout hints on' : 'checkout hints off'}`, game]],
+      ['game', 'In a game', 'In a game', `${settings.voice && !voice.none() ? `Sound on${settings.eachDart ? ', each dart' : ''}` : 'Sound off'} · ${hints ? 'checkout hints on' : 'checkout hints off'}`, game]],
     [...(!account.hosted && share ? [['share', 'Sharing', 'Sharing', share.on ? 'On' : 'Off', sharePanel()]] : []),
       ...(canFeedBack() ? [['feedback', 'Send feedback', 'Feedback', '', `<div class="settings">${feedbackBox()}</div>`]] : []),
       ['about', 'About', 'About', appRelease() && `Version ${esc(appRelease())}`, aboutPanel()]],
@@ -2627,6 +2631,12 @@ $app.addEventListener('click', e => {
     settings.voice = d.voice === 'on';
     saveSettings();
     say('One hundred and eighty');  // so the voice can be heard, and checked, from here
+    return renderSettings();
+  }
+  if (d.eachdart) {
+    settings.eachDart = d.eachdart === 'on';
+    saveSettings();
+    say(settings.eachDart ? 'Treble 20. Treble 20. Treble 20. One hundred and eighty' : 'One hundred and eighty');
     return renderSettings();
   }
   if (d.calib) {

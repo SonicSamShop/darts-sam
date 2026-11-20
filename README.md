@@ -29,7 +29,8 @@ source.
 - **Any screen.** A phone at the oche, a tablet on the wall, or the TV with
   the scores along the bottom. It installs to the home screen and keeps
   working with no network.
-- **Calls every dart**, the visit's total and what you require.
+- **Calls the score** when sound is on: the visit's total and what you
+  require, and every dart if you like.
 - **Yours.** At home it keeps your players, games and every dart in one file
   on your own computer.
   It sends nothing anywhere unless you connect it to an account or agree to
@@ -130,8 +131,9 @@ on your own board ([what to tune](docs/detection.md#tuning)), and please
 - Stats count every dart saved, those of a game still in progress included. A
   game ended with **Quit game** is thrown away, darts and all.
 - X01 is double out; its checkout hints follow the standard published chart.
-- Scores are called in the device's own voice. A device with none (a Pi, most
-  Linux PCs) doesn't call them aloud.
+- With **Sound** on (Settings › In a game; off to begin with), scores are called
+  in the device's own voice: each visit's total, and each dart as well if **Call
+  each dart** is on. A device with no voice (a Pi, most Linux PCs) stays quiet.
 
 **Not yet tried:** the Windows app on a real PC, and real USB cameras on
 Windows; real USB cameras with the Linux app; a build signed by Apple; and

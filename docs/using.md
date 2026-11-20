@@ -88,8 +88,9 @@ And about the rest:
   darts thrown stay in your stats; unticked, the game is thrown away, darts and
   all.
 - X01 is double out; its checkout hints follow the standard published chart.
-- Scores are called in the device's own voice. A device with none (a Pi, most
-  Linux PCs) doesn't call them aloud.
+- With **Sound** on (Settings › In a game; off to begin with), scores are called
+  in the device's own voice: each visit's total, and each dart as well if **Call
+  each dart** is on. A device with no voice (a Pi, most Linux PCs) stays quiet.
 
 ## Backing up
 
