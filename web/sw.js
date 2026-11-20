@@ -7,19 +7,19 @@
 // It still tries the Pi first, so editing files on the Pi updates the app; if
 // the Pi doesn't answer quickly the saved copy is used instead.
 // Browsers only run this over https or on localhost (see docs/setup.md).
-const CACHE = 'dartssam-v16';
+const CACHE = 'dartssam-v17';
 const DATA = 'dartssam-data';  // stats saved by app.js for showing offline
 const WAIT = 2500;             // ms to give the Pi before using the saved copy
 
 // Everything the app needs to start. Files not listed here (a new game module,
 // say) are still saved the first time they are loaded.
 const FILES = [
-  './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'engine.js', 'board.js', 'bot.js', 'install.js', 'voice.js',
+  './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'engine.js', 'board.js', 'bot.js', 'install.js', 'voice.js', 'theme.js',
   'games/index.js', 'games/x01.js', 'games/cricket.js', 'games/clock.js', 'games/countup.js', 'games/c121.js', 'games/random.js', 'games/killer.js', 'games/free.js',
   'style.css', 'themes.css', 'manifest.json', 'privacy.html', 'faq.html', 'download.html', 'opensource.html', 'releases.html',
   'icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',
   'fonts/anton-400.woff2', 'fonts/barlow-condensed-600.woff2', 'fonts/barlow-condensed-700.woff2',
-  'fonts/bungee-400.woff2', 'fonts/cabin-sketch-700.woff2', 'fonts/patrick-hand-400.woff2',
+  'fonts/bungee-400.woff2', 'fonts/playpen-sans-100-800.woff2',
   'fonts/rokkitt-500-800.woff2', 'fonts/russo-one-400.woff2', 'fonts/special-elite-400.woff2',
   'fonts/vt323-400.woff2',
 ];

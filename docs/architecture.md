@@ -93,6 +93,7 @@ It must run without OpenCV installed (`requirements-host.txt`).
 | `index.html`, `faq.html`, `download.html`, `releases.html`, `opensource.html`, `privacy.html` | The app's one page, and the site's plain pages. |
 | `shots/` | Pictures of the app, taken from the app itself, for the welcome page and the README; and one camera's picture of a real board. |
 | `style.css`, `themes.css`, `fonts/` | How it looks, in each theme. |
+| `theme.js` | Before a page is first drawn: puts the saved theme on it, and starts fetching that theme's lettering. |
 
 ## How a dart gets to the screen
 

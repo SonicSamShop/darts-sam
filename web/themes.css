@@ -10,12 +10,23 @@
 @font-face { font-family: 'Barlow Condensed'; font-weight: 600; font-display: swap; src: url(fonts/barlow-condensed-600.woff2) format('woff2'); }
 @font-face { font-family: 'Barlow Condensed'; font-weight: 700; font-display: swap; src: url(fonts/barlow-condensed-700.woff2) format('woff2'); }
 @font-face { font-family: 'Bungee'; font-weight: 400; font-display: swap; src: url(fonts/bungee-400.woff2) format('woff2'); }
-@font-face { font-family: 'Cabin Sketch'; font-weight: 700; font-display: swap; src: url(fonts/cabin-sketch-700.woff2) format('woff2'); }
-@font-face { font-family: 'Patrick Hand'; font-weight: 400; font-display: swap; src: url(fonts/patrick-hand-400.woff2) format('woff2'); }
+@font-face { font-family: 'Playpen Sans'; font-weight: 100 800; font-display: swap; src: url(fonts/playpen-sans-100-800.woff2) format('woff2'); }
 @font-face { font-family: 'Rokkitt'; font-weight: 500 800; font-display: swap; src: url(fonts/rokkitt-500-800.woff2) format('woff2'); }
 @font-face { font-family: 'Russo One'; font-weight: 400; font-display: swap; src: url(fonts/russo-one-400.woff2) format('woff2'); }
 @font-face { font-family: 'Special Elite'; font-weight: 400; font-display: swap; src: url(fonts/special-elite-400.woff2) format('woff2'); }
 @font-face { font-family: 'VT323'; font-weight: 400; font-display: swap; src: url(fonts/vt323-400.woff2) format('woff2'); }
+/* Each lettering has a second file, with the letters of the rest of Europe's Latin (ł, š, ğ...) that its
+   first does without. A browser fetches it only when a page has one of those letters to show: a player's
+   name, as a rule. Playpen Sans and Rokkitt are each one file with a whole run of weights in it. */
+@font-face { font-family: 'Anton'; font-weight: 400; font-display: swap; src: url(fonts/anton-400-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Barlow Condensed'; font-weight: 600; font-display: swap; src: url(fonts/barlow-condensed-600-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Barlow Condensed'; font-weight: 700; font-display: swap; src: url(fonts/barlow-condensed-700-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Bungee'; font-weight: 400; font-display: swap; src: url(fonts/bungee-400-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Playpen Sans'; font-weight: 100 800; font-display: swap; src: url(fonts/playpen-sans-100-800-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Rokkitt'; font-weight: 500 800; font-display: swap; src: url(fonts/rokkitt-500-800-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Russo One'; font-weight: 400; font-display: swap; src: url(fonts/russo-one-400-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Special Elite'; font-weight: 400; font-display: swap; src: url(fonts/special-elite-400-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'VT323'; font-weight: 400; font-display: swap; src: url(fonts/vt323-400-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 
 /* ================= Stage Night: big-stage TV graphics ================= */
 .t-stage {
@@ -71,11 +82,18 @@
 
 /* ================= Chalk & Oche: the pub chalkboard ================= */
 /* The system, so every screen is drawn the same way:
-   - two letterings, each with one job. Cabin Sketch (the chalky one) for the logo, the headings and the big
-     figures a room reads from across it; Patrick Hand (the clean hand) for everything else, at two sizes: the
-     body's, and the small print's (--plain: descriptions, dates, labels under a figure, tables and status lines),
-     which is smaller and quieter but the same hand. Neither is ever faked bold: a smeared letter is what makes
-     small chalk hard to read. To put something in the small print, add it to the one --plain rule below.
+   - one hand for everything, as one person chalked the whole board: Playpen Sans. It draws each letter and figure
+     several ways and changes between them, so two the same never sit side by side, and its 7 has no bar through
+     it, as a British chalker's has none. What sets one thing above another is how hard the chalk was pressed
+     and how big it was written, in four steps: 400 for what is written; --bold (600) for what is picked out
+     (a name in a list, a figure, a button that acts) and for the big scores; 700 for a heading or a screen's
+     title; 800 for the name. Nothing is faked bold or slanted (font-synthesis: none).
+   - everything is written at one of eight sizes (--sz-fine to --sz-score, below), and a phone has its own, a
+     step down. Only what is as big as its room allows is off them: the TV view's figures, the number pad's keys,
+     the heading at the top of one of the site's pages.
+     The small print (--plain: descriptions, dates, labels under a figure, tables and status lines) is smaller
+     and quieter: to put something in it, add it to the one --plain rule below.
+     All of the lettering's sizes and weights are in the "lettering" rules; the rest only say what a thing is made of.
    - three depths of board instead of a box round everything: --board itself, --raised for what stands proud of it
      (buttons, tiles, the thrower's card) and --sunk for what is cut into it (dart slots, option tracks). Somewhere
      to write is a ruled line, not a box.
@@ -87,8 +105,17 @@
 .t-chalk {
   --bg: #2b1b11; --panel: rgba(255, 255, 255, .05); --panel2: transparent; --line: #7d857c;
   --text: #efeadb; --muted: #a9ab9f; --accent: #f2d16b; --on-accent: #1e2623; --warn: #f09a90; --gold: #f2d16b;
-  --font: 'Patrick Hand', 'Comic Sans MS', cursive; --display: 'Cabin Sketch', 'Patrick Hand', cursive;
+  --font: 'Playpen Sans', system-ui, sans-serif; --display: var(--font);
   --plain: var(--font);  /* the small print: the same hand, smaller and quieter */
+  --bold: 600;           /* how hard the chalk is pressed for what is picked out */
+  --sz-fine: 13px;       /* a label inside a box, the totals in the corner */
+  --sz-small: 14px;      /* the small print */
+  --sz-body: 16px;       /* what is written */
+  --sz-pick: 18px;       /* what is picked out: a game's name, a line of the settings, the buttons under the scores */
+  --sz-head: 21px;       /* a heading; a figure in the stats */
+  --sz-title: 24px;      /* a screen's title */
+  --sz-name: 28px;       /* the name; the darts of the visit */
+  --sz-score: 68px;      /* the scores */
   --b-surround: #0d0d0c; --b-dark: #1b1a18; --b-light: #e6d9b8; --b-red: #c5362f; --b-green: #2d7f4c;
   --b-wire: #b9b6aa; --b-num: #efeadb; --mark: #efeadb;
   --board: #1e2623; --raised: #2a3631; --sunk: #151b19; --hair: rgba(239, 234, 219, .12);
@@ -102,7 +129,7 @@
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .94 0 0 0 0 .92 0 0 0 0 .86 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 .t-chalk body {
-  font-size: 20px; font-synthesis: none;
+  font-size: var(--sz-body); font-synthesis: none;
   background: var(--bg) repeating-linear-gradient(90deg, transparent 0 117px, rgba(0, 0, 0, .28) 117px 119px);
 }
 /* the board in its wooden frame: every screen, the score panel, the number pad, the report and the site's pages */
@@ -111,55 +138,73 @@
 }
 .t-chalk .side { padding: 12px 16px 16px; }
 
-/* lettering */
-.t-chalk h1 { font-family: var(--display); font-size: 44px; line-height: 1.1; letter-spacing: 0; }
-.t-chalk .head h1 { font-size: 34px; }  /* beside the places, the name keeps to their scale */
-.t-chalk button + h1, .t-chalk .report h1, .t-chalk .camlead { font-size: 30px; }  /* a screen's title: under the logo in rank */
+/* lettering: which of the sizes and weights each thing is written in */
+.t-chalk h1 { font: 800 var(--sz-name)/1.1 var(--font); letter-spacing: 0; }  /* the name */
+/* a screen's title: under the name in rank (.page h1.sub: a title that may be long, so a phone lets it shrink) */
+.t-chalk button + h1, .t-chalk .report h1, .t-chalk .camlead, .t-chalk .paircode { font-size: var(--sz-title); font-weight: 700; }
+.t-chalk .page h1.sub { font-size: clamp(19px, 5vw, var(--sz-title)); }
 /* the logo: a chalk dart after the name */
 .t-chalk .page > .row > h1:first-child::after {
-  content: ""; display: inline-block; width: 58px; height: 22px; margin-left: 12px; vertical-align: 4px;
+  content: ""; display: inline-block; width: 52px; height: 20px; margin-left: 12px; vertical-align: 1px;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 58 22' fill='none' stroke='%23f2d16b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 11h8M10 11l10-3h14l4 3-4 3H20z M38 11h18'/%3E%3Cpath d='M2 11L7 4h6l-3 7 3 7H7z' fill='%23f2d16b' fill-opacity='.35'/%3E%3C/svg%3E") no-repeat center / contain;
 }
 /* headings: the room above one does the separating */
 .t-chalk h2 {
-  font-family: var(--display); font-size: 22px; line-height: 1.2; text-transform: none; letter-spacing: 0; color: var(--text);
+  font: 700 var(--sz-head)/1.2 var(--font); text-transform: none; letter-spacing: 0; color: var(--text);
   margin: 24px 0 12px;
 }
-.t-chalk h3 { font: 400 20px/1.3 var(--font); color: var(--accent); }
+.t-chalk h3 { font: 400 var(--sz-pick)/1.3 var(--font); color: var(--accent); }
+/* what is picked out, wherever it is: pressed harder */
+.t-chalk :is(b, strong, dt), .t-chalk button.primary, .t-chalk .actions button, .t-chalk .slot, .t-chalk .pcard .big,
+.t-chalk .pad-out, .t-chalk table.tv :is(th, td), .t-chalk .chip i, .t-chalk table.cricket td:first-child,
+.t-chalk .sheet td.out, .t-chalk .b-num { font-weight: var(--bold); }
+/* and what is shouted */
+.t-chalk .banner.win, .t-chalk .banner.bust { font-weight: 700; }
 /* the small print, all of it: the same hand, smaller */
 .t-chalk .small, .t-chalk .muted, .t-chalk .conn, .t-chalk .clock, .t-chalk .totals, .t-chalk .game-card span,
 .t-chalk .tile span, .t-chalk .pcard .small, .t-chalk .heatkey, .t-chalk .pad-msg, .t-chalk .report figcaption,
 .t-chalk .report label, .t-chalk table.plain th, .t-chalk table.plain td, .t-chalk table.cricket th,
-.t-chalk .picks .pick span, .t-chalk .sheet .legrow td, .t-chalk .dim {
-  font-family: var(--plain); font-weight: 400; font-size: 17px; line-height: 1.35; letter-spacing: .01em;
+.t-chalk .picks .pick span, .t-chalk .sheet .legrow td, .t-chalk .dim, .t-chalk .lastvisit {
+  font-family: var(--plain); font-weight: 400; font-size: var(--sz-small); line-height: 1.4; letter-spacing: 0;
 }
-.t-chalk .picks .pick span, .t-chalk .totals { font-size: 15px; text-transform: none; }
+.t-chalk .picks .pick span, .t-chalk .totals, .t-chalk .chip i { font-size: var(--sz-fine); text-transform: none; }
 .t-chalk .sheet .legrow td { text-transform: none; }
-.t-chalk .muted b { color: var(--text); font-weight: 700; }
-.t-chalk .lastvisit { font-family: var(--font); font-size: 22px; letter-spacing: 0; }  /* read from the oche: stays in the hand */
-.t-chalk .lastvisit b { font-size: 32px; font-weight: 400; }
-.t-chalk table.plain th, .t-chalk table.plain td { border-bottom-color: var(--hair); }
+.t-chalk .muted b { color: var(--text); }
+.t-chalk .report label.tick { font-size: var(--sz-body); }  /* a question to answer, not small print */
+/* what is picked out is also written a size up */
+.t-chalk .game-card b, .t-chalk .top b, .t-chalk .srow b, .t-chalk .who-head b, .t-chalk .step-head b, .t-chalk .camstate > b,
+.t-chalk .actions button, .t-chalk .banner, .t-chalk .hint { font-size: var(--sz-pick); }
+/* a figure, and what goes with one, is the size of a heading */
+.t-chalk .tile b, .t-chalk .stepper b, .t-chalk .stepper button, .t-chalk .start, .t-chalk .banner.win,
+.t-chalk .lastvisit b, .t-chalk .bullup .pcard .big small { font-size: var(--sz-head); }
+.t-chalk .lastvisit b, .t-chalk .bullup .pcard .big small { font-weight: 400; }  /* the darts just thrown, a unit: bigger, not bolder */
+.t-chalk .tile b { line-height: 1.15; }
+.t-chalk .step-head i { font-size: var(--sz-title); }
+/* the scoreboard: who, what they have left, and the darts of the visit */
+.t-chalk .pcard .name { font: 400 var(--sz-head)/1.2 var(--font); }
+.t-chalk .pcard .big { font-size: var(--sz-score); line-height: 1.08; }
+.t-chalk .slot { font-size: var(--sz-name); line-height: 1.25; }
+.t-chalk .pad-out { font-size: clamp(36px, 8vh, var(--sz-score)); line-height: 1.15; }
+.t-chalk .pad-keys button { font-size: clamp(18px, 4vh, var(--sz-name)); line-height: 1; }
+.t-chalk .pad-keys button.wide { font-size: inherit; }
+.t-chalk .b-num { font-size: 20px; }  /* (in the board's own millimetres, not the screen's) */
 
 /* surfaces: buttons, drop-downs, tiles, notices */
 .t-chalk button, .t-chalk select { background: var(--raised); border: 0; border-radius: var(--wobble); }
+.t-chalk table.plain th, .t-chalk table.plain td { border-bottom-color: var(--hair); }
 .t-chalk select option { background: var(--board); }
 .t-chalk button.primary { background: var(--text); }
 .t-chalk button.ghost { background: none; text-decoration: underline; text-underline-offset: 4px; }
 .t-chalk .tabs button { white-space: nowrap; }
-.t-chalk .start { font-size: 24px; }
 /* somewhere to write: a ruled line on the board, gold while it is being written on */
 .t-chalk :is(input[type=text], input[type=number]) { background: none; border: 0; border-bottom: 2px solid var(--line); border-radius: 0; padding-left: 4px; padding-right: 4px; }
 .t-chalk :is(input[type=text], input[type=number]):focus { border-bottom-color: var(--accent); outline: none; }
-.t-chalk .game-card b { font-family: var(--font); font-size: 22px; }
 .t-chalk .opt > span { color: var(--text); }
-.t-chalk .stepper b { font-family: var(--font); font-size: 26px; }
-.t-chalk .chip i { font-family: var(--plain); font-size: 15px; }
 .t-chalk .tile { border-bottom-color: var(--hair); }
-.t-chalk .tile b { font-family: var(--font); font-size: 26px; line-height: 1.1; }
 .t-chalk .camstate, .t-chalk .camoff { background: var(--sunk); border: 0; border-radius: var(--wobble); }  /* cut in: their buttons stand proud */
 .t-chalk .camextra, .t-chalk .camside .camlink { border-top-color: var(--hair); }
-.t-chalk .banner { background: var(--sunk); border: 0; border-radius: var(--wobble); font-size: 20px; }
-.t-chalk .banner.win { background: none; border: 2px dashed var(--gold); font-family: var(--display); }
+.t-chalk .banner { background: var(--sunk); border: 0; border-radius: var(--wobble); }
+.t-chalk .banner.win { background: none; border: 2px dashed var(--gold); }
 .t-chalk .install { background: var(--raised); border: 0; border-radius: var(--wobble); }
 
 /* chosen things */
@@ -188,31 +233,26 @@
 
 /* the scoreboard */
 .t-chalk .pcard { background: none; border-radius: var(--wobble); text-align: center; opacity: .8; }
-.t-chalk .pcard .name { font: 400 24px/1.2 var(--font); color: var(--text); }
-.t-chalk .pcard .big { font-size: 78px; line-height: 1; }
+.t-chalk .pcard .name { color: var(--text); }
 .t-chalk .pcard.cur, .t-chalk .pcard.win { background: var(--raised); border-color: transparent; box-shadow: inset 0 4px var(--accent); opacity: 1; }
 .t-chalk .pcard.cur .name, .t-chalk .pcard.win .big { color: var(--accent); }
-.t-chalk .slot { background: var(--sunk); border-radius: var(--wobble); font-family: var(--font); font-size: 34px; line-height: 1.1; }
+.t-chalk .slot { background: var(--sunk); border-radius: var(--wobble); }
 .t-chalk .slot.empty { color: var(--line); }
 .t-chalk .slot.total { background: none; border: 0; border-bottom: 4px double var(--text); border-radius: 0; color: var(--text); }
 .t-chalk .slot.bust { color: var(--warn); border-color: var(--warn); }
-.t-chalk .hint { font-size: 24px; }
+/* the hand runs wider than a plain face: the three buttons under the scores give up some of their padding to it */
+.t-chalk .actions button { padding-left: 8px; padding-right: 8px; }
 .t-chalk table.cricket { background: none; }
-.t-chalk table.tv td { font-family: var(--font); }
-.t-chalk table.tv td.score { font-family: var(--display); }
-.t-chalk .b-num { font-family: var(--font); font-size: 24px; }
 .t-chalk .b-mark { stroke: #1b1a18; }
 .t-chalk .b-mark.last { fill: var(--gold); }
 
+/* a phone, or anything as short as one held sideways: the sizes a step down, and less room round things */
 @media (max-width: 600px), (max-height: 600px) {
-  .t-chalk body { font-size: 18px; }
-  .t-chalk h1 { font-size: 36px; }
-  .t-chalk .head h1 { font-size: 30px; }
-  .t-chalk button + h1, .t-chalk .report h1, .t-chalk .camlead { font-size: 26px; }
-  .t-chalk h2 { font-size: 22px; margin: 16px 0 8px; }
+  .t-chalk { --sz-body: 15px; --sz-pick: 17px; --sz-head: 19px; --sz-title: 21px; --sz-name: 25px; }
+  .t-chalk h2 { margin: 16px 0 8px; }
   .t-chalk .side { padding: 8px 12px 12px; }
-  .t-chalk .opt > span { font-size: 16px; }
-  .t-chalk .start { font-size: 22px; }
+  .t-chalk .opt > span { font-size: var(--sz-small); }
+  .t-chalk table.plain th, .t-chalk table.plain td { font-size: var(--sz-fine); }  /* a list has six columns to get across */
 }
 /* ================= Soft-tip Arcade: the electronic dart machine ================= */
 .t-arcade {
@@ -342,8 +382,7 @@
 /* number pad */
 .t-stage .pad-out { border-radius: 0; font-weight: 400; }
 .t-stage .pad-keys button { font-family: var(--display); font-weight: 400; }
-.t-chalk .pad-out { background: var(--sunk); border-radius: var(--wobble); font-size: clamp(40px, 9vh, 80px); line-height: 1.1; }
-.t-chalk .pad-keys button { font-family: var(--font); line-height: 1; }
+.t-chalk .pad-out { background: var(--sunk); border-radius: var(--wobble); }
 .t-chalk .pad { gap: 8px; }
 .t-chalk .pad-keys { gap: 8px; }
 .t-arcade .pad-out {
@@ -371,11 +410,19 @@
 /* ================= the site's pages, in each theme ================= */
 /* What style.css's .site needs changing for a theme. #app, as there: to outrank the headings. */
 /* Chalk & Oche: the page is the board in its frame, like every screen of the app */
-.t-chalk .site { max-width: 1200px; margin: 0 auto; font-size: 20px; --line: rgba(239, 234, 219, .2); }
-.t-chalk #app .site h3 { font-family: var(--display); font-size: 21px; }
-/* the hand has no bold of its own: what is pressed harder is in the chalky lettering */
-.t-chalk .site :is(b, dt, tbody th) { font-family: var(--display); font-weight: 700; }
-.t-chalk .site .strap b { font-family: inherit; font-weight: inherit; }
+.t-chalk .site { max-width: 1200px; margin: 0 auto; font-size: var(--sz-pick); line-height: 1.55; --line: rgba(239, 234, 219, .2); }
+/* the theme's own sizes (see the top of the theme), reading matter being written a step bigger than a screen's */
+.t-chalk #app .site h1 { font-size: clamp(var(--sz-name), 3.8vw, 42px); font-weight: 800; }
+.t-chalk #app .site h2 { font-size: var(--sz-title); }
+.t-chalk #app .site h3, .t-chalk .site .lead, .t-chalk .dl-row b { font-size: var(--sz-head); }
+.t-chalk #app #signin h2 { font-size: var(--sz-pick); }
+.t-chalk .site :is(.small, .muted, .jump, .tag, .ways), .t-chalk .site-nav, .t-chalk .site-foot, .t-chalk .shot figcaption,
+.t-chalk .menu dd, .t-chalk .dl-row span { font-size: var(--sz-body); }
+.t-chalk .strap { font-size: var(--sz-small); }
+.t-chalk .signin button.mail { font-size: var(--sz-pick); font-weight: var(--bold); }
+.t-chalk .site :is(b, dt, tbody th) { font-weight: var(--bold); }
+.t-chalk .site .strap b { font-weight: inherit; }
+.t-chalk .site .wordmark { font-size: var(--sz-title); font-weight: 800; }
 .t-chalk .signin-box { background: var(--sunk); border: 0; border-radius: var(--wobble); }
 /* the chalk dart after the name, as on the app's screens (see the logo above) */
 .t-chalk .wordmark::after {

@@ -4,7 +4,9 @@
     "Stats are now set out as a list, each figure on a line beside its name, which is easier to read, on a phone most of all.",
     "The Classic theme has a new plain look in the board's own colours: cream for what is chosen, green for the button that moves the game on.",
     "Cricket's marks are now drawn the way a chalker draws them, a stroke, a cross and a ringed cross, and look the same on every device.",
-    "The website's pages (the home page, the questions, the downloads and the release notes) have been rewritten to be plainer and easier to read."
+    "The website's pages (the home page, the questions, the downloads and the release notes) have been rewritten to be plainer and easier to read.",
+    "The Chalk & Oche theme is now written in one hand throughout, and its sevens no longer have a bar through them.",
+    "Names with letters such as ł, š or ğ are now drawn in each theme's own lettering, instead of borrowing those letters from another."
   ],
   "notes": {
     "1.0": [

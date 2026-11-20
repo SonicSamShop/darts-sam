@@ -98,7 +98,7 @@ const MAX_PLAYERS = 6;
 
 // ---------- themes ----------
 // Each theme is a block of rules in themes.css under a .t-<id> class on <html>.
-// The first is the one anybody who has not chosen gets (index.html and manifest.json say the same).
+// The first is the one anybody who has not chosen gets (theme.js and manifest.json say the same).
 const THEMES = [
   { id: 'chalk', name: 'Chalk & Oche', blurb: 'The pub chalkboard beside the board.', bar: '#2b1b11' },
   { id: 'stage', name: 'Stage Night', blurb: 'Big-stage TV graphics under a spotlight.', bar: '#0a0a0c' },
@@ -1291,7 +1291,8 @@ const X01_HEADLINES = ['average', 'first9', 'checkout', 'bestCheckout', 't180', 
 function x01Tiles(s, only) {
   const draw = t => {
     const rows = t.rows(s);
-    return tile(t.label + (t.note?.(s) ?? ''), t.value ? t.value(s, rows) : rows.length,
+    const note = t.note?.(s).trim();  // "(20 of 41 darts)": kept in one piece, so a narrow line breaks before it
+    return tile(t.label + (note ? ` <span class="nb">${note}</span>` : ''), t.value ? t.value(s, rows) : rows.length,
       rows.length ? { v: 'tile', key: t.key, ...t.sort } : null);
   };
   if (only) return only.map(key => draw(x01Tile(key))).join('');
@@ -1319,7 +1320,13 @@ function deep(st) {
   }
   return DEEP.get(st);
 }
-const when = ts => new Date(ts).toLocaleString([], { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+// When something happened: "19 Nov 26, 00:44". Where there is no room for it on one line (a list on a
+// phone) it breaks after the day, never in the middle of it.
+const when = ts => {
+  const d = new Date(ts), nb = t => `<span class="nb">${t}</span>`;
+  return `${nb(d.toLocaleDateString([], { day: 'numeric', month: 'short', year: '2-digit' }))}, ${
+    nb(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}`;
+};
 const num = n => n == null ? '–' : n.toFixed(1);
 const dartsText = v => v.darts ? v.darts.map(label).join(' ') : '<span class="muted">typed</span>';
 const others = m => m.players.filter((_, i) => i !== m.me).map(esc).join(', ');

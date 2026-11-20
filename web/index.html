@@ -12,13 +12,9 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon.png">
+<script src="theme.js"></script>  <!-- the saved look, and a head start on its lettering -->
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="themes.css">
-<script>
-// Apply the saved theme before the first paint (app.js keeps it up to date).
-try { document.documentElement.className = 't-' + (JSON.parse(localStorage.getItem('settings')).theme || 'chalk'); }
-catch (e) { document.documentElement.className = 't-chalk'; }
-</script>
 <title>Darts S.A.M</title>
 </head>
 <body>

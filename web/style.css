@@ -49,6 +49,7 @@ button:disabled { opacity: .4; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .spacer { flex: 1; }
 .muted { color: var(--muted); }
+.nb { white-space: nowrap; }  /* words that are not to be parted: a date, a time */
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; }
 .dot.ok { background: var(--b-green); }
 
@@ -374,7 +375,7 @@ svg.heat .b-num { fill: #d9dce3; }
 .slot.empty { color: var(--line); }
 .slot.total { background: none; border: 1px solid var(--line); color: var(--accent); }
 .slot.bust { color: var(--warn); border-color: var(--warn); }
-.lastvisit { color: var(--muted); font-size: 20px; line-height: 1.2; text-align: center; }
+.lastvisit { color: var(--muted); font-size: 20px; line-height: 1.2; text-align: center; text-wrap: balance; }
 .lastvisit b { color: var(--text); font-weight: 700; }
 .hint { min-height: 26px; color: var(--gold); font-size: 18px; text-align: center; }
 .banner { background: var(--panel); border: 1px solid var(--line); border-radius: var(--round); padding: 12px; text-align: center; font-size: 18px; }
@@ -526,7 +527,8 @@ table.cricket tr.dead { opacity: .35; }
 .tally b { color: var(--text); font-variant-numeric: tabular-nums; }
 .tally[hidden] { display: none; }
 .signin-box { max-width: 420px; padding: 18px 20px 6px; border: 1px solid var(--line); border-radius: var(--round); background: var(--panel); }
-#app .site .signin-box h2 { font-family: var(--font); font-size: 20px; margin-bottom: 14px; }
+/* #signin: not a heading of the page, whatever a theme does to those */
+#app #signin h2 { font: 700 20px/1.25 var(--font); margin-bottom: 14px; }
 .signin-box .small { margin-bottom: 12px; }
 .signin-box .start { margin-bottom: 14px; }
 /* the app's own address, when the home page is at another: signing in and nothing else */
@@ -570,6 +572,7 @@ button.apple {
 /* the downloads (web/download.html draws them): a line for each kind of computer */
 .dl-list { max-width: 46em; margin: 24px 0; border-bottom: 1px solid var(--line); }
 .dl-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 24px; padding: 14px 0; border-top: 1px solid var(--line); }
+.dl-row > div { flex: 1 1 260px; min-width: 0; }  /* the words take what the button leaves, and break among themselves */
 .dl-row b { display: block; font-size: 21px; line-height: 1.25; }
 .dl-row span { display: block; color: var(--muted); font-size: 16px; line-height: 1.4; }
 .dl-row button { flex: none; min-width: 200px; }
