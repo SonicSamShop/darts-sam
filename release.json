@@ -1,14 +1,6 @@
 {
-  "version": "1.3",
-  "unreleased": [
-    "Stats are now set out as a list, each figure on a line beside its name, which is easier to read, on a phone most of all.",
-    "The Classic theme has a new plain look in the board's own colours: cream for what is chosen, green for the button that moves the game on.",
-    "Cricket's marks are now drawn the way a chalker draws them, a stroke, a cross and a ringed cross, and look the same on every device.",
-    "The website's pages (the home page, the questions, the downloads and the release notes) have been rewritten to be plainer and easier to read.",
-    "The Chalk & Oche theme is now written in one hand throughout, and its sevens no longer have a bar through them.",
-    "Names with letters such as ł, š or ğ are now drawn in each theme's own lettering, instead of borrowing those letters from another.",
-    "Sound is now off to begin with: switch it on under Settings › In a game. With it on, the caller says each visit's total; a new Call each dart switch has every dart called as well."
-  ],
+  "version": "1.4",
+  "unreleased": [],
   "notes": {
     "1.0": [
       "First release."
@@ -35,6 +27,15 @@
       "Updates are now checked before they are opened: the app only installs a new version that is signed as genuine.",
       "Settings now shows the app's build number next to its version, so you can tell exactly which one you have.",
       "On Windows, reporting a wrongly scored dart now saves its pictures even when your user name has accented or non-English letters in it."
+    ],
+    "1.4": [
+      "Stats are now set out as a list, each figure on a line beside its name, which is easier to read, on a phone most of all.",
+      "The Classic theme has a new plain look in the board's own colours: cream for what is chosen, green for the button that moves the game on.",
+      "Cricket's marks are now drawn the way a chalker draws them, a stroke, a cross and a ringed cross, and look the same on every device.",
+      "The website's pages (the home page, the questions, the downloads and the release notes) have been rewritten to be plainer and easier to read.",
+      "The Chalk & Oche theme is now written in one hand throughout, and its sevens no longer have a bar through them.",
+      "Names with letters such as ł, š or ğ are now drawn in each theme's own lettering, instead of borrowing those letters from another.",
+      "Sound is now off to begin with: switch it on under Settings › In a game. With it on, the caller says each visit's total; a new Call each dart switch has every dart called as well."
     ]
   }
 }
