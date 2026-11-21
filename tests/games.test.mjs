@@ -937,3 +937,16 @@ test('needsMore only shows for a game that needs more players', () => {
   assert.equal(needsMore(gameById('gotcha'), 2), false);
   assert.equal(needsMore(gameById('x01'), 0), false);
 });
+
+test('every game has its rules on web/rules.html, under its id, with each option it has', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const page = await readFile(new URL('../web/rules.html', import.meta.url), 'utf8');
+  for (const g of GAMES) {
+    const at = page.indexOf(`<section id="${g.id}">`);
+    assert.ok(at >= 0, `rules.html has no section for ${g.id}`);
+    const section = page.slice(at, page.indexOf('</section>', at));
+    assert.ok(section.includes(`<h2>${g.name.replace(/&/g, '&amp;')}</h2>`), `${g.id}: the section is headed with the game's name`);
+    for (const o of g.options) assert.ok(section.includes(`<b>${o.label.replace(/&/g, '&amp;')}`), `${g.id}: rules.html says nothing about ${o.label}`);
+    assert.ok(page.includes(`href="#${g.id}"`), `rules.html's list at the top leaves out ${g.id}`);
+  }
+});

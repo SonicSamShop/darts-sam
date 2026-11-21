@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b1b11">
+<meta name="description" content="How to play every game in Darts S.A.M: X01, Cricket, Killer, Gotcha and the training games, with what each option changes.">
+<link rel="icon" href="icon-192.png">
+<script src="theme.js"></script>  <!-- the saved look, and a head start on its lettering -->
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="themes.css">
+<title>Darts S.A.M · how to play</title>
+</head>
+<body>
+<!-- The rules of every game, one section each, with the game's id (web/games/*.js) as the
+     section's id: the Play menu links to rules.html#<id> for the game chosen. What it says is
+     what the game modules do: change a game's rules or options, change its section here. -->
+<div id="app"><div class="site">
+  <header class="site-head"><a class="brand" href="./"><b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></a>
+    <nav class="site-nav" aria-label="Darts S.A.M"><a href="faq.html">FAQ</a><a href="download.html">Download</a><a href="releases.html">What's new</a><a href="opensource.html">Open source</a>
+      <a href="./#signin" class="go">Sign in</a></nav></header>
+  <main>
+  <h1>How to play</h1>
+  <p class="lead">The rules of each game as Darts S.A.M keeps score, and what each option changes. The app does all the adding up, so you only need to know what to aim at.</p>
+  <p class="jump">Matches: <a href="#x01">X01</a> · <a href="#cricket">Cricket</a> · <a href="#killer">Killer</a> · <a href="#gotcha">Gotcha</a><br>
+    Training: <a href="#clock">Around the Clock</a> · <a href="#bobs27">Bob's 27</a> · <a href="#shanghai">Shanghai</a> · <a href="#bermuda">Bermuda</a> ·
+    <a href="#segment">Segment Training</a> · <a href="#rcheckout">Random Checkout</a> · <a href="#c121">121 Checkout</a> · <a href="#countup">Count Up</a> ·
+    <a href="#random">Random Targets</a> · <a href="#free">Free Mode</a></p>
+
+  <section id="words">
+    <h2>A few words first</h2>
+    <dl class="says">
+      <dt>Visit</dt><dd>Your three darts. Players take it in turns to throw a visit.</dd>
+      <dt>Double and treble</dt><dd>The thin outer ring scores double the number; the thin inner ring scores treble.</dd>
+      <dt>Bull and outer bull</dt><dd>The bull (the bullseye) scores 50 and counts as a double. The green ring round it, the outer bull, scores 25.</dd>
+      <dt>Bust</dt><dd>A visit that goes past what you needed. Your score goes back to where it was at the start of the visit, and the visit is over.</dd>
+      <dt>Who throws first</dt><dd>With two or more playing, Start asks how to decide: a dart each at the bull, closest first, or at random.</dd>
+    </dl>
+  </section>
+
+  <section id="x01">
+    <h2>X01</h2>
+    <p>Everyone starts on 501 (or 301, or 701). Each visit's score is taken off yours, and the first to bring theirs down to exactly zero wins the leg.</p>
+    <ul>
+      <li>You must finish on a double, or on the bull. The dart that takes you to zero has to be that double.</li>
+      <li>Go below zero, leave yourself on 1, or reach zero without a double, and it is a bust.</li>
+      <li>While you are on a finish, the app shows a way to check it out.</li>
+    </ul>
+    <h3>Options</h3>
+    <ul>
+      <li><b>Start:</b> 301, 501 or 701.</li>
+      <li><b>Legs to win:</b> first to this many legs wins the set. Throwing first takes turns from one leg to the next.</li>
+      <li><b>Sets to win:</b> first to this many sets wins the match. Leave it at 1 for a game of legs only.</li>
+    </ul>
+  </section>
+
+  <section id="cricket">
+    <h2>Cricket</h2>
+    <p>Only 15, 16, 17, 18, 19, 20 and the bull count. Hit each of them three times to close it.</p>
+    <ul>
+      <li>A single is one mark, a double two and a treble three. The outer bull is one mark and the bull two.</li>
+      <li>Three marks close a number. Hits on a number you have closed score its value (25 a mark on the bull), but only while someone else still has it open.</li>
+      <li>Once everyone has closed a number it is dead and nobody scores on it.</li>
+      <li>The first to close all seven while level with or ahead on points wins. Behind on points, keep scoring on what the others have left open.</li>
+    </ul>
+    <p>Cricket has no options.</p>
+  </section>
+
+  <section id="killer">
+    <h2>Killer</h2>
+    <p>For two or more. Each player gets a number of their own, becomes a killer, and then takes lives off everyone else. The last player with a life left wins.</p>
+    <ol>
+      <li><b>Get a number.</b> Everyone throws one dart with their weaker hand. The number it lands in is theirs. Miss the board, hit the bull or land on a number someone already has, and throw again.</li>
+      <li><b>Become a killer.</b> Hit the double of your own number.</li>
+      <li><b>Take lives.</b> As a killer, every time you hit another player's double they lose a life. Hit your own double and you lose one. Lose them all and you are out.</li>
+    </ol>
+    <h3>Options</h3>
+    <ul>
+      <li><b>Lives:</b> 5, or 3 for a quicker game.</li>
+      <li><b>Become a killer:</b> with your double, or with your treble (harder, so the game lasts longer).</li>
+      <li><b>Take lives with:</b> doubles only, or any part of a number. With any part, every single, double or treble of a player's number takes a life, and hitting any part of your own costs you one.</li>
+      <li><b>Rules:</b> House rules add two things. Hit someone else's double (or treble) before you are a killer and they become one. And a Shanghai on your own number, a single, double and treble of it in one visit in any order, wins the game outright. Classic leaves both out.</li>
+    </ul>
+  </section>
+
+  <section id="gotcha">
+    <h2>Gotcha</h2>
+    <p>For two or more. Everyone starts on zero and counts up to exactly 301 (or 501). Every dart adds its score to yours.</p>
+    <ul>
+      <li>Land on exactly the score another player has and they go back to zero. Gotcha.</li>
+      <li>Go past the target and it is a bust. The whole visit is undone, along with anyone it sent back to zero.</li>
+      <li>The first to reach the target exactly wins. You don't need a double to finish.</li>
+    </ul>
+    <h3>Options</h3>
+    <ul><li><b>Target:</b> 301 or 501.</li></ul>
+  </section>
+
+  <section id="clock">
+    <h2>Around the Clock</h2>
+    <p>Hit 1, then 2, then 3 and so on up to 20, then the bull. Any part of a number counts. The first to hit the bull wins.</p>
+    <h3>Options</h3>
+    <ul>
+      <li><b>What counts:</b> any part of the number, or doubles only, or trebles only. Doubles only and trebles only are often called Round the World. Any part of the bull finishes, whichever you choose.</li>
+      <li><b>Doubles &amp; trebles:</b> with any part counting, a double or treble either moves you on one number like a single, or jumps you on two or three. Jump past 20 and you go straight to the bull.</li>
+    </ul>
+  </section>
+
+  <section id="bobs27">
+    <h2>Bob's 27</h2>
+    <p>Practice for the doubles. You start on 27 and take one visit at each double in turn: double 1, double 2 and so on up to double 20, then the bull.</p>
+    <ul>
+      <li>Every dart that hits the double adds its value. Two darts in double 5 add 20.</li>
+      <li>Miss with all three darts and the double's value is taken off instead.</li>
+      <li>The highest score at the end wins.</li>
+    </ul>
+    <h3>Options</h3>
+    <ul>
+      <li><b>Finish on the bull:</b> end on the bull after double 20, or stop at double 20.</li>
+      <li><b>At zero:</b> fall to zero or below and you are out of the game, or play on and see how low it goes.</li>
+    </ul>
+  </section>
+
+  <section id="shanghai">
+    <h2>Shanghai</h2>
+    <p>One number a round: 1 in the first round, 2 in the second, and so on. Only that number scores, single, double or treble. The highest total after the last round wins.</p>
+    <p>A single, a double and a treble of the round's number in one visit is a Shanghai, and wins the game on the spot.</p>
+    <h3>Options</h3>
+    <ul>
+      <li><b>Rounds:</b> 7, 10 or 20.</li>
+      <li><b>A Shanghai wins:</b> yes, or no and it is just points.</li>
+    </ul>
+  </section>
+
+  <section id="bermuda">
+    <h2>Bermuda</h2>
+    <p>Thirteen rounds, each with its own target:</p>
+    <p>12 · 13 · 14 · any double · 15 · 16 · 17 · any treble · 18 · 19 · 20 · outer bull · bull</p>
+    <ul>
+      <li>Every dart that hits the target scores what it is worth. Treble 20 in the 20s round is 60; double 16 in the any-double round is 32. In the outer bull round the bull counts too.</li>
+      <li>A visit that misses the target with all three darts halves your total, rounded down.</li>
+      <li>The highest total after the thirteenth round wins.</li>
+    </ul>
+    <p>Bermuda has no options.</p>
+  </section>
+
+  <section id="segment">
+    <h2>Segment Training</h2>
+    <p>Pick one number, or the bull, and throw every dart at it. A single scores 1, a double 2 and a treble 3. On the bull, the outer bull scores 1 and the bull 2. Everyone throws the same number of darts and the most points wins. It shows how often you hit, too.</p>
+    <h3>Options</h3>
+    <ul>
+      <li><b>Bed:</b> 1 to 20, or the bull.</li>
+      <li><b>Counts:</b> any ring, or only singles, only doubles or only trebles. The bull has no treble, so trebles on the bull means the bull itself.</li>
+      <li><b>Darts each:</b> 30, 60 or 99.</li>
+    </ul>
+  </section>
+
+  <section id="rcheckout">
+    <h2>Random Checkout</h2>
+    <p>The app picks a list of finishes, the same list for everyone. Check each one out within the darts allowed, then go on to the next, whether you made it or not.</p>
+    <ul>
+      <li>Finish on a double or the bull, as in X01. A bust puts the score back to where the visit started and uses the visit up.</li>
+      <li>The most checkouts wins. Level on those, whoever used fewer darts on them wins.</li>
+    </ul>
+    <h3>Options</h3>
+    <ul>
+      <li><b>Scores:</b> finishes from 2 to 40, 41 to 100, 101 to 170, or any of them.</li>
+      <li><b>Darts per finish:</b> 3, 6 or 9.</li>
+      <li><b>Finishes:</b> 10 or 20 in the list.</li>
+    </ul>
+  </section>
+
+  <section id="c121">
+    <h2>121 Checkout</h2>
+    <p>Check out 121 within nine darts, finishing on a double or the bull. Make it and the next target is 122. Miss and it drops back to 120, but never below where you started.</p>
+    <ul>
+      <li>A bust puts the score back to where the visit started and uses the visit up.</li>
+      <li>If the darts you have left can't finish what is left, the attempt ends there.</li>
+      <li>After the last round the highest checkout wins. Level on that, the most checkouts wins.</li>
+    </ul>
+    <h3>Options</h3>
+    <ul>
+      <li><b>Start:</b> 81, 101 or 121.</li>
+      <li><b>Darts per target:</b> 3, 6, 9, 12 or 15.</li>
+      <li><b>Increase on success:</b> the target goes up by 1, 2 or 5.</li>
+      <li><b>Decrease on failure:</b> the target comes down by 1, 2, 5 or 10, or goes straight back to the start.</li>
+      <li><b>Rounds:</b> 10, 20 or 30 targets each.</li>
+    </ul>
+  </section>
+
+  <section id="countup">
+    <h2>Count Up</h2>
+    <p>Score as much as you can. Every dart adds its score to your total, and the highest total after the last round wins. Good practice on your own for heavy scoring.</p>
+    <h3>Options</h3>
+    <ul><li><b>Rounds:</b> 5, 8 or 10.</li></ul>
+  </section>
+
+  <section id="random">
+    <h2>Random Targets</h2>
+    <p>The board lights up a target, and the caller says it. Hit it for a point and your next dart is at a new one, so a good visit hits three different targets. Miss and the target stays. Each visit starts on a new one. The most points after the last go wins.</p>
+    <h3>Options</h3>
+    <ul>
+      <li><b>Doubles</b> and <b>Trebles:</b> include them among the targets, or leave them out. Singles and the outer bull always come up.</li>
+      <li><b>Hard mode:</b> each single is split in two. The inner single is the part between the bull and the treble ring, the outer single the part between the treble and double rings, and only the half called counts.</li>
+      <li><b>Goes:</b> how many visits each, from 5 to 50.</li>
+    </ul>
+  </section>
+
+  <section id="free">
+    <h2>Free Mode</h2>
+    <p>Just throw. Each dart is called out, then the total of the visit. Nothing is added up from one visit to the next, so there is no score to reach and no winner. It goes on until you end it.</p>
+  </section>
+
+  <p class="acts"><a href="./">Back to the game</a> <a href="faq.html">Questions and answers</a></p>
+  </main>
+  <footer class="site-foot">
+    <p>Darts S.A.M is free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>.
+      Copyright © 2026 Sam Cramphorn. <a href="https://github.com/SonicSamShop/darts-sam" target="_blank" rel="noopener">The source code is on GitHub</a>.</p>
+    <p><a href="faq.html">FAQ</a> · <a href="rules.html">How to play</a> · <a href="download.html">Download</a> · <a href="releases.html">What's new</a> · <a href="opensource.html">Open source</a> · <a href="privacy.html">What is stored about you</a></p>
+  </footer>
+</div></div>
+<script>
+// Someone signed in on this device (app.js keeps who under 'owner') is offered the app, not the sign-in.
+try {
+  if (JSON.parse(localStorage.getItem('owner'))) for (const a of document.querySelectorAll('.site-nav a.go')) {
+    a.href = './'; a.textContent = 'Play';
+  }
+} catch (e) { /* nothing kept: the page is right as it stands */ }
+</script>
+</body>
+</html>

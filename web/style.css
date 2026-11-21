@@ -234,6 +234,10 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .game-card span { color: var(--muted); font-size: 14px; }
 .game-card.on b { color: var(--accent); }
 .blurb { margin: 10px 0 0; }
+/* "How to play" the chosen game (web/rules.html): under its blurb on a computer, above Start on a phone */
+.how { margin: 8px 0 0; color: var(--muted); }
+.how a { color: inherit; text-underline-offset: 3px; }
+.how-phone { display: none; }
 .player-row { display: flex; gap: 10px; margin-bottom: 8px; }
 .opt { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 10px; }
 .opt > span { color: var(--muted); }
@@ -347,7 +351,8 @@ svg.heat .b-num { fill: #d9dce3; }
   .step-head u { text-decoration: none; color: var(--accent); font-size: 14px; }
   .step-body { display: none; padding: 12px 0 8px; }
   .step.open .step-body { display: block; }
-  .page .step-body > h2, .pick .blurb { display: none; }  /* .page: outranks the themes' headings */
+  .page .step-body > h2, .pick .blurb, .pick .how { display: none; }  /* .page: outranks the themes' headings */
+  .how-phone { display: block; margin: 14px 0 0; }
   .pick .games { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; gap: 8px; }
   .pick .game-card { height: auto; padding: 12px 14px; text-align: left; text-wrap: wrap; }
   .pick .game-card span { display: block; margin-top: 4px; line-height: 1.3; }

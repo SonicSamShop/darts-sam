@@ -823,6 +823,7 @@ function renderLanding() {
     <section>
       <h2>${inWords(GAMES.length).replace(/^./, c => c.toUpperCase())} games</h2>
       <dl class="menu">${GAMES.map(g => `<div><dt>${g.name}</dt><dd>${g.blurb}</dd></div>`).join('')}</dl>
+      <p><a href="rules.html">How to play each game</a></p>
     </section>
     <section>
       <h2>Stats, the telly and your phone</h2>
@@ -1004,7 +1005,8 @@ function renderHome() {
     ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>
     <div class="games">${GAMES.filter(g => g.kind === kind).map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
       <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>`).join('')}
-    <p class="blurb muted small">${game.blurb}</p>`)}
+    <p class="blurb muted small">${game.blurb}</p>
+    <p class="how small"><a href="rules.html#${game.id}">How to play ${esc(game.name)}</a></p>`)}
     </div>
     <div class="setup">
     ${game.options.length ? step('options', `${game.options.map(o => `<div class="opt"><span>${o.help ? optLabelHelp(o) : o.label}</span>${o.choices ? `<div class="choices">${o.choices.map(([v, l]) =>
@@ -1020,6 +1022,7 @@ function renderHome() {
     ${botRow()}${dartsRows()}`
       : '<p class="muted">Add a player to get started.</p>'}
     ${addingPlayer || !players.length ? newPlayerRow() : ''}`)}
+    <p class="how how-phone small"><a href="rules.html#${game.id}">How to play ${esc(game.name)}</a></p>
     <span class="spacer"></span>
     ${start}
     </div>

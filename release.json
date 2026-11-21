@@ -1,6 +1,7 @@
 {
   "version": "1.4",
   "unreleased": [
+    "Every game now has its rules written out: on the Play screen, tap How to play under the game you have chosen to see how it works and what each option changes.",
     "Score with your phone's camera (Beta): on the site, open Cameras and press Use this phone's camera. Stand the phone beside the board and it scores each dart by itself, with no computer, and asks which bed when it isn't sure.",
     "Killer has two new options: become a killer with a treble instead of a double, and take lives by hitting any part of a player's number (single, double or treble) instead of only their double. Tap the ? beside each Killer option to see what it means.",
     "Playing the computer, it now waits 8 seconds after your visit before it throws, with a countdown, so you can undo a wrongly scored dart first. Tap Throw now to skip the wait.",
