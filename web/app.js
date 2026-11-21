@@ -11,7 +11,7 @@ import { request } from './api.js';
 import { createAccount } from './account.js';
 import { createTracker } from './track.js';
 import { createVoice } from './voice.js';
-import { LEVELS, botLevel, throwAt } from './bot.js';
+import { LEVELS, botLevel, levelFor, throwAt } from './bot.js';
 import { createPhoneUi } from './phoneui.js';
 import { X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith } from './stats.js';
 
@@ -248,6 +248,7 @@ function synced({ remapped, pulled, sent }) {
   refreshStatus();
   if (pulled) loadTotals();
   if (pulled && (sent || Date.now() - warmed > 600000)) warmStats();
+  if (sent) { avgAsked.clear(); if (screen === 'home') loadAverages(); }  // a game just went in: the averages may have moved
   if (shown() === before) return;
   if (screen === 'home') redraw(renderHome);
   if (screen === 'players') redraw(renderPlayers);
@@ -984,6 +985,7 @@ function renderHome() {
     if (o.choices ? !o.choices.some(c => c[0] === v) : !(Number.isInteger(v) && v >= o.min && v <= o.max)) setup.opts[o.key] = o.default;
   }
   cleanSetup();
+  followSuggestion();
   store.set('setup', setup);
   const enough = canStart(game, seats().length), people = seats().some(id => id !== BOT);
   // Why Start can't be pressed, said beside it: on a phone the players' step may be shut. (Nobody
@@ -995,15 +997,16 @@ function renderHome() {
   const scrolled = document.querySelector('.home-body')?.scrollTop ?? 0;  // a tap redraws the menu: stay where it was
   const steps = [['game', 'Game', esc(game.name)]];
   if (game.options.length) steps.push(['options', 'Options', esc(optsBrief(game))]);
-  steps.push(['players', 'Players', playersBrief()]);
+  steps.push(['players', 'Players', playersBrief(), averagesLine()]);
   if (homeStep === undefined) homeStep = seats().length ? null : 'players';
   if (!steps.some(s => s[0] === homeStep)) homeStep = null;
   // One step of the menu. On a phone it is a numbered line saying what is chosen, which opens
   // to change it; on a computer every step is open under its heading (see style.css).
   const step = (id, body) => {
-    const n = steps.findIndex(s => s[0] === id), [, name, brief] = steps[n], open = homeStep === id;
+    const n = steps.findIndex(s => s[0] === id), [, name, brief, note] = steps[n], open = homeStep === id;
     return `<section class="step ${open ? 'open' : ''}" data-is="${id}">
-      <button class="step-head" data-step="${id}" aria-expanded="${open}"><i>${n + 1}</i><span><small>${name}</small><b>${brief}</b></span><u>${open ? 'Done' : 'Change'}</u></button>
+      <button class="step-head" data-step="${id}" aria-expanded="${open}"><i>${n + 1}</i><span><small>${name}</small><b>${brief}</b>${
+        note ? `<small>${note}</small>` : ''}</span><u>${open ? 'Done' : 'Change'}</u></button>
       <div class="step-body"><h2>${name}</h2>${body}</div></section>`;
   };
   const after = id => steps[steps.findIndex(s => s[0] === id) + 1];
@@ -1029,6 +1032,7 @@ function renderHome() {
       return `<button class="chip ${n >= 0 ? 'on' : ''}" data-pick="${p.id}">${n >= 0 ? `<i>${n + 1}</i>` : ''}${esc(p.name)}</button>`;
     }).join('')}${game.bot ? botChip() : ''}${addingPlayer ? '' : '<button class="chip ghost" data-act="newplayer">+ New</button>'}</div>
     <p class="muted small">Tap who is playing, in throwing order. With two or more, Start asks who throws first: closest to the bull, or random.</p>
+    ${averagesLine() ? `<p class="muted small averages">${averagesLine()}</p>` : ''}
     ${botRow()}${dartsRows()}`
       : '<p class="muted">Add a player to get started.</p>'}
     ${addingPlayer || !players.length ? newPlayerRow() : ''}`)}
@@ -1050,6 +1054,7 @@ function renderHome() {
   refreshStatus();
   showTotals();
   loadTotals();
+  loadAverages();
   fit();
   if (addingPlayer) document.getElementById('newplayer')?.focus();
 }
@@ -1117,7 +1122,61 @@ function botRow() {
       <button data-botlevel="-1" aria-label="Easier" ${b.level <= 1 ? 'disabled' : ''}>−</button>
       <b>${b.level}</b><button data-botlevel="1" aria-label="Harder" ${b.level >= LEVELS.length ? 'disabled' : ''}>+</button></div></div>
     <p class="muted small">Level ${b.level} of ${LEVELS.length}: the computer averages about ${b.average} and hits about ${
-      Math.round(b.checkout * 100)}% of its darts at a double.</p>`;
+      Math.round(b.checkout * 100)}% of its darts at a double.${suggestionNote(b)}</p>`;
+}
+// Each player's own X01 average, on the menu while X01 is the game, so that they know it and so
+// that the computer can be set to suit it. {player id: three-dart average, or null with no X01
+// thrown}, from the same history and the same sum as the stats screen's figure (stats.js), asked
+// for when the menu is drawn and again once a game has gone in. Kept only while the app is open:
+// until the answer comes (from the device's own copy, with no link) there is nothing to show.
+let averages = {};
+const avgAsked = new Map();  // player id -> when theirs was last asked for
+const AVG_FRESH = 60000;
+const onX01 = () => setup.gameId === 'x01';
+function loadAverages() {
+  if (!onX01()) return;
+  for (const id of seats()) {
+    if (id <= 0 || Date.now() - (avgAsked.get(id) ?? 0) < AVG_FRESH) continue;  // (the bot, or a player made offline)
+    avgAsked.set(id, Date.now());
+    loadStats(statsPath(id, 'x01'), connected ? 10000 : 2500).then(st => {
+      const average = x01Stats(st.matches ?? [])?.average ?? null;
+      if (averages[id] === average) return;
+      averages = { ...averages, [id]: average };
+      if (screen === 'home') redraw(renderHome);
+    }, () => { avgAsked.delete(id); });  // no answer and no copy: ask again the next time
+  }
+}
+// The people down to play whose average is known: [[name, average]].
+const averaged = () => onX01() ? seats().filter(id => id !== BOT && averages[id] != null).map(id => [nameOf(id), averages[id]]) : [];
+// Said quietly under the players (and on a phone, on the players' line of the menu).
+function averagesLine() {
+  const got = averaged();
+  if (!got.length) return '';
+  return got.length === 1 ? `${esc(got[0][0])}'s X01 average: ${got[0][1].toFixed(1)}`
+    : `X01 averages: ${got.map(([name, a]) => `${esc(name)} ${a.toFixed(1)}`).join(' · ')}`;
+}
+// The level that suits who is playing: {level, average, whose}, or null when nobody's average is
+// known. With more than one person playing it goes by their averages taken together.
+function botSuggestion() {
+  const got = averaged();
+  if (!got.length) return null;
+  const average = got.reduce((t, [, a]) => t + a, 0) / got.length;
+  return { level: levelFor(average).level, average, whose: got.length === 1 ? `${got[0][0]}'s average` : "the players' average" };
+}
+// The bot's level follows the suggestion (setup.botAuto) until the level is set by hand, and
+// again once the suggestion is taken up. A level chosen before there were suggestions was
+// chosen by hand; someone who has never set one starts off following.
+const botFollows = () => setup.botAuto ?? setup.bot == null;
+function followSuggestion() {
+  const s = botSuggestion();
+  if (s && botFollows()) { setup.bot = s.level; setup.botAuto = true; }
+}
+function suggestionNote(b) {
+  const s = botSuggestion();
+  if (!s) return '';
+  const whose = `${esc(s.whose)} of ${s.average.toFixed(1)}`;
+  if (s.level === b.level) return ` ${botFollows() ? 'Picked' : 'It is the level'} to suit ${whose}.`;
+  return ` Level ${s.level} would suit ${whose}. <button class="link" data-act="botsuggest">Use level ${s.level}</button>`;
 }
 // With two or more playing, Start (and Play again) asks how to settle who throws first:
 // a dart each at the bull (see renderBull), or at random. The last answer is kept
@@ -2798,7 +2857,8 @@ $app.addEventListener('click', e => {
   if (d.checkouts) { settings.checkouts = d.checkouts === 'on'; saveSettings(); return renderSettings(); }
   if (d.flight) { settings.flight = d.flight === 'on'; saveSettings(); return renderSettings(); }
   if (d.autostart) { settings.autoCal = d.autostart === 'on'; saveSettings(); return drawCameras(camStatus); }
-  if (d.botlevel) { setup.bot = botLevel(botAt().level + +d.botlevel).level; saveSetup(); return renderHome(); }
+  if (d.botlevel) { setup.bot = botLevel(botAt().level + +d.botlevel).level; setup.botAuto = false; saveSetup(); return renderHome(); }
+  if (d.act === 'botsuggest') { setup.botAuto = true; followSuggestion(); saveSetup(); return renderHome(); }
   if (d.voice) {
     settings.voice = d.voice === 'on';
     saveSettings();

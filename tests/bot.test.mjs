@@ -6,7 +6,7 @@
 // Computer players (web/bot.js, and the X01 game's bot()).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LEVELS, botLevel, aimPoint, throwAt } from '../web/bot.js';
+import { LEVELS, botLevel, levelFor, aimPoint, throwAt } from '../web/bot.js';
 import { newMatch, compute, gameById } from '../web/engine.js';
 import { scoreAt } from '../web/board.js';
 
@@ -103,4 +103,12 @@ test('bots: X01 aims by the checkout chart', () => {
   assert.deepEqual(at(95, [{ seg: 20, mult: 3 }, { seg: 0, mult: 0 }]), [3, 1]);     // 35 left, one dart: sets up D16
   // A perfect bot takes out 501 in nine darts.
   assert.equal(legs(perfect, 1, random).longest, 9);
+});
+
+test('the level suggested for a player is the first that averages as much as they do, or more', () => {
+  assert.equal(levelFor(40).average, 44);    // between 38 and 44: the one just above
+  assert.equal(levelFor(38).average, 38);    // level with a level: that one
+  assert.equal(levelFor(38.1).average, 44);
+  assert.equal(levelFor(5).level, 1);        // below them all
+  assert.equal(levelFor(125).level, LEVELS.length);  // above them all
 });

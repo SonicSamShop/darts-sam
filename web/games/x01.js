@@ -220,13 +220,16 @@ export default {
   // The dart a computer player throws now (see bot.js). It follows the checkout
   // chart: on a finish it throws the route's first dart, with too few darts in
   // hand it sets up as the three-dart route would, and otherwise it scores on
-  // treble 20. A dart that would win the leg is thrown with the skill's
-  // `finish` spread, any other with its `spread`.
+  // treble 20. Once it is finishing it throws with the skill's `finish` spread:
+  // a dart that would win the leg, and a single that leaves the double for the
+  // dart after it. Anything else is thrown with its `spread`: scoring, and a
+  // treble or the bull on the way to a finish.
   bot(s, skill, random) {
     const n = s.score[s.current], dbl = s.opts.out !== 'straight';
     const route = n > 180 ? null : checkout(n, 3 - s.turn.length, dbl) ?? checkout(n, 3, dbl);
     const aim = route?.[0] ?? { seg: 20, mult: 3 };
-    return throwAt(aim, route?.length === 1 ? skill.finish : skill.spread, random);
+    const finishing = route?.length === 1 || (route?.length === 2 && aim.mult === 1 && aim.seg !== 25);
+    return throwAt(aim, finishing ? skill.finish : skill.spread, random);
   },
 
   hint(s, { checkouts = true } = {}) {

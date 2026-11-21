@@ -1,6 +1,8 @@
 {
   "version": "1.5",
-  "unreleased": [],
+  "unreleased": [
+    "Choosing X01 now shows your own average under the players, and the bot's level is suggested from it: the first level that averages as much as you or more (on 40, the level that averages 44). A level you set yourself stays put, with the suggested one a tap away."
+  ],
   "notes": {
     "1.0": [
       "First release."

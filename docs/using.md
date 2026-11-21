@@ -23,7 +23,11 @@ account has a database of its own instead.
 - **Playing the computer:** in X01, **Bot** is one more player to tap. Once it
   is playing, **Bot level** sets how good it is, from 1 (averages about 18,
   and hits a double with about 1 dart in 12) to 15 (averages about 110 and
-  hits 80% of its doubles). It throws by itself when its turn comes, a dart at
+  hits 80% of its doubles). Once you have thrown some X01 the menu shows your
+  own average, and the level is set to the first one that averages as much as
+  you or more (on 40, the level that averages 44). Change the level and it
+  stays where you put it; **Use level …** goes back to the suggested one. It
+  throws by itself when its turn comes, a dart at
   a time, and each dart is shown landing on the board (**Settings › In a
   game** switches that off). While it throws, nothing at the real board is
   scored, so your darts can come out. Undo takes back your last dart, along

@@ -46,10 +46,17 @@ export const LEVELS = [
 // The skill of level n (1 to LEVELS.length); anything else is taken as the nearest there is.
 export const botLevel = n => LEVELS[Math.min(LEVELS.length, Math.max(1, Math.round(n) || 1)) - 1];
 
+// The level to suggest to someone whose own three-dart average in X01 is `average`: the first
+// one that averages as much or more, so a game to reach for and never a walkover (40 gets the
+// level that averages 44, not the one on 38). Better than every level gets the top one.
+export const levelFor = average => LEVELS.find(l => l.average >= average) ?? LEVELS.at(-1);
+
 // The middle of a bed {seg, mult}, in mm from the bull (+y up): where a player
 // aims for it. A single is its big outer half, between the treble and the
 // double; the 25 ring has no middle of its own, so that is the bull.
 const AIM = { 1: 134.5, 2: 166, 3: 103 };
+// The outside of the doubles, and how far out the picture of the board shows a dart.
+const EDGE = 170, SEEN = 215;
 export function aimPoint({ seg, mult }) {
   if (seg === 25) return [0, 0];
   const a = SEGMENTS.indexOf(seg) * 18 * Math.PI / 180;
@@ -62,6 +69,18 @@ export function aimPoint({ seg, mult }) {
 export function throwAt(bed, spread, random = Math.random) {
   const [ax, ay] = aimPoint(bed);
   const far = spread * Math.sqrt(-2 * Math.log(1 - random())), turn = 2 * Math.PI * random();
-  const x = +(ax + far * Math.cos(turn)).toFixed(1), y = +(ay + far * Math.sin(turn)).toFixed(1);
+  let x = ax + far * Math.cos(turn), y = ay + far * Math.sin(turn);
+  // A dart that misses the board is brought in to land among the numbers round
+  // it, where the app's picture of the board can show it: the further off it
+  // was going, the nearer to SEEN mm from the bull, and never past that. It is
+  // a miss either way. (The lowest levels miss the board with a lot of darts.)
+  const out = Math.hypot(x, y);
+  if (out > EDGE) {
+    const room = SEEN - EDGE, pull = (EDGE + room * (1 - Math.exp((EDGE - out) / room))) / out;
+    x *= pull;
+    y *= pull;
+  }
+  x = +x.toFixed(1);
+  y = +y.toFixed(1);
   return { ...scoreAt(x, y), x, y };
 }
