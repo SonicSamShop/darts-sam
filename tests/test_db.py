@@ -208,6 +208,17 @@ def main():
         d = db.stats(alex["id"], "bermuda")["detail"]
         assert d["hit_rate"] == 16.7
 
+        # Segment Training: not split by bed. A trebled, a single and a miss on 20: two hits in three
+        sg = [throw(0, 1, 20, 3), throw(0, 1, 20, 1), throw(0, 1, 1, 1)]
+        assert db.save_match("sg1", match(1, [alex["id"]], sg, game="segment", opts={"seg": 20, "counts": "any", "darts": 30}))
+        d = db.stats(alex["id"], "segment")["detail"]
+        assert d["hit_rate"] == 66.7 and d["points_per_dart"] == 1.33 and d["best_points"] is None, d
+        # a finished game on trebles only: the double and the single do not count, the treble scores 3
+        sg = [throw(0, 1, 19, 2), throw(0, 1, 19, 3), throw(0, 1, 19, 1)]
+        assert db.save_match("sg2", match(2, [alex["id"]], sg, winner=0, game="segment", opts={"seg": 19, "counts": "treble", "darts": 30}))
+        d = db.stats(alex["id"], "segment")["detail"]
+        assert d["best_points"] == 3 and d["hit_rate"] == 50.0 and d["points_per_dart"] == 1.17, d
+
         # 121 Checkout from 81, six darts a target: T19 D12 checks out 81 in two; then 82 is
         # missed (a bust, then three darts that leave it); back on 81, D20 D20 is one dart short
         co = [throw(0, 1, 19, 3), throw(0, 1, 12, 2),

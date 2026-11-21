@@ -657,7 +657,7 @@ test('closest to the bull: who throws first', () => {
 test('games are grouped into matches and training', () => {
   const ids = k => GAMES.filter(g => g.kind === k).map(g => g.id);
   assert.deepEqual(ids('match'), ['x01', 'cricket', 'killer']);
-  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'shanghai', 'bermuda', 'c121', 'countup', 'random', 'free']);
+  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'shanghai', 'bermuda', 'segment', 'c121', 'countup', 'random', 'free']);
   assert.ok(GAMES.every(g => g.kind === 'match' || g.kind === 'training'));
 });
 
@@ -768,4 +768,30 @@ test('bermuda: two players, the highest total wins', () => {
   assert.equal(gameById('bermuda').result(s), 'B wins with 50.');
   s = play('bermuda', ['A', 'B'], {}, log.slice(0, -3));  // not finished until B's last visit
   assert.equal(s.winner, null);
+});
+
+test('segment: points by multiplier on the chosen bed only', () => {
+  const s = play('segment', ['A'], { seg: 20, counts: 'any', darts: 30 }, [D(20, 3), D(20), D(5)]);
+  assert.equal(s.points[0], 4); assert.equal(s.hits[0], 2); assert.equal(s.thrown[0], 3);
+});
+test('segment: trebles only ignores singles', () => {
+  const s = play('segment', ['A'], { seg: 19, counts: 'treble', darts: 30 }, [D(19), D(19, 3), D(19, 2)]);
+  assert.equal(s.points[0], 3);
+});
+test('segment: ends after the set number of darts', () => {
+  const s = play('segment', ['A'], { seg: 25, counts: 'any', darts: 30 }, Array(30).fill(D(25, 2)));
+  assert.equal(s.winner, 0); assert.equal(s.points[0], 60);
+});
+test('segment: two players, most points wins, a tie goes to the first', () => {
+  const opts = { seg: 20, counts: 'any', darts: 30 };
+  const turn = (...ds) => [...ds, ...Array(3 - ds.length).fill(D(0, 0))];
+  const log = [];
+  for (let r = 0; r < 10; r++) log.push(...turn(D(20)), ...turn(r === 9 ? D(20, 3) : D(20)));
+  let s = play('segment', ['A', 'B'], opts, log.slice(0, -3));
+  assert.equal(s.winner, null);  // not over until B's last darts
+  s = play('segment', ['A', 'B'], opts, log);
+  assert.equal(s.winner, 1); assert.equal(s.points[1], 12);
+  assert.match(gameById('segment').result(s), /B wins/);
+  s = play('segment', ['A', 'B'], opts, [...Array(10).fill(turn(D(20))).flat(), ...Array(10).fill(turn(D(20))).flat()]);
+  assert.equal(s.winner, 0);
 });

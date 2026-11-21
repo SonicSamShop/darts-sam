@@ -696,6 +696,34 @@ def _bermuda(db, player_id: int, dart_set: str | None = None):
     }
 
 
+def _segment(db, player_id: int, dart_set: str | None = None):
+    """Segment Training: a dart counts if it is in the game's bed (and ring, when
+    the game asks for one) and scores its multiplier. One figure over all the
+    player's segment games, whichever bed they aimed at; best session counts
+    finished games only."""
+    ring = {"single": 1, "double": 2, "treble": 3}
+    darts = hits = points = 0
+    best = []
+    for m, _ids, throws in _matches(db, player_id, "segment", dart_set):
+        o = json.loads(m["opts"])
+        want = ring.get(o.get("counts"))
+        got = [t for t in throws
+               if t["player_id"] == player_id and t["mult"] and t["seg"] == o.get("seg", 20) and want in (None, t["mult"])]
+        darts += sum(t["player_id"] == player_id for t in throws)
+        hits += len(got)
+        mine = sum(t["mult"] for t in got)
+        points += mine
+        if m["finished"]:
+            best.append(mine)
+    if not darts:
+        return None
+    return {
+        "hit_rate": round(hits / darts * 100, 1),
+        "points_per_dart": round(points / darts, 2),
+        "best_points": max(best, default=None),
+    }
+
+
 # Finishes that three darts cannot make (double out): everything over 170 too.
 _NO_FINISH = {159, 162, 163, 165, 166, 168, 169}
 
@@ -766,7 +794,7 @@ def _c121(db, player_id: int, dart_set: str | None = None):
     }
 
 
-GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai, "bermuda": _bermuda}
+GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai, "bermuda": _bermuda, "segment": _segment}
 
 
 def _gear(db, player_id: int, game_id: str | None) -> list[dict]:
