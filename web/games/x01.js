@@ -117,10 +117,14 @@ export default {
   name: 'X01',
   blurb: 'Race from 501 (or 301 / 701) down to exactly zero. One leg, or first to a number of legs and sets.',
   options: [
-    { key: 'start', label: 'Start', choices: [[301, '301'], [501, '501'], [701, '701']], default: 501, brief: v => `${v}` },
+    { key: 'start', label: 'Start', choices: [[301, '301'], [501, '501'], [701, '701']], default: 501, brief: v => `${v}`,
+      help: v => `Everyone starts on ${v} and brings it down to exactly zero. The last dart has to be a double or the bull.` },
     // First to this many legs wins the set; first to this many sets wins the match.
-    { key: 'legs', label: 'Legs to win', min: 1, max: 99, default: 1, brief: v => `${v} leg${v === 1 ? '' : 's'}` },
-    { key: 'sets', label: 'Sets to win', min: 1, max: 99, default: 1, brief: v => v > 1 ? `${v} sets` : '' },
+    { key: 'legs', label: 'Legs to win', min: 1, max: 99, default: 1, brief: v => `${v} leg${v === 1 ? '' : 's'}`,
+      help: (v, o) => `The first to win ${v === 1 ? 'a leg' : `${v} legs`} wins the ${o?.sets > 1 ? 'set' : 'match'}.${v > 1 ? ' Throwing first takes turns from one leg to the next.' : ''}` },
+    { key: 'sets', label: 'Sets to win', min: 1, max: 99, default: 1, brief: v => v > 1 ? `${v} sets` : '',
+      help: (v, o) => v > 1 ? `The first to win ${v} sets wins the match. A set goes to the first to win ${o?.legs > 1 ? `${o.legs} legs` : 'a leg'}.`
+        : 'No sets: the match is decided on legs alone.' },
   ],
 
   init(n, opts) {

@@ -15,7 +15,8 @@ export default {
   name: 'Count Up',
   blurb: 'Highest total after a set number of rounds. Good solo practice.',
   options: [
-    { key: 'rounds', label: 'Rounds', choices: [[5, '5'], [8, '8'], [10, '10']], default: 8, brief: v => `${v} rounds` },
+    { key: 'rounds', label: 'Rounds', choices: [[5, '5'], [8, '8'], [10, '10']], default: 8, brief: v => `${v} rounds`,
+      help: v => `${v} visits each, which is ${v * 3} darts. The highest total wins.` },
   ],
 
   init(n) { return { total: Array(n).fill(0) }; },

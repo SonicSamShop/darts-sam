@@ -60,11 +60,16 @@ export default {
   name: '121 Checkout',
   blurb: 'Check out 121 in nine darts. Hit it and the target goes up; miss and it comes back down, never below the start.',
   options: [
-    { key: 'start', label: 'Start', choices: [[81, '81'], [101, '101'], [121, '121']], default: 121, brief: v => `From ${v}` },
-    { key: 'darts', label: 'Darts per target', choices: [[3, '3'], [6, '6'], [9, '9'], [12, '12'], [15, '15']], default: 9, brief: v => `${v} darts` },
-    { key: 'inc', label: 'Increase on success', choices: [[1, '+1'], [2, '+2'], [5, '+5']], default: 1, brief: v => `+${v}` },
-    { key: 'dec', label: 'Decrease on failure', choices: [[1, '−1'], [2, '−2'], [5, '−5'], [10, '−10'], [0, 'Back to start']], default: 1, brief: v => v ? `−${v}` : 'back to start' },
-    { key: 'rounds', label: 'Rounds', choices: [[10, '10'], [20, '20'], [30, '30']], default: 10, brief: v => `${v} rounds` },
+    { key: 'start', label: 'Start', choices: [[81, '81'], [101, '101'], [121, '121']], default: 121, brief: v => `From ${v}`,
+      help: v => `The first target is ${v}, and however many you miss the target never drops below it.` },
+    { key: 'darts', label: 'Darts per target', choices: [[3, '3'], [6, '6'], [9, '9'], [12, '12'], [15, '15']], default: 9, brief: v => `${v} darts`,
+      help: v => v === 3 ? 'One visit of three darts to check each target out.' : `Up to ${v} darts to check each target out, which is ${v / 3} visits.` },
+    { key: 'inc', label: 'Increase on success', choices: [[1, '+1'], [2, '+2'], [5, '+5']], default: 1, brief: v => `+${v}`,
+      help: v => `Check a target out and the next one is ${v} higher.` },
+    { key: 'dec', label: 'Decrease on failure', choices: [[1, '−1'], [2, '−2'], [5, '−5'], [10, '−10'], [0, 'Back to start']], default: 1, brief: v => v ? `−${v}` : 'back to start',
+      help: v => v ? `Miss a target and the next one is ${v} lower, but never below the start.` : 'Miss a target and the next one goes straight back to the start.' },
+    { key: 'rounds', label: 'Rounds', choices: [[10, '10'], [20, '20'], [30, '30']], default: 10, brief: v => `${v} rounds`,
+      help: v => `${v} targets each. The highest checkout wins.` },
   ],
 
   // Everything is kept per player.

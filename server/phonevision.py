@@ -12,6 +12,8 @@ tested on drawn pictures like the rest (python -m tests.test_phonevision).
 
 One phone is one camera.
 """
+import base64
+
 import cv2
 import numpy as np
 
@@ -38,19 +40,34 @@ def calibrate(rgba, w: int, h: int, twenty=None) -> dict:
     """Find the board in a picture of it, empty. `twenty` is any pixel in the
     20. Answers {"ok": True, "calibration": ...} with the calibration as
     config.json keeps a camera's, or {"ok": False, "reason": ...} for the player."""
+    img = _picture(rgba, w, h)
     try:
-        found = autocalib.detect(_picture(rgba, w, h), None if twenty is None else tuple(twenty))
+        found = autocalib.detect(img, None if twenty is None else tuple(twenty))
     except autocalib.Failed as e:
         return {"ok": False, "reason": str(e)}
-    return {"ok": True, "calibration": found.saved()}
+    # The picture goes with it (small, grey): later pictures are lined up
+    # with this one, so a phone a few px from where it was still scores right.
+    ok, jpg = cv2.imencode(".jpg", tracker.small_grey(img), [cv2.IMWRITE_JPEG_QUALITY, 80])
+    return {"ok": True, "calibration": {**found.saved(), **({"anchor": base64.b64encode(jpg.tobytes()).decode()} if ok else {})}}
+
+
+def _anchor(calibration: dict):
+    """The picture a calibration was made from, as calibrate() packed it; None
+    for one saved before pictures were kept, or that can't be read."""
+    try:
+        return cv2.imdecode(np.frombuffer(base64.b64decode(calibration["anchor"]), np.uint8), cv2.IMREAD_GRAYSCALE)
+    except (KeyError, TypeError, ValueError, cv2.error):
+        return None
 
 
 def start(calibration: dict) -> None:
     """Start watching with this calibration. The next picture is taken as the
     empty board."""
     global _tracker, _calibration
-    _tracker = tracker.Tracker({CAMERA: calib.view(calibration)})
-    _calibration = calibration
+    anchor = _anchor(calibration)
+    _tracker = tracker.Tracker({CAMERA: calib.view(calibration)}, steady=True,
+                               anchors={} if anchor is None else {CAMERA: anchor})
+    _calibration = {k: v for k, v in calibration.items() if k != "anchor"}  # as reports carry it
 
 
 def stop() -> None:
@@ -90,9 +107,13 @@ def darts_in() -> int:
 def still_matches(rgba, w: int, h: int, calibration: dict) -> bool:
     """Is the board still where the calibration says? The coloured rings'
     edges are looked for near where they should be; a knocked phone finds
-    them somewhere else, or not at all."""
+    them somewhere else, or not at all. While watching with the calibration's
+    own picture, the question is whether this one can be laid over it: a
+    stand shaken a few px by the darts has not moved."""
     view = calib.view(calibration)
     img = _picture(rgba, w, h)
+    if _tracker is not None and CAMERA in _tracker.given:
+        return _tracker._warp(CAMERA, img) is not None
     if view.lens:
         img = cv2.remap(img, *calib.straighten_maps(view.lens, (w, h)), cv2.INTER_LINEAR)
     px, mm = autocalib._band_edges(autocalib._lab_a(img), view.H)
@@ -124,7 +145,8 @@ def report(app: dict, expected: str = "", note: str = "") -> dict:
     if _tracker is None or _last is None:
         raise ValueError("The phone camera isn't watching the board.")
     root = Path(REPORTS)
-    made = reports.save(reports.snapshot(_tracker, {CAMERA: _last}), {str(CAMERA): _calibration}, app=app, root=root)
+    made = reports.save(reports.snapshot(_tracker, _tracker.line_up({CAMERA: _last})), {str(CAMERA): _calibration},
+                        app=app, root=root)
     if expected or note:
         reports.annotate_report(made["id"], expected, note, root=root)
     folder = root / made["id"]

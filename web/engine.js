@@ -43,6 +43,14 @@
 //                                skill throws now (see bot.js). A game with one can be played
 //                                against the computer; the app enters the dart as src 'bot'.
 //   summary() may also return out: true, to grey out a player's card
+//   minPlayers                -> optional: 2 for a game that can't be played alone; the menu won't
+//                                start it with fewer, and says so above Start
+//
+// An option is {key, label, default} with either choices: [[value, its name], ...] or min and
+// max (a number, stepped up and down), and it says two things about a setting of itself:
+//   brief(value, opts) -> a few words for the menu's summary of what is chosen ('' to leave it out)
+//   help(value, opts)  -> a sentence saying what that setting means: shown under the option when
+//                         its "?" is tapped, and over each choice as a tooltip. Every option has one.
 //
 // A match of several legs (X01): when a dart or visit wins a leg but not the
 // match, the game resets its own scores and sets state.newLeg = {starter, set}:

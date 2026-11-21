@@ -23,8 +23,11 @@ export default {
   blurb: 'One number a round, 1 upwards: only that number scores. A single, double and treble of it in one visit wins on the spot.',
   showTotal: false,  // the three-dart sum includes darts that did not score
   options: [
-    { key: 'rounds', label: 'Rounds', choices: [[7, '7'], [10, '10'], [20, '20']], default: 7, brief: v => `${v} rounds` },
-    { key: 'shanghai', label: 'A Shanghai wins', choices: [['yes', 'Yes'], ['no', 'No, just points']], default: 'yes', brief: v => v === 'no' ? 'Points only' : 'Shanghai wins' },
+    { key: 'rounds', label: 'Rounds', choices: [[7, '7'], [10, '10'], [20, '20']], default: 7, brief: v => `${v} rounds`,
+      help: v => `${v} rounds: the 1s in the first, the 2s in the second, and so on up to the ${v}s.` },
+    { key: 'shanghai', label: 'A Shanghai wins', choices: [['yes', 'Yes'], ['no', 'No, just points']], default: 'yes', brief: v => v === 'no' ? 'Points only' : 'Shanghai wins',
+      help: v => v === 'no' ? 'A Shanghai scores its points and nothing more. The highest total after the last round wins.'
+        : 'A single, a double and a treble of the round\'s number in one visit wins the game on the spot.' },
   ],
 
   init(n) { return { total: Array(n).fill(0), shanghais: Array(n).fill(0) }; },

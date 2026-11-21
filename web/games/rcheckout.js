@@ -56,9 +56,12 @@ export default {
   blurb: 'A list of random finishes, the same for everyone. Check each one out on a double within the darts allowed, then on to the next. Most checkouts wins.',
   seeded: true,
   options: [
-    { key: 'range', label: 'Scores', choices: Object.keys(RANGES).map(r => [r, SPAN(r)]), default: 'low', brief: v => `Scores ${SPAN(v)}` },
-    { key: 'darts', label: 'Darts per finish', choices: [[3, '3'], [6, '6'], [9, '9']], default: 6, brief: v => `${v} darts` },
-    { key: 'count', label: 'Finishes', choices: [[10, '10'], [20, '20']], default: 10, brief: v => `${v} finishes` },
+    { key: 'range', label: 'Scores', choices: Object.keys(RANGES).map(r => [r, SPAN(r)]), default: 'low', brief: v => `Scores ${SPAN(v)}`,
+      help: v => `Every finish is a score from ${RANGES[v][0]} to ${RANGES[v][1]} that three darts can check out.` },
+    { key: 'darts', label: 'Darts per finish', choices: [[3, '3'], [6, '6'], [9, '9']], default: 6, brief: v => `${v} darts`,
+      help: v => v === 3 ? 'One visit of three darts at each finish.' : `Up to ${v} darts at each finish, which is ${v / 3} visits.` },
+    { key: 'count', label: 'Finishes', choices: [[10, '10'], [20, '20']], default: 10, brief: v => `${v} finishes`,
+      help: v => `${v} finishes each, the same list for everyone.` },
   ],
 
   init(n, opts) {

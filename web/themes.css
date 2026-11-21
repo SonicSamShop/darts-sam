@@ -40,6 +40,7 @@
 .t-stage h1 { font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: .02em; }
 .t-stage h2 { font-size: 17px; font-weight: 700; }
 .t-stage p, .t-stage .game-card span, .t-stage input { text-transform: none; letter-spacing: 0; }
+.t-stage .rules-box, .t-stage .opt-help { font-size: 17px; line-height: 1.3; }  /* a narrow face: a size up to read as easily */
 .t-stage button, .t-stage select { border-width: 2px; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .t-stage button.primary { background: var(--text); border-color: var(--text); }
 .t-stage button.on { border-color: var(--accent); }
@@ -180,6 +181,9 @@
 .t-chalk .lastvisit b, .t-chalk .bullup .pcard .big small { font-weight: 400; }  /* the darts just thrown, a unit: bigger, not bolder */
 .t-chalk .tile b { line-height: 1.15; }
 .t-chalk .step-head i { font-size: var(--sz-title); }
+/* a game's rules on the menu: written at the size everything is, under a heading the size of what is picked out */
+.t-chalk .rules-box, .t-chalk .page .rules-box h3 { font-size: var(--sz-body); }
+.t-chalk .page .how-head h3 { font-size: var(--sz-pick); }
 /* the scoreboard: who, what they have left, and the darts of the visit */
 .t-chalk .pcard .name { font: 400 var(--sz-head)/1.2 var(--font); }
 .t-chalk .pcard .big { font-size: var(--sz-score); line-height: 1.08; }
@@ -264,7 +268,7 @@
   --led: inset 0 0 18px #000; --round: 8px;
 }
 .t-arcade body { font-size: 16px; text-transform: uppercase; letter-spacing: .04em; }
-.t-arcade p, .t-arcade .game-card span { text-transform: none; letter-spacing: 0; font-family: system-ui, sans-serif; }
+.t-arcade p, .t-arcade .game-card span, .t-arcade .rules-box { text-transform: none; letter-spacing: 0; font-family: system-ui, sans-serif; }
 .t-arcade h1 {
   font-family: 'Bungee', var(--font); font-weight: 400; font-size: 26px; letter-spacing: .02em; color: #f6c61a;
   background: #d8261f; border: 3px solid #f6c61a; border-radius: 10px; padding: 4px 14px;
@@ -339,7 +343,8 @@
 .t-sheet .game { padding-top: 22px; }
 .t-sheet .page { padding-top: 32px; }
 .t-sheet p, .t-sheet .small, .t-sheet .muted, .t-sheet .game-card span, .t-sheet .tile span, .t-sheet .totals,
-.t-sheet table.plain td { font-family: var(--type); font-weight: 400; font-size: 15px; }
+.t-sheet table.plain td, .t-sheet .rules-box { font-family: var(--type); font-weight: 400; font-size: 15px; }
+.t-sheet .rules-box b { font-family: var(--font); font-weight: 700; }  /* typed, with what is picked out set in the heading's face */
 .t-sheet h1 { font-weight: 800; font-size: 40px; letter-spacing: -.01em; }
 .t-sheet h2 { font-size: 16px; font-weight: 700; color: var(--text); border-bottom: 2px solid var(--text); padding-bottom: 2px; text-transform: uppercase; letter-spacing: .08em; }
 .t-sheet .picks .pick span { text-transform: uppercase; letter-spacing: .08em; }

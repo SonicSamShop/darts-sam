@@ -334,6 +334,7 @@ def calibrate(cam_id: int, body: Calibration):
 
 class AutoCalibration(BaseModel):
     twenty: list[float] | None = None  # a pixel anywhere inside the 20 segment
+    idle: bool = False  # only if no darts are in the board: the app asking by itself as it opens
 
 
 @app.post("/api/cameras/{cam_id}/autocalibration")
@@ -342,6 +343,8 @@ def autocalibrate(cam_id: int, body: AutoCalibration):
     say which way up the board is, so the app sends one rough tap on the 20;
     without one, the existing calibration says where the 20 is."""
     img = _frame(cam_id)
+    if body.idle and tracker.darts:
+        raise HTTPException(409, "There are darts in the board.")
     twenty = body.twenty
     if twenty is None:
         old = config["calibration"].get(key(cam_id))

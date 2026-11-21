@@ -938,6 +938,40 @@ test('needsMore only shows for a game that needs more players', () => {
   assert.equal(needsMore(gameById('x01'), 0), false);
 });
 
+test('killer needs two players: alone, the first dart after the numbers would win it', () => {
+  assert.equal(canStart(gameById('killer'), 1), false);
+  assert.equal(canStart(gameById('killer'), 2), true);
+  assert.equal(needsMore(gameById('killer'), 1), true);
+  assert.equal(needsMore(gameById('killer'), 2), false);
+});
+
+test('every option of every game says in a sentence what each of its settings means', () => {
+  for (const g of GAMES) {
+    const defaults = Object.fromEntries(g.options.map(o => [o.key, o.default]));
+    const settings = o => (o.choices ? o.choices.map(c => c[0]) : [o.min, o.default, o.max]);
+    for (const o of g.options) {
+      assert.equal(typeof o.help, 'function', `${g.id}: ${o.label} has no help`);
+      // each setting, as the others stand and with each of the others moved in turn (some depend on another)
+      const rest = [defaults, ...g.options.filter(x => x !== o).flatMap(x => settings(x).map(v => ({ ...defaults, [x.key]: v })))];
+      for (const v of settings(o)) for (const opts of rest) {
+        const said = o.help(v, { ...opts, [o.key]: v });
+        assert.match(said, /^[A-Z0-9][^]*\.$/, `${g.id}: ${o.label} at ${v} says "${said}"`);
+        assert.doesNotMatch(said, /undefined|NaN|null/, `${g.id}: ${o.label} at ${v} says "${said}"`);
+      }
+    }
+  }
+  const help = (id, key, v, opts = {}) => gameById(id).options.find(o => o.key === key).help(v, { ...opts, [key]: v });
+  assert.match(help('x01', 'legs', 3, { sets: 1 }), /3 legs wins the match/);
+  assert.match(help('x01', 'legs', 3, { sets: 2 }), /3 legs wins the set/);
+  assert.match(help('x01', 'sets', 1, { legs: 3 }), /legs alone/);
+  assert.match(help('clock', 'skip', 'yes', { hit: 'any' }), /two numbers and a treble three/);
+  assert.match(help('clock', 'skip', 'yes', { hit: 'double' }), /no difference/);
+  assert.match(help('segment', 'counts', 'treble', { seg: 20 }), /treble scores, 3/);
+  assert.match(help('segment', 'counts', 'treble', { seg: 25 }), /no treble/);
+  assert.match(help('c121', 'dec', 0), /back to the start/);
+  assert.match(help('segment', 'darts', 99), /33 visits/);
+});
+
 test('every game has its rules on web/rules.html, under its id, with each option it has', async () => {
   const { readFile } = await import('node:fs/promises');
   const page = await readFile(new URL('../web/rules.html', import.meta.url), 'utf8');
@@ -949,4 +983,15 @@ test('every game has its rules on web/rules.html, under its id, with each option
     for (const o of g.options) assert.ok(section.includes(`<b>${o.label.replace(/&/g, '&amp;')}`), `${g.id}: rules.html says nothing about ${o.label}`);
     assert.ok(page.includes(`href="#${g.id}"`), `rules.html's list at the top leaves out ${g.id}`);
   }
+});
+
+test('every page of the site has the same links at its foot, the rules among them', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const foot = async name => {
+    const page = await readFile(new URL(`../web/${name}.html`, import.meta.url), 'utf8');
+    return page.slice(page.indexOf('<footer')).split('\n').find(line => line.includes('href="faq.html"'))?.trim();
+  };
+  const first = await foot('faq');
+  assert.match(first, /href="rules\.html">How to play</);
+  for (const name of ['rules', 'download', 'releases', 'opensource', 'privacy']) assert.equal(await foot(name), first, `${name}.html's foot`);
 });

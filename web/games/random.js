@@ -69,10 +69,15 @@ export default {
   showTotal: false,  // the three-dart sum means nothing in this game
   seeded: true,
   options: [
-    { key: 'doubles', label: 'Doubles', choices: [['yes', 'Include'], ['no', 'Leave out']], default: 'yes', brief: v => v === 'no' ? 'No doubles' : '' },
-    { key: 'trebles', label: 'Trebles', choices: [['yes', 'Include'], ['no', 'Leave out']], default: 'yes', brief: v => v === 'no' ? 'No trebles' : '' },
-    { key: 'hard', label: 'Hard mode', choices: [['no', 'Off'], ['yes', 'Inner & outer singles']], default: 'no', brief: v => v === 'yes' ? 'Hard mode' : '' },
-    { key: 'goes', label: 'Goes', min: 5, max: 50, default: 20, brief: v => `${v} goes` },
+    { key: 'doubles', label: 'Doubles', choices: [['yes', 'Include'], ['no', 'Leave out']], default: 'yes', brief: v => v === 'no' ? 'No doubles' : '',
+      help: v => v === 'no' ? 'No double comes up as a target, and nor does the bull itself: only the outer bull.' : 'Doubles come up among the targets, and the bull with them.' },
+    { key: 'trebles', label: 'Trebles', choices: [['yes', 'Include'], ['no', 'Leave out']], default: 'yes', brief: v => v === 'no' ? 'No trebles' : '',
+      help: v => v === 'no' ? 'No treble comes up as a target.' : 'Trebles come up among the targets.' },
+    { key: 'hard', label: 'Hard mode', choices: [['no', 'Off'], ['yes', 'Inner & outer singles']], default: 'no', brief: v => v === 'yes' ? 'Hard mode' : '',
+      help: v => v === 'yes' ? 'Each single is split in two: the inner single, between the bull and the treble ring, and the outer single, between the treble and double rings. Only the half called counts.'
+        : 'A single counts anywhere in its number, inside the treble ring or outside it.' },
+    { key: 'goes', label: 'Goes', min: 5, max: 50, default: 20, brief: v => `${v} goes`,
+      help: v => `${v} visits each. The most points after the last one wins.` },
   ],
 
   init(n, opts) {

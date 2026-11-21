@@ -51,7 +51,11 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
   let cam = null, sheet = null, video = null, canvas = null, panel = null, toastTimer = 0, watchGame = 0, waitTap = 0;
   let state = 'off', detail = {}, lines = null, offered = null;
   const STOPPED = ['denied', 'no-camera', 'busy'];  // never got going: as good as off
+  // One saved before the board's picture was kept with it (anchor) can't be
+  // lined up with, so a phone shaken on its stand would score in the wrong
+  // place: the board is found again, once.
   let calibration = store.get(KEY, null)?.calibration ?? null;
+  if (calibration && !calibration.anchor) calibration = null;
 
   const set = (s, d = {}) => {
     state = s; detail = d;

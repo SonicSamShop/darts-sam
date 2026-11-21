@@ -212,7 +212,7 @@
     <p>Just throw. Each dart is called out, then the total of the visit. Nothing is added up from one visit to the next, so there is no score to reach and no winner. It goes on until you end it.</p>
   </section>
 
-  <p class="acts"><a href="./">Back to the game</a> <a href="faq.html">Questions and answers</a></p>
+  <p class="acts"><a href="./#signin" class="go">Sign in to play</a> <a href="faq.html">Questions and answers</a></p>
   </main>
   <footer class="site-foot">
     <p>Darts S.A.M is free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>.
@@ -221,10 +221,11 @@
   </footer>
 </div></div>
 <script>
-// Someone signed in on this device (app.js keeps who under 'owner') is offered the app, not the sign-in.
+// Someone signed in on this device (app.js keeps who under 'owner') is offered the app, not the sign-in:
+// "Play" at the top, and the way back to their game at the foot of the rules.
 try {
-  if (JSON.parse(localStorage.getItem('owner'))) for (const a of document.querySelectorAll('.site-nav a.go')) {
-    a.href = './'; a.textContent = 'Play';
+  if (JSON.parse(localStorage.getItem('owner'))) for (const a of document.querySelectorAll('a.go')) {
+    a.href = './'; a.textContent = a.closest('.site-nav') ? 'Play' : 'Back to the game';
   }
 } catch (e) { /* nothing kept: the page is right as it stands */ }
 </script>

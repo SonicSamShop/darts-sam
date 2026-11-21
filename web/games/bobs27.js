@@ -18,8 +18,12 @@ export default {
   blurb: 'Start on 27 and work round the doubles, one visit each. Hit a double and its value is added; miss all three darts and it is taken away.',
   showTotal: false,  // the three-dart sum means nothing in this game
   options: [
-    { key: 'bull', label: 'Finish on the bull', choices: [['yes', 'Yes'], ['no', 'No, stop at D20']], default: 'yes', brief: v => v === 'no' ? 'Stop at D20' : 'Finish on the bull' },
-    { key: 'zero', label: 'At zero', choices: [['stop', 'Out of the game'], ['on', 'Play on']], default: 'stop', brief: v => v === 'on' ? 'Play on at zero' : 'Out at zero' },
+    { key: 'bull', label: 'Finish on the bull', choices: [['yes', 'Yes'], ['no', 'No, stop at D20']], default: 'yes', brief: v => v === 'no' ? 'Stop at D20' : 'Finish on the bull',
+      help: v => v === 'no' ? 'The game ends with the visit at double 20.'
+        : 'After double 20 there is one more visit, at the bull: 50 for each dart in it, and 50 off if all three miss.' },
+    { key: 'zero', label: 'At zero', choices: [['stop', 'Out of the game'], ['on', 'Play on']], default: 'stop', brief: v => v === 'on' ? 'Play on at zero' : 'Out at zero',
+      help: v => v === 'on' ? 'Your score can go below zero, and you carry on to the last double.'
+        : 'Fall to zero or below and you are out of the game.' },
   ],
 
   init(n) {

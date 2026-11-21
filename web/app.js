@@ -389,7 +389,7 @@ function connect() {
   ws.onclose = () => { connected = false; clearInterval(ping); refreshStatus(); setTimeout(connect, 3000); };
   ws.onmessage = e => {
     const ev = JSON.parse(e.data);
-    if (ev.type === 'hello') { cameraCount = ev.cameras; helperLinked = !!ev.helper; refreshStatus(); return updater.seen(ev.version); }
+    if (ev.type === 'hello') { cameraCount = ev.cameras; helperLinked = !!ev.helper; refreshStatus(); calibrateOnStart(); return updater.seen(ev.version); }
     onBoardEvent(ev);
   };
 }
@@ -406,7 +406,8 @@ function onBoardEvent(ev) {
 function refreshStatus() {
   document.querySelectorAll('.conn').forEach(n => {
     const cams = connected && cameraCount > 0, auto = cams || phone.scoring(), owed = data.waiting();
-    const full = (cams ? `Auto-scoring · ${cameraCount} cam${cameraCount > 1 ? 's' : ''}`
+    const full = (startCal === 'busy' ? 'Finding the board again…'
+      : cams ? `Auto-scoring · ${cameraCount} cam${cameraCount > 1 ? 's' : ''}`
       : phone.on() ? phone.statusText()
       : !connected ? 'Offline · manual scoring'
       : account.hosted ? (helperLinked ? 'Cameras linked · not calibrated' : 'Signed in · scoring by hand')
@@ -724,9 +725,11 @@ const APPLE_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden=
 const MAIL_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
 const icon = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 // Getting about before signing in: the name leads back here, then the questions, the downloads,
-// what is new and the source. The same lines are written out at the top and bottom of web/faq.html,
-// web/download.html, web/releases.html, web/opensource.html and web/privacy.html: change one, change them all.
+// what is new and the source. The foot of the page has those and the rules of the games as well.
+// The same lines are written out at the top and bottom of web/faq.html, web/rules.html, web/download.html,
+// web/releases.html, web/opensource.html and web/privacy.html: change one, change them all.
 const SITE_PLACES = [['faq.html', 'FAQ'], ['download.html', 'Download'], ['releases.html', "What's new"], ['opensource.html', 'Open source']];
+const FOOT_PLACES = [SITE_PLACES[0], ['rules.html', 'How to play'], ...SITE_PLACES.slice(1)];
 const BRAND = '<b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span>';
 const siteHead = () => `<header class="site-head"><a class="brand" href="./" data-act="land-home">${BRAND}</a>
       <nav class="site-nav" aria-label="Darts S.A.M">${SITE_PLACES.map(([href, name]) => `<a href="${href}">${name}</a>`).join('')}
@@ -734,7 +737,7 @@ const siteHead = () => `<header class="site-head"><a class="brand" href="./" dat
 const siteFoot = () => `<footer class="site-foot">
       <p>Darts S.A.M is free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>.
         Copyright © 2026 Sam Cramphorn. <a href="${SOURCE}" target="_blank" rel="noopener">The source code is on GitHub</a>.</p>
-      <p>${SITE_PLACES.map(([href, name]) => `<a href="${href}">${name}</a>`).join(' · ')} · <a href="privacy.html">What is stored about you</a></p>
+      <p>${FOOT_PLACES.map(([href, name]) => `<a href="${href}">${name}</a>`).join(' · ')} · <a href="privacy.html">What is stored about you</a></p>
     </footer>`;
 // Everyone's darts between them, as the site counts them (GET /api/tally). Asked for once,
 // and written into the page already drawn: drawing it again would lose an address half typed.
@@ -928,6 +931,7 @@ async function signIn(provider, details) {
     if (how === 'unnamed' || (newcomer && !pairCode)) renderWelcome();
     // someone else's games were cleared from this device: start again from what is saved
     if (had && had !== account.account.id) return location.reload();
+    startCal = '';  // signed in: their cameras find the board again (calibrateOnStart)
     liveLine?.close();  // it reconnects, now as this person: their cameras' darts come down it
     data.sync(true);
     tracker.flush();
@@ -959,6 +963,7 @@ const pageFoot = on => nav(on, 'foot');
 // takes the last one's, so Back from any of them is the menu.
 function goTo(place) {
   if (place === 'home') return goHome();
+  rulesOpen = false;  // back on the menu later, the games are there, not the rules last read
   const deep = screen === 'home' || screen === 'sheet' || (screen === 'players' && drill.length > 0);
   if (place === 'players') { drill = []; renderPlayers(); }
   if (place === 'cameras') { camAdding = false; camStep = camNote = ''; renderCameras(); }
@@ -980,8 +985,13 @@ function renderHome() {
   }
   cleanSetup();
   store.set('setup', setup);
-  const enough = canStart(game, seats().length);
-  const start = `<button class="primary start" data-act="start" ${seats().some(id => id !== BOT) && enough ? '' : 'disabled'}>Start ${game.name}</button>`;
+  const enough = canStart(game, seats().length), people = seats().some(id => id !== BOT);
+  // Why Start can't be pressed, said beside it: on a phone the players' step may be shut. (Nobody
+  // picked at all needs no saying: that step's own line says it.)
+  const why = needsMore(game, seats().length) ? `${game.name} needs two or more players.`
+    : seats().length && !people ? 'Choose who plays the bot.' : '';
+  const start = `${why ? `<p class="warn small startnote">${esc(why)}</p>` : ''}
+    <button class="primary start" data-act="start" ${people && enough ? '' : 'disabled'}>Start ${game.name}</button>`;
   const scrolled = document.querySelector('.home-body')?.scrollTop ?? 0;  // a tap redraws the menu: stay where it was
   const steps = [['game', 'Game', esc(game.name)]];
   if (game.options.length) steps.push(['options', 'Options', esc(optsBrief(game))]);
@@ -1010,7 +1020,8 @@ function renderHome() {
     </div>
     <div class="setup">
     ${game.options.length ? step('options', `${game.options.map(o => `<div class="opt"><span>${o.help ? optLabelHelp(o) : o.label}</span>${o.choices ? `<div class="choices">${o.choices.map(([v, l]) =>
-      `<button class="${setup.opts[o.key] === v ? 'on' : ''}" data-opt="${o.key}" data-val="${esc(JSON.stringify(v))}">${l}</button>`).join('')}</div>`
+      `<button class="${setup.opts[o.key] === v ? 'on' : ''}" data-opt="${o.key}" data-val="${esc(JSON.stringify(v))}"${
+        o.help ? ` title="${esc(o.help(v, { ...setup.opts, [o.key]: v }))}"` : ''}>${l}</button>`).join('')}</div>`
       : stepper(o)}${o.help && optHelp === o.key ? `<p class="opt-help muted">${esc(o.help(setup.opts[o.key], setup.opts))}</p>` : ''}</div>`).join('')}
     <button class="step-next" data-step="${after('options')[0]}">Next: ${after('options')[1].toLowerCase()}</button>`) : ''}
     ${step('players', `${players.length ? `<div class="row">${players.map(p => {
@@ -1018,7 +1029,6 @@ function renderHome() {
       return `<button class="chip ${n >= 0 ? 'on' : ''}" data-pick="${p.id}">${n >= 0 ? `<i>${n + 1}</i>` : ''}${esc(p.name)}</button>`;
     }).join('')}${game.bot ? botChip() : ''}${addingPlayer ? '' : '<button class="chip ghost" data-act="newplayer">+ New</button>'}</div>
     <p class="muted small">Tap who is playing, in throwing order. With two or more, Start asks who throws first: closest to the bull, or random.</p>
-    ${needsMore(game, seats().length) ? `<p class="warn small">${game.name} needs two or more players.</p>` : ''}
     ${botRow()}${dartsRows()}`
       : '<p class="muted">Add a player to get started.</p>'}
     ${addingPlayer || !players.length ? newPlayerRow() : ''}`)}
@@ -1033,7 +1043,10 @@ function renderHome() {
   </div>`;
   document.querySelector('.home-body').scrollTop = scrolled;
   if (stepMoved) document.querySelector('.step.open')?.scrollIntoView({ block: 'nearest' });
-  stepMoved = false;
+  // The rules open at the foot of a phone's menu, which may be off the screen: up to their heading.
+  const how = rulesMoved && rulesOpen && document.querySelector('.how-phone');
+  if (how?.offsetParent) how.scrollIntoView({ block: 'start' });
+  stepMoved = rulesMoved = false;
   refreshStatus();
   showTotals();
   loadTotals();
@@ -1046,6 +1059,7 @@ let optHelp = null;
 // web/rules.html's section for the game (its id), read once and kept, so the page and the
 // menu say the same thing and it works offline (sw.js keeps the page).
 let rulesOpen = false, rules = null;  // rules: {gameId: section html} once read, {} if it couldn't be
+let rulesMoved = false;  // they have just been opened, or have just arrived: bring them into view
 function loadRules() {
   if (rules) return;
   rules = fetch('rules.html').then(r => (r.ok ? r.text() : Promise.reject())).then(html => {
@@ -1056,22 +1070,24 @@ function loadRules() {
       got[sec.id] = sec.innerHTML;
     }
     return got;
-  }, () => ({})).then(got => { rules = got; if (screen === 'home' && rulesOpen) renderHome(); });
+  }, () => ({})).then(got => { rules = got; if (screen === 'home' && rulesOpen) { rulesMoved = true; renderHome(); } });
 }
 // On a computer it is under the game's blurb, and open it takes the place of the games (the menu
-// there doesn't scroll, so they would squeeze it all smaller); on a phone, where the menu scrolls
-// and the blurb is hidden, it is above Start.
+// there doesn't scroll, so they would squeeze it all smaller): the way back to them is beside its
+// heading. On a phone, where the menu scrolls and the blurb is hidden, it is above Start.
 function howToPlay(game, where = '') {
-  const body = !rulesOpen ? ''
-    : rules instanceof Promise ? '<p class="muted">Loading the rules…</p>'
+  const title = `How to play ${esc(game.name)}`;
+  if (!rulesOpen) return `<div class="how ${where}"><button class="link" data-act="rules" aria-expanded="false">${title}</button></div>`;
+  const body = rules instanceof Promise ? '<p class="muted">Loading the rules…</p>'
     : rules?.[game.id] ?? '<p class="muted">The rules couldn\'t be loaded. Try again when you are back online.</p>';
-  return `<div class="how ${where}"><button class="link" data-act="rules" aria-expanded="${rulesOpen}">${rulesOpen ? 'Hide the rules' : `How to play ${esc(game.name)}`}</button>
-    ${body ? `<div class="rules-box">${body}</div>` : ''}</div>`;
+  return `<div class="how open ${where}"><div class="how-head"><h3>${title}</h3>
+      <button class="link" data-act="rules" aria-expanded="true">${where ? 'Hide the rules' : 'Back to the games'}</button></div>
+    <div class="rules-box">${body}</div></div>`;
 }
 // An option's name with its "?" after it, kept on a line with the name's last word.
 function optLabelHelp(o) {
   const cut = o.label.lastIndexOf(' ') + 1;
-  return `${o.label.slice(0, cut)}<span class="nowrap">${o.label.slice(cut)}<button class="opt-q ${optHelp === o.key ? 'on' : ''}"
+  return `${o.label.slice(0, cut)}<span class="nowrap">${o.label.slice(cut)}<button class="opt-q"
     data-opthelp="${o.key}" aria-label="What does ${esc(o.label)} mean?" aria-expanded="${optHelp === o.key}">?</button></span>`;
 }
 // A step's line on a phone: what is chosen in it, in a few words.
@@ -1852,6 +1868,7 @@ function playingWith(i) {
 }
 function renderGame() {
   if (account.locked) return renderLanding();
+  rulesOpen = false;  // the menu, when it is next seen, starts from its games
   if (screen !== 'game' || !document.querySelector('.game')) {
     screen = 'game';
     $app.innerHTML = `<div class="game"><div class="side"></div>
@@ -2174,6 +2191,7 @@ let autoCal = null;  // camera id waiting for a tap on the 20, for auto-calibrat
 let calibBusy = false;  // the Pi is looking for the board in a camera's picture
 let calibNote = '';  // how the last calibration went
 let calibFailed = false;  // ...and whether that was badly
+let startCal = '';  // finding the board again on opening the app: '' not yet, 'wait' (for the settings), 'busy', 'done'
 let camShown = 0;  // the camera on screen
 let camSearch = false;  // the Pi is looking for its cameras again
 let camAdding = false;  // "Add a camera" is open
@@ -2261,6 +2279,8 @@ function camPanel(status, cams, cam) {
         ${quiet ? '' : `${lined && cam.ok ? extra('Scoring stuck, or darts missed? Take the darts out, then press:', '<button data-act="reset">Board is empty now</button>') : ''}
         ${status.fixed ? '' : extra(cam.kind === 'added' ? 'Not using this camera any more?' : 'Not for the board (a laptop\'s own webcam, say)?',
           `<button data-camoff="${esc(cam.name)}">Switch off</button>${cam.kind === 'added' ? `<button class="danger" data-camremove="${esc(cam.name)}">Remove</button>` : ''}`)}
+        ${cams.some(c => c.points) ? `<div class="camextra">${switchRow('Auto-calibrate on start', settings.autoCal !== false,
+          `data-autostart="${settings.autoCal !== false ? 'off' : 'on'}"`, 'Every camera finds the board again each time the app opens.')}</div>` : ''}
         ${linkRow()}${account.hosted && account.helper ? `<div class="camextra">${unpairButton()}</div>` : ''}`}
       </div>
     </div>`;
@@ -2634,6 +2654,52 @@ async function autoCalibrate(camId, twenty) {
   if (onCamerasTab()) renderCameras();
 }
 
+// Each time the app is opened, or someone signs in: every camera that has been
+// lined up before finds the board again, one after another, with nothing to
+// press. A camera gets nudged between one evening and the next, and this saves
+// going through them by hand. It is asked for on each hello from the cameras'
+// computer and done once. A camera never lined up is left alone (it needs a tap
+// on the 20 first), and one that can't find the board keeps the line-up it had.
+// Not under a game: there may be darts in the board. Settings: autoCal.
+async function calibrateOnStart() {
+  if (startCal) return;
+  if (account.hosted && !(account.account && helperLinked)) return;  // their cameras can't be reached yet
+  startCal = 'wait';
+  // the settings as they were last saved, from any device: is this switched off?
+  await Promise.race([data.sync(true).catch(() => {}), new Promise(done => setTimeout(done, 5000))]);
+  if (settings.autoCal === false || screen === 'game' || screen === 'bull') { startCal = 'done'; return; }
+  startCal = 'busy';
+  let todo = [];
+  for (let tries = 0; tries < 5; tries++) {  // a camera just switched on has no picture for a moment
+    const status = await api('/status', 'GET', undefined, 6000).catch(() => null);
+    if (!status) { startCal = ''; return refreshStatus(); }  // not reached: the next hello asks again
+    const lined = status.cameras.filter(c => c.points);
+    todo = lined.filter(c => c.ok);
+    if (todo.length === lined.length) break;
+    await new Promise(done => setTimeout(done, 2000));
+  }
+  if (!todo.length) { startCal = 'done'; return refreshStatus(); }
+  calibBusy = true; calibNote = ''; calibFailed = false;
+  refreshStatus();
+  if (onCamerasTab()) renderCameras();
+  const missed = [];
+  for (const cam of todo) {
+    try {
+      const r = await api(`/cameras/${cam.id}/autocalibration`, 'POST', { idle: true }, 30000);
+      tracker.track('calibrated', { ok: true, how: 'start', joins: r.joins, rms_px: r.rms_px, tapped: false });
+    } catch (err) {
+      missed.push(cam.label);
+      tracker.track('calibrated', { ok: false, how: 'start', why: err.message, tapped: false });
+    }
+  }
+  calibBusy = false; startCal = 'done';
+  const n = todo.length - missed.length;
+  calibNote = !missed.length ? `Board found again on ${n === 1 ? 'the camera' : n === 2 ? 'both cameras' : `all ${n} cameras`} when the app opened.`
+    : `Couldn't find the board again on ${missed.join(', ')} when the app opened, so ${missed.length > 1 ? 'they keep' : 'it keeps'} the line-up from before.`;
+  refreshStatus();
+  if (onCamerasTab()) renderCameras();
+}
+
 async function calibTap(camId, img, e) {
   const pts = calib[camId];
   const r = img.getBoundingClientRect();
@@ -2677,13 +2743,14 @@ $app.addEventListener('click', e => {
   if (d.game) {
     // chosen: on to the next step, or to the players when nobody is down to play
     setup.gameId = d.game;
+    optHelp = null;  // the "?" that was open belonged to the last game's options
     homeStep = gameById(d.game).options.length ? 'options' : setup.players.length ? null : 'players';
     stepMoved = true;
     saveSetup();
     return renderHome();
   }
   if (d.act === 'rules') {
-    rulesOpen = !rulesOpen;
+    rulesOpen = rulesMoved = !rulesOpen;
     if (rulesOpen) { if (rules && !(rules instanceof Promise) && !Object.keys(rules).length) rules = null; loadRules(); }
     return renderHome();
   }
@@ -2730,6 +2797,7 @@ $app.addEventListener('click', e => {
   if (d.theme) { settings.theme = d.theme; saveSettings(); applyTheme(); renderSettings(); return mark(); }
   if (d.checkouts) { settings.checkouts = d.checkouts === 'on'; saveSettings(); return renderSettings(); }
   if (d.flight) { settings.flight = d.flight === 'on'; saveSettings(); return renderSettings(); }
+  if (d.autostart) { settings.autoCal = d.autostart === 'on'; saveSettings(); return drawCameras(camStatus); }
   if (d.botlevel) { setup.bot = botLevel(botAt().level + +d.botlevel).level; saveSetup(); return renderHome(); }
   if (d.voice) {
     settings.voice = d.voice === 'on';

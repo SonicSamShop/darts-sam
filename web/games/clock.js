@@ -14,8 +14,13 @@ export default {
   blurb: 'Hit 1 through 20 in order, then the bull. First to finish wins. Choose doubles only or trebles only for Round the World.',
   showTotal: false,  // the three-dart sum means nothing in this game
   options: [
-    { key: 'skip', label: 'Doubles & trebles', choices: [['no', 'Count as one'], ['yes', 'Jump ahead 2 / 3']], default: 'no', brief: (v, o) => o?.hit === 'double' || o?.hit === 'treble' ? '' : v === 'yes' ? 'Doubles & trebles jump ahead' : 'Doubles & trebles count as one' },
-    { key: 'hit', label: 'What counts', choices: [['any', 'Any part'], ['double', 'Doubles only'], ['treble', 'Trebles only']], default: 'any', brief: v => v === 'double' ? 'Doubles only' : v === 'treble' ? 'Trebles only' : '' },
+    { key: 'skip', label: 'Doubles & trebles', choices: [['no', 'Count as one'], ['yes', 'Jump ahead 2 / 3']], default: 'no', brief: (v, o) => o?.hit === 'double' || o?.hit === 'treble' ? '' : v === 'yes' ? 'Doubles & trebles jump ahead' : 'Doubles & trebles count as one',
+      help: (v, o) => o?.hit === 'double' || o?.hit === 'treble' ? `Makes no difference with ${o.hit}s only: every hit moves you on one number.`
+        : v === 'yes' ? 'A double moves you on two numbers and a treble three. Jump past 20 and you go straight to the bull.'
+        : 'A double or a treble moves you on one number, the same as a single.' },
+    { key: 'hit', label: 'What counts', choices: [['any', 'Any part'], ['double', 'Doubles only'], ['treble', 'Trebles only']], default: 'any', brief: v => v === 'double' ? 'Doubles only' : v === 'treble' ? 'Trebles only' : '',
+      help: v => v === 'any' ? 'Any part of the number counts: single, double or treble.'
+        : `Only the ${v} of each number counts, from 1 to 20. Any part of the bull finishes.` },
   ],
 
   init(n) {

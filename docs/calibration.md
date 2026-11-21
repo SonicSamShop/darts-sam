@@ -120,7 +120,10 @@ Every tenth of a turn the board looks the same. So the caller gives one pixel
 known to be in the 20: in the app, a single rough tap the first time a camera
 is set up. After that the camera's old calibration says where the 20 is, so
 **Find the board again** needs no tap, which makes it the quick fix when a
-camera gets knocked.
+camera gets knocked. The app does the same for every lined-up camera each time
+it is opened (**Auto-calibrate on start** on the Cameras screen, on unless
+switched off). A camera that can't find the board then keeps the calibration it
+had, and nothing is changed while darts are in the board.
 
 ### 6. Measure the lens
 

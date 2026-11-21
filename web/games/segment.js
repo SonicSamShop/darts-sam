@@ -29,9 +29,16 @@ export default {
   blurb: 'Pick one bed and throw at it for a set number of darts. Every dart in it scores 1, 2 or 3 by its ring.',
   showTotal: false,  // the three-dart sum includes darts that did not score
   options: [
-    { key: 'seg', label: 'Bed', choices: [...Array(20)].map((_, i) => [i + 1, String(i + 1)]).concat([[25, 'Bull']]), default: 20, brief: v => `Bed: ${v === 25 ? 'bull' : v}` },
-    { key: 'counts', label: 'Counts', choices: [['any', 'Any ring'], ['single', 'Singles'], ['double', 'Doubles'], ['treble', 'Trebles']], default: 'any', brief: v => v === 'any' ? '' : `${v[0].toUpperCase()}${v.slice(1)}s only` },
-    { key: 'darts', label: 'Darts each', choices: [[30, '30'], [60, '60'], [99, '99']], default: 60, brief: v => `${v} darts` },
+    { key: 'seg', label: 'Bed', choices: [...Array(20)].map((_, i) => [i + 1, String(i + 1)]).concat([[25, 'Bull']]), default: 20, brief: v => `Bed: ${v === 25 ? 'bull' : v}`,
+      help: v => `Every dart is thrown at ${v === 25 ? 'the bull' : `the ${v}`}. Nothing else on the board scores.` },
+    { key: 'counts', label: 'Counts', choices: [['any', 'Any ring'], ['single', 'Singles'], ['double', 'Doubles'], ['treble', 'Trebles']], default: 'any', brief: v => v === 'any' ? '' : `${v[0].toUpperCase()}${v.slice(1)}s only`,
+      help: (v, o) => (o?.seg === 25
+        ? { any: 'The outer bull scores 1 and the bull 2.', single: 'Only the outer bull scores, 1 a dart.', double: 'Only the bull itself scores, 2 a dart.',
+            treble: 'The bull has no treble, so only the bull itself scores, 2 a dart.' }
+        : { any: 'A single scores 1, a double 2 and a treble 3.', single: 'Only the single scores, 1 a dart.', double: 'Only the double scores, 2 a dart.',
+            treble: 'Only the treble scores, 3 a dart.' })[v] },
+    { key: 'darts', label: 'Darts each', choices: [[30, '30'], [60, '60'], [99, '99']], default: 60, brief: v => `${v} darts`,
+      help: v => `Everyone throws ${v} darts, which is ${v / 3} visits.` },
   ],
 
   init(n) { return { points: Array(n).fill(0), hits: Array(n).fill(0), thrown: Array(n).fill(0) }; },

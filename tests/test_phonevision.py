@@ -82,6 +82,54 @@ def test_scores_a_dart():
     json.dumps(events)  # posted from the worker as is
 
 
+def shifted(rgba: bytes, dx: float, dy: float) -> bytes:
+    """The same picture from a phone that has moved a little on its stand."""
+    img = np.frombuffer(rgba, np.uint8).reshape(H, W, 4)
+    return cv2.warpAffine(img, np.float32([[1, 0, dx], [0, 1, dy]]), (W, H), borderMode=cv2.BORDER_REPLICATE).tobytes()
+
+
+def test_scores_a_dart_when_the_phone_has_shifted():
+    """A dart's thump, or a finger on the screen, leaves the phone a few px
+    from where the board was found (reported 2026-11-21: no dart was ever
+    counted, as the whole board looked changed). The dart is still scored, and
+    where it would have been with the phone unmoved."""
+    cal = calibrated()
+    assert cal["anchor"], "the picture the board was found in goes with the calibration"
+    phonevision.start(cal)
+    for _ in range(5):
+        phonevision.feed(picture(), W, H)
+    want = [e for _ in range(5) for e in phonevision.feed(picture([dart_at(0, 60)]), W, H) if e["type"] == "dart"]
+    assert len(want) == 1, want
+
+    phonevision.start(cal)
+    events = []
+    for _ in range(5):
+        events += phonevision.feed(shifted(picture(), 9, -7), W, H)  # moved before the first picture, too
+    for _ in range(5):
+        events += phonevision.feed(shifted(picture([dart_at(0, 60)]), -6, 5), W, H)
+    for _ in range(5):
+        events += phonevision.feed(shifted(picture([dart_at(0, 60)]), 4, 8), W, H)  # and again: nothing new
+    darts = [e for e in events if e["type"] == "dart"]
+    assert len(darts) == 1 and phonevision.darts_in() == 1, events
+    assert darts[0]["seg"] == 20, darts
+    assert np.hypot(darts[0]["x"] - want[0]["x"], darts[0]["y"] - want[0]["y"]) < 2.0, (darts, want)
+    # Shaken is not knocked; pointing somewhere else is.
+    assert phonevision.still_matches(shifted(picture(), 9, -7), W, H, cal)
+    assert not phonevision.still_matches(shifted(picture(), 90, -70), W, H, cal)
+
+
+def test_an_old_calibration_still_scores():
+    """One saved before pictures were kept: the first still picture stands in."""
+    cal = {k: v for k, v in calibrated().items() if k != "anchor"}
+    phonevision.start(cal)
+    events = []
+    for _ in range(5):
+        events += phonevision.feed(picture(), W, H)
+    for _ in range(5):
+        events += phonevision.feed(shifted(picture([dart_at(0, 60)]), -6, 5), W, H)
+    assert [e["seg"] for e in events if e["type"] == "dart"] == [20], events
+
+
 def test_restart_forgets_the_board():
     phonevision.start(calibrated())
     for _ in range(5):
@@ -155,6 +203,8 @@ def main():
     test_takes_a_browser_array()
     test_nothing_before_start()
     test_scores_a_dart()
+    test_scores_a_dart_when_the_phone_has_shifted()
+    test_an_old_calibration_still_scores()
     test_restart_forgets_the_board()
     test_says_when_the_picture_is_still()
     test_outline_sits_on_the_board()
