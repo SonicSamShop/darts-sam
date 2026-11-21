@@ -822,8 +822,8 @@ function renderLanding() {
     </section>
     <section>
       <h2>${inWords(GAMES.length).replace(/^./, c => c.toUpperCase())} games</h2>
-      <dl class="menu">${GAMES.map(g => `<div><dt>${g.name}</dt><dd>${g.blurb}</dd></div>`).join('')}</dl>
-      <p><a href="rules.html">How to play each game</a></p>
+      <p>Including X01, Cricket, Killer, Around the Clock and Bob's 27, for a match with friends or practice on your own.
+        <a href="rules.html">See them all and how to play each one</a>.</p>
     </section>
     <section>
       <h2>Stats, the telly and your phone</h2>
@@ -1000,13 +1000,13 @@ function renderHome() {
   $app.innerHTML = `<div class="page">
     ${pageHead('home')}
     <div class="home-body">
-    <div class="pick">
+    <div class="pick ${rulesOpen ? 'rules-on' : ''}">
     ${match ? '<h2>In progress</h2><button class="start" data-act="resume">Resume game in progress</button>' : ''}
     ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>
     <div class="games">${GAMES.filter(g => g.kind === kind).map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
       <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>`).join('')}
     <p class="blurb muted small">${game.blurb}</p>
-    <p class="how small"><a href="rules.html#${game.id}">How to play ${esc(game.name)}</a></p>`)}
+    ${howToPlay(game)}`)}
     </div>
     <div class="setup">
     ${game.options.length ? step('options', `${game.options.map(o => `<div class="opt"><span>${o.help ? optLabelHelp(o) : o.label}</span>${o.choices ? `<div class="choices">${o.choices.map(([v, l]) =>
@@ -1022,7 +1022,7 @@ function renderHome() {
     ${botRow()}${dartsRows()}`
       : '<p class="muted">Add a player to get started.</p>'}
     ${addingPlayer || !players.length ? newPlayerRow() : ''}`)}
-    <p class="how how-phone small"><a href="rules.html#${game.id}">How to play ${esc(game.name)}</a></p>
+    ${howToPlay(game, 'how-phone')}
     <span class="spacer"></span>
     ${start}
     </div>
@@ -1042,6 +1042,32 @@ function renderHome() {
 }
 // The option whose "?" is open: its line saying what the chosen setting means shows under it.
 let optHelp = null;
+// "How to play" the chosen game, opened on the menu like an option's "?". The rules are
+// web/rules.html's section for the game (its id), read once and kept, so the page and the
+// menu say the same thing and it works offline (sw.js keeps the page).
+let rulesOpen = false, rules = null;  // rules: {gameId: section html} once read, {} if it couldn't be
+function loadRules() {
+  if (rules) return;
+  rules = fetch('rules.html').then(r => (r.ok ? r.text() : Promise.reject())).then(html => {
+    const doc = new DOMParser().parseFromString(html, 'text/html'), got = {};
+    for (const sec of doc.querySelectorAll('main section[id]')) {
+      sec.querySelector('h2')?.remove();  // the menu already names the game
+      for (const a of sec.querySelectorAll('a')) a.replaceWith(...a.childNodes);  // nothing that leads off the menu
+      got[sec.id] = sec.innerHTML;
+    }
+    return got;
+  }, () => ({})).then(got => { rules = got; if (screen === 'home' && rulesOpen) renderHome(); });
+}
+// On a computer it is under the game's blurb, and open it takes the place of the games (the menu
+// there doesn't scroll, so they would squeeze it all smaller); on a phone, where the menu scrolls
+// and the blurb is hidden, it is above Start.
+function howToPlay(game, where = '') {
+  const body = !rulesOpen ? ''
+    : rules instanceof Promise ? '<p class="muted">Loading the rules…</p>'
+    : rules?.[game.id] ?? '<p class="muted">The rules couldn\'t be loaded. Try again when you are back online.</p>';
+  return `<div class="how ${where}"><button class="link" data-act="rules" aria-expanded="${rulesOpen}">${rulesOpen ? 'Hide the rules' : `How to play ${esc(game.name)}`}</button>
+    ${body ? `<div class="rules-box">${body}</div>` : ''}</div>`;
+}
 // An option's name with its "?" after it, kept on a line with the name's last word.
 function optLabelHelp(o) {
   const cut = o.label.lastIndexOf(' ') + 1;
@@ -2654,6 +2680,11 @@ $app.addEventListener('click', e => {
     homeStep = gameById(d.game).options.length ? 'options' : setup.players.length ? null : 'players';
     stepMoved = true;
     saveSetup();
+    return renderHome();
+  }
+  if (d.act === 'rules') {
+    rulesOpen = !rulesOpen;
+    if (rulesOpen) { if (rules && !(rules instanceof Promise) && !Object.keys(rules).length) rules = null; loadRules(); }
     return renderHome();
   }
   if (d.opthelp) { optHelp = optHelp === d.opthelp ? null : d.opthelp; return renderHome(); }

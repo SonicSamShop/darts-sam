@@ -212,7 +212,8 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 /* home: pick the game on the left, set it up on the right, the totals in the corner under the games */
 .home-body {
   flex: 1; min-height: 0; display: grid; gap: 0 28px;
-  grid-template: "pick setup" auto "totals setup" minmax(0, 1fr) / minmax(0, 1fr) minmax(0, 1fr);
+  /* the totals row: never less than its line, or it lies over the end of a menu taller than the screen */
+  grid-template: "pick setup" auto "totals setup" minmax(auto, 1fr) / minmax(0, 1fr) minmax(0, 1fr);
 }
 .pick { grid-area: pick; }
 .setup { grid-area: setup; display: flex; flex-direction: column; }
@@ -234,10 +235,18 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .game-card span { color: var(--muted); font-size: 14px; }
 .game-card.on b { color: var(--accent); }
 .blurb { margin: 10px 0 0; }
-/* "How to play" the chosen game (web/rules.html): under its blurb on a computer, above Start on a phone */
-.how { margin: 8px 0 0; color: var(--muted); }
-.how a { color: inherit; text-underline-offset: 3px; }
+/* "How to play" the chosen game, opened in place (howToPlay in app.js): under its blurb on a computer,
+   above Start on a phone. .how outranks the themes' button looks: this one reads as a link. */
+.how { margin: 8px 0 0; }
+.how button.link { background: none; box-shadow: none; color: var(--muted); font-size: 14px; text-transform: none; letter-spacing: 0; text-underline-offset: 3px; }
+.how button.link[aria-expanded="true"] { color: var(--text); }
 .how-phone { display: none; }
+@media (orientation: landscape) and (min-width: 801px) { .pick.rules-on :is(.games, h3.group, .blurb) { display: none; } }
+.rules-box { margin-top: 8px; font-size: 15px; line-height: 1.35; }
+.rules-box :is(p, ul, ol, dl) { margin: 0 0 8px; }
+.rules-box :is(ul, ol) { padding-left: 20px; }
+.rules-box li { margin-bottom: 4px; }
+.page .rules-box h3 { font-family: var(--font); font-size: 15px; font-weight: 700; margin: 12px 0 4px; color: var(--text); }  /* .page: outranks the themes' headings */
 .player-row { display: flex; gap: 10px; margin-bottom: 8px; }
 .opt { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 10px; }
 .opt > span { color: var(--muted); }
@@ -318,7 +327,7 @@ svg.heat .b-num { fill: #d9dce3; }
 .heatkey i { width: min(220px, 40%); height: 10px; border-radius: 5px; border: 1px solid var(--line);
   background: linear-gradient(90deg, rgb(0 0 4), rgb(87 16 110), rgb(188 55 84), rgb(249 142 9), rgb(252 255 164)); }
 @media (orientation: portrait), (max-width: 800px) {
-  .home-body { grid-template: "pick" auto "setup" auto "totals" minmax(0, 1fr) / minmax(0, 1fr); }
+  .home-body { grid-template: "pick" auto "setup" auto "totals" minmax(auto, 1fr) / minmax(0, 1fr); }
 }
 /* phones: tighter spacing */
 @media (max-width: 600px), (max-height: 600px) {
@@ -554,11 +563,6 @@ table.cricket tr.dead { opacity: .35; }
 [data-front] .install { display: none; }
 /* a button and, beside it, another way to go */
 .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 18px; }
-/* the games, as a menu is chalked up: a name and a line about it, two abreast */
-.menu { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 48px; }
-.menu > div { padding: 10px 0 12px; border-top: 1px solid var(--line); }
-.menu dt { font-weight: 700; }
-.menu dd { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.4; }
 /* the two ways to play, where they differ (WAYS in app.js) */
 .ways { width: 100%; max-width: 46em; border-collapse: collapse; font-size: 17px; line-height: 1.4; }
 .ways th, .ways td { padding: 10px 16px 10px 0; text-align: left; vertical-align: top; border-top: 1px solid var(--line); }
@@ -608,7 +612,7 @@ button.apple {
   .site main { padding-top: 24px; }
   .site section { margin-top: 40px; }
   .site .lead { font-size: 19px; }
-  .intro, .menu { grid-template-columns: minmax(0, 1fr); }
+  .intro { grid-template-columns: minmax(0, 1fr); }
   .signin-box { max-width: none; }
   .row3 { flex-direction: column; }
   .row3 > .shot { flex: none; width: 100%; }

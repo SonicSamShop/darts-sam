@@ -417,7 +417,7 @@
 .t-chalk #app .site h3, .t-chalk .site .lead, .t-chalk .dl-row b { font-size: var(--sz-head); }
 .t-chalk #app #signin h2 { font-size: var(--sz-pick); }
 .t-chalk .site :is(.small, .muted, .jump, .tag, .ways), .t-chalk .site-nav, .t-chalk .site-foot, .t-chalk .shot figcaption,
-.t-chalk .menu dd, .t-chalk .dl-row span { font-size: var(--sz-body); }
+.t-chalk .dl-row span { font-size: var(--sz-body); }
 .t-chalk .strap { font-size: var(--sz-small); }
 .t-chalk .signin button.mail { font-size: var(--sz-pick); font-weight: var(--bold); }
 .t-chalk .site :is(b, dt, tbody th) { font-weight: var(--bold); }

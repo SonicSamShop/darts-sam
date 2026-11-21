@@ -13,8 +13,10 @@
 </head>
 <body>
 <!-- The rules of every game, one section each, with the game's id (web/games/*.js) as the
-     section's id: the Play menu links to rules.html#<id> for the game chosen. What it says is
-     what the game modules do: change a game's rules or options, change its section here. -->
+     section's id. The Play menu shows the chosen game's section in place (howToPlay in app.js
+     reads this page, drops the heading and any links), so keep each section plain: p, ul, ol
+     and h3. What it says is what the game modules do: change a game's rules or options,
+     change its section here (tests/games.test.mjs checks every game and option is here). -->
 <div id="app"><div class="site">
   <header class="site-head"><a class="brand" href="./"><b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></a>
     <nav class="site-nav" aria-label="Darts S.A.M"><a href="faq.html">FAQ</a><a href="download.html">Download</a><a href="releases.html">What's new</a><a href="opensource.html">Open source</a>
