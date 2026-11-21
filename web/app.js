@@ -1007,9 +1007,9 @@ function renderHome() {
     <p class="blurb muted small">${game.blurb}</p>`)}
     </div>
     <div class="setup">
-    ${game.options.length ? step('options', `${game.options.map(o => `<div class="opt"><span>${o.label}</span>${o.choices ? `<div class="choices">${o.choices.map(([v, l]) =>
+    ${game.options.length ? step('options', `${game.options.map(o => `<div class="opt"><span>${o.help ? optLabelHelp(o) : o.label}</span>${o.choices ? `<div class="choices">${o.choices.map(([v, l]) =>
       `<button class="${setup.opts[o.key] === v ? 'on' : ''}" data-opt="${o.key}" data-val="${esc(JSON.stringify(v))}">${l}</button>`).join('')}</div>`
-      : stepper(o)}</div>`).join('')}
+      : stepper(o)}${o.help && optHelp === o.key ? `<p class="opt-help muted">${esc(o.help(setup.opts[o.key], setup.opts))}</p>` : ''}</div>`).join('')}
     <button class="step-next" data-step="${after('options')[0]}">Next: ${after('options')[1].toLowerCase()}</button>`) : ''}
     ${step('players', `${players.length ? `<div class="row">${players.map(p => {
       const n = seats().indexOf(p.id);
@@ -1036,6 +1036,14 @@ function renderHome() {
   loadTotals();
   fit();
   if (addingPlayer) document.getElementById('newplayer')?.focus();
+}
+// The option whose "?" is open: its line saying what the chosen setting means shows under it.
+let optHelp = null;
+// An option's name with its "?" after it, kept on a line with the name's last word.
+function optLabelHelp(o) {
+  const cut = o.label.lastIndexOf(' ') + 1;
+  return `${o.label.slice(0, cut)}<span class="nowrap">${o.label.slice(cut)}<button class="opt-q ${optHelp === o.key ? 'on' : ''}"
+    data-opthelp="${o.key}" aria-label="What does ${esc(o.label)} mean?" aria-expanded="${optHelp === o.key}">?</button></span>`;
 }
 // A step's line on a phone: what is chosen in it, in a few words.
 // An option says its own with `brief` (nothing at all, to be left out); one that doesn't is
@@ -2645,6 +2653,7 @@ $app.addEventListener('click', e => {
     saveSetup();
     return renderHome();
   }
+  if (d.opthelp) { optHelp = optHelp === d.opthelp ? null : d.opthelp; return renderHome(); }
   if (d.step && !d.opt) { homeStep = homeStep === d.step ? null : d.step; stepMoved = true; return renderHome(); }
   if (d.step) {
     const o = gameById(setup.gameId).options.find(o => o.key === d.opt);

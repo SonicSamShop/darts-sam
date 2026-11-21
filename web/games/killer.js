@@ -13,6 +13,9 @@
 //   - opts.kill 'any': a killer takes a life with any part of a number, single,
 //     double or treble (one life a dart), their own number included.
 //
+// Each option's help(value, opts) says in a line what that choice means, shown
+// under it on the menu (and over each choice as a tooltip).
+//
 // House rules (opts.mode 'house') add two things:
 //   - hit someone else's double before you are a killer and *they* become one;
 //   - a Shanghai on your own number (single, double and treble of it in one
@@ -34,10 +37,23 @@ export default {
   blurb: 'Weak hand for your number, hit your double (or treble) to become a killer, then take lives off the others\' numbers. Last one standing wins.',
   showTotal: false,  // the three-dart sum means nothing in this game
   options: [
-    { key: 'lives', label: 'Lives', choices: [[3, '3'], [5, '5']], default: 5, brief: v => `${v} lives` },
-    { key: 'become', label: 'Become a killer', choices: [['double', 'Double'], ['treble', 'Treble']], default: 'double', brief: v => v === 'treble' ? 'Treble to start' : '' },
-    { key: 'kill', label: 'Take lives with', choices: [['double', 'Double'], ['any', 'Any part']], default: 'double', brief: v => v === 'any' ? 'Any part kills' : '' },
-    { key: 'mode', label: 'Rules', choices: [['house', 'House rules'], ['classic', 'Classic']], default: 'house', brief: v => v === 'classic' ? 'Classic rules' : 'House rules' },
+    { key: 'lives', label: 'Lives', choices: [[3, '3'], [5, '5']], default: 5, brief: v => `${v} lives`,
+      help: v => `Everyone starts with ${v} lives.${v === 3 ? ' A quicker game.' : ''}` },
+    { key: 'become', label: 'Become a killer', choices: [['double', 'Double'], ['treble', 'Treble']], default: 'double', brief: v => v === 'treble' ? 'Treble to start' : '',
+      help: v => v === 'treble'
+        ? 'Hit the treble of your own number (the thin inner ring) to become a killer. Harder, so the game lasts longer.'
+        : 'Hit the double of your own number (the thin outer ring) to become a killer.' },
+    { key: 'kill', label: 'Take lives with', choices: [['double', 'Double'], ['any', 'Any part']], default: 'double', brief: v => v === 'any' ? 'Any part kills' : '',
+      help: v => v === 'any'
+        ? 'Once you are a killer, hitting any part of another player\'s number (single, double or treble) takes one of their lives. Hit your own number and you lose one.'
+        : 'Once you are a killer, hitting the double of another player\'s number takes one of their lives. Hit your own double and you lose one.' },
+    { key: 'mode', label: 'Rules', choices: [['house', 'House rules'], ['classic', 'Classic']], default: 'house', brief: v => v === 'classic' ? 'Classic rules' : 'House rules',
+      help: (v, o) => {
+        const bed = o?.become === 'treble' ? 'treble' : 'double';
+        return v === 'classic'
+          ? `No extras: only your own ${bed} makes you a killer, and the last player with a life left wins.`
+          : `Hit someone else's ${bed} before you are a killer and they become one. A Shanghai on your own number (single, double and treble in one visit) wins the game outright.`;
+      } },
   ],
 
   init(n, opts) {

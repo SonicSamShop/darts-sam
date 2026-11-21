@@ -237,6 +237,9 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .player-row { display: flex; gap: 10px; margin-bottom: 8px; }
 .opt { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 10px; }
 .opt > span { color: var(--muted); }
+.opt-q { margin-left: 6px; min-height: 0; width: 26px; height: 26px; padding: 0; border-radius: 50%; font-size: 15px; line-height: 1; vertical-align: middle; }
+.nowrap { white-space: nowrap; }
+.opt-help { grid-column: 2; margin: -4px 0 4px; font-size: 15px; line-height: 1.3; }  /* what the chosen option means */
 .choices { display: flex; gap: 6px; }
 .choices button { flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 8px; line-height: 1.15; text-wrap: balance; }  /* equal widths */
 /* a long row of choices (the bed picker) wraps into a grid of 7 equal columns instead of being squeezed into one row */
@@ -349,6 +352,7 @@ svg.heat .b-num { fill: #d9dce3; }
   .pick .game-card { height: auto; padding: 12px 14px; text-align: left; text-wrap: wrap; }
   .pick .game-card span { display: block; margin-top: 4px; line-height: 1.3; }
   .step .opt { grid-template-columns: minmax(0, 1fr); gap: 4px; margin-bottom: 14px; }
+  .step .opt-help { grid-column: 1; margin: 0; }
   .step .row { gap: 8px; }
   .step-next { display: block; width: 100%; margin-top: 4px; }
 }
