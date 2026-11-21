@@ -155,6 +155,12 @@ def main():
         assert db.stats(alex["id"], "clock")["detail"] == {
             "hit_rate": 50.0, "avg_finish": None, "best_finish": None, "best_run": 1}
 
+        # Round the World (hit=double): a single on the target is not a hit, a double is
+        # (Sam's other clock games only miss the 1, so his best run is this game's: D1 then D2 are not a run if the single counted)
+        ck2 = [throw(0, 1, 1, 1), throw(0, 1, 1, 2), throw(0, 1, 2, 2)]
+        assert db.save_match("ck2", match(1, [sam["id"]], ck2, game="clock", opts={"skip": "no", "hit": "double"}))
+        assert db.stats(sam["id"], "clock")["detail"]["best_run"] == 2
+
         # Cricket: Sam's T20 T20 20 is three marks to close, three that score and one more scoring;
         # once Alexa has closed 20 too, Sam's next 20 is dead and counts for nothing
         cr = [throw(0, 1, 20, 3), throw(0, 1, 20, 3), throw(0, 1, 20, 1),

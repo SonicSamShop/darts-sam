@@ -149,6 +149,27 @@ test('around the clock', () => {
   assert.equal(play('clock', ['A'], { skip: 'no' }, log).winner, 0);
 });
 
+test('clock: doubles only (round the world)', () => {
+  let s = play('clock', ['A'], { skip: 'no', hit: 'double' }, [D(1), D(1, 3), D(1, 2)]);
+  assert.equal(s.target[0], 2); assert.equal(s.hits[0], 1);
+  s = play('clock', ['A'], { skip: 'yes', hit: 'treble' }, [D(1, 3)]);
+  assert.equal(s.target[0], 2);  // skip ignored outside 'any'
+  s = play('clock', ['A'], { skip: 'no', hit: 'treble' }, [D(1, 2)]);
+  assert.equal(s.target[0], 1);  // a double is not a treble
+  s = play('clock', ['A'], { skip: 'no', hit: 'double' }, [D(25)]);
+  assert.equal(s.target[0], 1);
+});
+test('clock: the bull counts on any part in every mode', () => {
+  const log = [];
+  for (let n = 1; n <= 20; n++) { log.push(D(n, 2)); if (n % 3 === 0) log.push(NEXT); }
+  log.push(D(25));
+  assert.equal(play('clock', ['A'], { skip: 'no', hit: 'double' }, log).winner, 0);
+});
+test('clock: a game saved before the option replays the same', () => {
+  const s = play('clock', ['A'], { skip: 'yes' }, [D(1, 3)]);
+  assert.equal(s.target[0], 4);
+});
+
 test('free mode: only the visit in hand is added up, and it never ends', () => {
   let s = play('free', ['A'], {}, [D(20, 3), D(20)]);
   assert.deepEqual(s.visit, [80]); assert.equal(s.turn.length, 2);

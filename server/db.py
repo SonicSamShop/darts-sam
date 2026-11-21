@@ -537,13 +537,18 @@ def _clock(db, player_id: int, dart_set: str | None = None):
     darts = hits = best_run = 0
     finishes = []  # darts taken in each game the player got all the way round
     for m, _ids, throws in _matches(db, player_id, "clock", dart_set):
-        skip = json.loads(m["opts"]).get("skip") == "yes"
+        opts = json.loads(m["opts"])
+        ring = {"double": 2, "treble": 3}.get(opts.get("hit"))  # Round the World; None = any part
+        skip = opts.get("skip") == "yes" and ring is None
         target, n, run = 1, 0, 0
         for t in throws:
             if t["player_id"] != player_id or target is None:
                 continue
             n += 1
             if not t["mult"] or t["seg"] != target:
+                run = 0
+                continue
+            if ring and target != 25 and t["mult"] != ring:
                 run = 0
                 continue
             hits += 1

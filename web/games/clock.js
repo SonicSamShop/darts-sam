@@ -8,10 +8,11 @@ export default {
   id: 'clock',
   kind: 'training',
   name: 'Around the Clock',
-  blurb: 'Hit 1 through 20 in order, then the bull. First to finish wins.',
+  blurb: 'Hit 1 through 20 in order, then the bull. First to finish wins. Choose doubles only or trebles only for Round the World.',
   showTotal: false,  // the three-dart sum means nothing in this game
   options: [
     { key: 'skip', label: 'Doubles & trebles', choices: [['no', 'Count as one'], ['yes', 'Jump ahead 2 / 3']], default: 'no', brief: v => v === 'yes' ? 'Doubles & trebles jump ahead' : 'Doubles & trebles count as one' },
+    { key: 'hit', label: 'What counts', choices: [['any', 'Any part'], ['double', 'Doubles only'], ['treble', 'Trebles only']], default: 'any', brief: v => v === 'double' ? 'Doubles only' : v === 'treble' ? 'Trebles only' : 'Any part of the number counts' },
   ],
 
   init(n) {
@@ -22,9 +23,12 @@ export default {
     const p = s.current;
     s.thrown[p]++;
     if (!d.mult || d.seg !== s.target[p]) return;
+    // Round the World: on 1-20 only the chosen ring counts (the final bull takes any part).
+    const hit = s.opts.hit || 'any';
+    if (d.seg !== 25 && hit !== 'any' && d.mult !== (hit === 'double' ? 2 : 3)) return;
     s.hits[p]++;
     if (d.seg === 25) { s.winner = p; return; }
-    const step = s.opts.skip === 'yes' ? d.mult : 1;
+    const step = hit === 'any' && s.opts.skip === 'yes' ? d.mult : 1;
     s.target[p] = s.target[p] + step > 20 ? 25 : s.target[p] + step;
   },
 
