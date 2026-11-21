@@ -206,6 +206,10 @@ def main():
         assert store.count_events(acc["id"], "signup") == 1 and store.count_events(acc["id"], "correction") == 1
         assert store.count_events(acc["id"], "signin") == 1  # an app can't add sign-ins
         assert ann.post("/api/events", json={"events": "rubbish"}).status_code in (200, 422)
+        # the phone camera asked which bed, and what the player chose
+        r = ann.post("/api/events", json={"events": [{"kind": "asked", "ts": 9, "detail": {
+            "odds": [{"seg": 20, "mult": 3, "p": 0.6}, {"seg": 20, "mult": 1, "p": 0.4}], "chose": {"seg": 20, "mult": 1}}}]})
+        assert r.json() == {"kept": 1} and store.count_events(acc["id"], "asked") == 1
 
         assert nobody.post("/api/feedback", json={"text": "hi"}).status_code == 401
         r = ann.post("/api/feedback", json={"text": "   "})

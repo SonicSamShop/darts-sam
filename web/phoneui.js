@@ -9,6 +9,7 @@
 // stops). The scoring itself is phonecam.js.
 
 import { createPhoneCam, screenPoint, videoPoint } from './phonecam.js';
+import { choices, createQueue, question } from './ask.js';
 
 const KEY = 'phonecam';  // this phone's calibration: kept on this device only, as another device's camera is elsewhere
 
@@ -37,10 +38,14 @@ const SAY = {
     [['find', 'Find the board again', true], ['off', 'Stop using the phone camera']]],
 };
 
-// onEvent(ev): a dart, takeout or removed from the camera. onChange(): its
-// state changed (for the status line). store: app.js's {get, set}.
-export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, doc = globalThis.document, fetchFn = globalThis.fetch }) {
-  let cam = null, sheet = null, video = null, canvas = null;
+// onEvent(ev): a dart, takeout or removed, ready for the game. onChange(): its
+// state changed (for the status line). store: app.js's {get, set}. inGame():
+// is a game being played here (so a dart is worth asking about)? say(text):
+// the caller, if sound is on. note(kind, detail): the trial's notes
+// (track.js). undoLast(): take the game's last dart back out.
+export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, inGame = () => false, say = () => {},
+  note = () => {}, undoLast = () => {}, doc = globalThis.document, fetchFn = globalThis.fetch }) {
+  let cam = null, sheet = null, video = null, canvas = null, panel = null, toastTimer = 0, watchGame = 0;
   let state = 'off', detail = {}, lines = null, offered = null;
   let calibration = store.get(KEY, null)?.calibration ?? null;
 
@@ -101,8 +106,87 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
     }
   }
 
+  // ---------- asking which bed ----------
+  const queue = createQueue({ onPass: passed, onAsk: ask });
+
+  // What the camera saw. Outside a game nothing is asked (the bull-off goes by
+  // where the dart is, not which bed).
+  function seen(ev) {
+    hideToast();
+    if (!inGame()) { queue.clear(); hidePanel(); return onEvent(ev); }
+    queue.add(ev);
+  }
+
+  function passed(ev) {
+    onEvent(ev);
+    if (ev.type === 'dart' && ev.odds && !ev.asked) showToast(ev);
+  }
+
+  function ask(ev) {
+    if (!panel) {
+      panel = doc.createElement('div');
+      panel.className = 'askpanel';
+      doc.body.appendChild(panel);
+      panel.addEventListener('click', e => {
+        const b = e.target.closest('[data-pick]');
+        if (b) picked(b.dataset.pick === 'else' ? null : choices(queue.current())[+b.dataset.pick]);
+      });
+    }
+    panel.innerHTML = `<b class="ps-head">Which bed?</b>
+      <p class="dim">The phone camera isn't sure where that dart landed.</p>
+      <div class="row">${choices(ev).map((c, i) => `<button class="${i ? '' : 'primary'}" data-pick="${i}">${c.label}<span class="pct">${c.pct}%</span></button>`).join('')}
+        <button class="ghost" data-pick="else">Somewhere else</button></div>`;
+    panel.hidden = false;
+    say(question(ev));
+    // Left the game with the question open: forget it.
+    clearInterval(watchGame);
+    watchGame = setInterval(() => { if (!inGame()) { queue.clear(); hidePanel(); } }, 1000);
+  }
+
+  function picked(choice) {
+    const ev = queue.current();
+    if (!ev) return hidePanel();
+    note('asked', { odds: ev.odds, chose: choice && { seg: choice.seg, mult: choice.mult }, changed: !!ev.ask });
+    hidePanel();
+    if (choice) queue.settle({ seg: choice.seg, mult: choice.mult, asked: true });
+    else queue.settle(null);  // "somewhere else": tapped in on the board, as without a camera
+  }
+
+  function hidePanel() {
+    clearInterval(watchGame);
+    if (panel) panel.hidden = true;
+  }
+
+  // A dart it was sure of, for a few seconds: what it scored, and a way to change it.
+  function showToast(ev) {
+    let t = doc.querySelector('.asktoast');
+    if (!t) {
+      t = doc.createElement('div');
+      t.className = 'asktoast';
+      doc.body.appendChild(t);
+      t.addEventListener('click', e => {
+        if (!e.target.closest('[data-change]') || !t.dart) return;
+        const d = t.dart;
+        hideToast();
+        undoLast();
+        queue.add({ ...d, ask: true });
+      });
+    }
+    const top = choices(ev)[0];
+    t.dart = ev;
+    t.innerHTML = `<span>${top.label}<span class="pct">${top.pct}%</span></span><button data-change>Change</button>`;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 6000);
+  }
+  function hideToast() {
+    clearTimeout(toastTimer);
+    const t = doc.querySelector('.asktoast');
+    if (t) { t.hidden = true; t.dart = null; }
+  }
+
   async function begin() {
-    if (!cam) cam = createPhoneCam({ onEvent, onStatus: status });
+    if (!cam) cam = createPhoneCam({ onEvent: seen, onStatus: status });
     try {
       await cam.open(video);
     } catch (e) {

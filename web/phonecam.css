@@ -18,3 +18,15 @@
 /* "Beta": a feature still being tried out. Plain words in a box, nothing more. */
 .beta { display: inline-block; font: 600 13px/1 var(--font); letter-spacing: .04em; text-transform: uppercase;
   color: var(--accent); border: 1px solid currentColor; border-radius: 4px; padding: 3px 5px; vertical-align: middle; }
+
+/* "Which bed?" when the phone camera isn't sure (web/ask.js), over the game. */
+.askpanel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: var(--panel); color: var(--text);
+  border-top: 1px solid var(--line); padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); font-size: 18px; }
+.askpanel[hidden], .asktoast[hidden] { display: none; }
+.askpanel p { margin: 2px 0 10px; }
+.askpanel .row button { min-width: 96px; font-size: 21px; }
+.askpanel .pct, .asktoast .pct { margin-left: 8px; font-size: 15px; opacity: .7; }
+/* What it was sure of, for a few seconds, with a way to change it. */
+.asktoast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 39;
+  display: flex; align-items: center; gap: 14px; background: var(--panel2); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--round); padding: 8px 8px 8px 14px; font-size: 18px; }

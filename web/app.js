@@ -29,7 +29,9 @@ const store = {
 };
 navigator.storage?.persist?.().catch(() => {});  // ask the browser not to clear it when space runs short
 // Scoring with this phone's own camera (Beta): its screen is a sheet of its own (phoneui.js).
-const phone = createPhoneUi({ onEvent: onBoardEvent, onChange: refreshStatus, store });
+const phone = createPhoneUi({ onEvent: onBoardEvent, onChange: refreshStatus, store,
+  inGame: () => screen === 'game' && !!match && !botUp(), say: text => say(text),
+  note: (kind, detail) => tracker.track(kind, { match: match?.id, ...detail }), undoLast: () => undo() });
 phone.offered();  // is it offered here? (asked once, before the Cameras screen needs to know)
 
 
