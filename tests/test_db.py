@@ -187,6 +187,20 @@ def main():
         d = db.stats(alex["id"], "bobs27")["detail"]
         assert d == {"avg_score": 11.0, "best_score": 25, "double_rate": 7.4, "above_zero": 1}, d
 
+        # Shanghai: a single, double and treble of 1 in round 1 is a win and a Shanghai; then a
+        # round 2 visit of one 2 and two misses is a 4, so a second game left unfinished, with the rule off
+        sh = [throw(0, 1, 1, 1), throw(0, 1, 1, 2), throw(0, 1, 1, 3)]
+        assert db.save_match("s1", match(1, [alex["id"]], sh, winner=0, game="shanghai", opts={"rounds": 7, "shanghai": "yes"}))
+        d = db.stats(alex["id"], "shanghai")["detail"]
+        assert d["shanghais"] == 1 and d["hit_rate"] == 100.0
+        assert d["avg_total"] == 6.0 and d["best_total"] == 6, d
+        pts = [throw(0, 1, 1, 1), throw(0, 1, 20, 3), throw(0, 1, 0, 0),
+               throw(0, 2, 2, 2), throw(0, 2, 2, 1), throw(0, 2, 2, 3)]
+        assert db.save_match("s2", match(2, [alex["id"]], pts, winner=None, game="shanghai", opts={"rounds": 7, "shanghai": "no"}))
+        d = db.stats(alex["id"], "shanghai")["detail"]
+        assert d["shanghais"] == 2, d  # round 2's 2, D2, T2 counts even with the rule off
+        assert d["avg_total"] == 6.0 and d["hit_rate"] == 77.8, d  # 7 of 9 darts; the unfinished game is not in the totals
+
         # 121 Checkout from 81, six darts a target: T19 D12 checks out 81 in two; then 82 is
         # missed (a bust, then three darts that leave it); back on 81, D20 D20 is one dart short
         co = [throw(0, 1, 19, 3), throw(0, 1, 12, 2),

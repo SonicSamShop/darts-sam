@@ -657,7 +657,7 @@ test('closest to the bull: who throws first', () => {
 test('games are grouped into matches and training', () => {
   const ids = k => GAMES.filter(g => g.kind === k).map(g => g.id);
   assert.deepEqual(ids('match'), ['x01', 'cricket', 'killer']);
-  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'c121', 'countup', 'random', 'free']);
+  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'shanghai', 'c121', 'countup', 'random', 'free']);
   assert.ok(GAMES.every(g => g.kind === 'match' || g.kind === 'training'));
 });
 
@@ -704,4 +704,38 @@ test("bob's 27: the bull is the last double, and the game goes on past zero if a
   assert.equal(gameById('bobs27').aim(s), 'Bull');
   s = play('bobs27', ['A'], { zero: 'on' }, Array(6).fill(miss3).flat());
   assert.equal(s.winner, null); assert.equal(gameById('bobs27').aim(s), 'Double 7');
+});
+
+test('shanghai: only the round number scores', () => {
+  const s = play('shanghai', ['A'], {}, [D(1, 3), D(20, 3), D(1)]);
+  assert.equal(s.total[0], 4);
+});
+test('shanghai: single, double and treble wins outright', () => {
+  const s = play('shanghai', ['A', 'B'], {}, [D(1), D(1, 2), D(1, 3)]);
+  assert.equal(s.winner, 0); assert.equal(s.shanghais[0], 1);
+  assert.equal(gameById('shanghai').result(s), 'Shanghai! A wins');
+});
+test('shanghai: with the rule off it is just points', () => {
+  const log = [D(1), D(1, 2), D(1, 3), ...Array(18).fill(D(0, 0))];
+  const s = play('shanghai', ['A'], { shanghai: 'no' }, log);
+  assert.equal(s.total[0], 6); assert.equal(s.winner, 0);
+  assert.equal(s.shanghais[0], 1);
+  assert.equal(gameById('shanghai').result(s), 'Total 6');
+});
+test('shanghai: Next after one dart ends the visit', () => {
+  const s = play('shanghai', ['A'], {}, [D(1), NEXT]);
+  assert.equal(s.round, 2);
+});
+test('shanghai: two players, the highest total wins and a tie goes to the earlier player', () => {
+  // 7 rounds: A hits the round's number once a visit, B twice
+  const rounds = (a, b) => Array.from({ length: 7 }, (_, r) => [
+    ...a.map(() => D(r + 1)), ...Array(3 - a.length).fill(D(0, 0)),
+    ...b.map(() => D(r + 1)), ...Array(3 - b.length).fill(D(0, 0))]).flat();
+  let s = play('shanghai', ['A', 'B'], {}, rounds([1], [1, 1]));
+  assert.deepEqual(s.total, [28, 56]); assert.equal(s.winner, 1);
+  s = play('shanghai', ['A', 'B'], {}, rounds([1, 1], [1, 1]));
+  assert.deepEqual(s.total, [56, 56]); assert.equal(s.winner, 0);
+  assert.equal(gameById('shanghai').result(s), 'Total 56');
+  s = play('shanghai', ['A', 'B'], {}, rounds([1], [1, 1]).slice(0, -3));  // not finished until B's last visit
+  assert.equal(s.winner, null);
 });

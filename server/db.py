@@ -624,6 +624,35 @@ def _bobs27(db, player_id: int, dart_set: str | None = None):
     }
 
 
+def _shanghai(db, player_id: int, dart_set: str | None = None):
+    """Shanghai: in round N only the number N scores, so the player's own
+    visits are read by round. A Shanghai is a single, a double and a treble of
+    the round's number in one visit, counted whether or not it ended the game.
+    Total figures count finished games only."""
+    darts = hits = shanghais = 0
+    totals = []
+    for m, _ids, throws in _matches(db, player_id, "shanghai", dart_set):
+        total = 0
+        for visit in _visits(throws):
+            if visit[0]["player_id"] != player_id:
+                continue
+            got = [t for t in visit if t["seg"] == visit[0]["round"]]
+            darts += len(visit)
+            hits += len(got)
+            total += sum(t["seg"] * t["mult"] for t in got)
+            shanghais += {1, 2, 3} <= {t["mult"] for t in got}
+        if m["finished"]:
+            totals.append(total)
+    if not darts:
+        return None
+    return {
+        "avg_total": round(sum(totals) / len(totals), 1) if totals else None,
+        "best_total": max(totals, default=None),
+        "shanghais": shanghais,
+        "hit_rate": round(hits / darts * 100, 1),
+    }
+
+
 # Finishes that three darts cannot make (double out): everything over 170 too.
 _NO_FINISH = {159, 162, 163, 165, 166, 168, 169}
 
@@ -694,7 +723,7 @@ def _c121(db, player_id: int, dart_set: str | None = None):
     }
 
 
-GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27}
+GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai}
 
 
 def _gear(db, player_id: int, game_id: str | None) -> list[dict]:

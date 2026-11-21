@@ -1283,6 +1283,8 @@ const GAME_TILES = {
     ['Average game total', 'avg_total'], ['Best game total', 'best_total']],
   bobs27: [['Average score', 'avg_score'], ['Best score', 'best_score'], ['Doubles hit', 'double_rate', '%'],
     ['Games above zero', 'above_zero']],
+  shanghai: [['Average total', 'avg_total'], ['Best total', 'best_total'], ['Shanghais', 'shanghais'],
+    ['Hit rate on the number', 'hit_rate', '%']],
   c121: [['Checkout rate', 'rate', '%'], ['Checkouts hit', 'made'], ['Highest checkout', 'highest'],
     ['Average darts per checkout', 'avg_darts']],
 };
