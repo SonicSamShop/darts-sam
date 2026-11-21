@@ -3,7 +3,11 @@
   "unreleased": [
     "Score with your phone's camera (Beta): on the site, open Cameras and press Use this phone's camera. Stand the phone beside the board and it scores each dart by itself, with no computer, and asks which bed when it isn't sure.",
     "Killer has two new options: become a killer with a treble instead of a double, and take lives by hitting any part of a player's number (single, double or treble) instead of only their double.",
-    "Playing the computer, it now waits 8 seconds after your visit before it throws, with a countdown, so you can undo a wrongly scored dart first. Tap Throw now to skip the wait."
+    "Playing the computer, it now waits 8 seconds after your visit before it throws, with a countdown, so you can undo a wrongly scored dart first. Tap Throw now to skip the wait.",
+    "The Play screen now splits the games into Matches and Training, so the practice games are easy to find.",
+    "Five new training games: Bob's 27 (every double in turn, starting on 27), Shanghai, Bermuda, Segment Training (pick a number or the bull and see how often you hit it) and Random Checkout. Each has its own stats.",
+    "Around the Clock has a Round the World option: count only doubles, or only trebles.",
+    "New game: Gotcha, a race to exactly 301 or 501, where landing on another player's score sends them back to zero."
   ],
   "notes": {
     "1.0": [
