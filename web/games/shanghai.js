@@ -49,9 +49,11 @@ export default {
   },
 
   result(s) {
-    const w = s.winner;
+    const w = s.winner, t = s.total[w];
     // with the rule on, a Shanghai ends the game on the spot, so one for the winner is how it ended
-    return s.shanghais[w] && s.opts.shanghai !== 'no' ? `Shanghai! ${s.players[w]} wins` : `Total ${s.total[w]}`;
+    const shanghai = s.shanghais[w] && s.opts.shanghai !== 'no';
+    if (s.players.length > 1) return shanghai ? `Shanghai! ${s.players[w]} wins` : `${s.players[w]} wins with ${t}.`;
+    return shanghai ? `Shanghai! You finished on ${t}.` : `You finished on ${t}.`;
   },
 
   target(s) { return s.winner == null ? { seg: s.round, mult: 1 } : null; },

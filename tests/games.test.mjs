@@ -742,7 +742,7 @@ test('shanghai: with the rule off it is just points', () => {
   const s = play('shanghai', ['A'], { shanghai: 'no' }, log);
   assert.equal(s.total[0], 6); assert.equal(s.winner, 0);
   assert.equal(s.shanghais[0], 1);
-  assert.equal(gameById('shanghai').result(s), 'Total 6');
+  assert.equal(gameById('shanghai').result(s), 'You finished on 6.');
 });
 test('shanghai: Next after one dart ends the visit', () => {
   const s = play('shanghai', ['A'], {}, [D(1), NEXT]);
@@ -757,7 +757,7 @@ test('shanghai: two players, the highest total wins and a tie goes to the earlie
   assert.deepEqual(s.total, [28, 56]); assert.equal(s.winner, 1);
   s = play('shanghai', ['A', 'B'], {}, rounds([1, 1], [1, 1]));
   assert.deepEqual(s.total, [56, 56]); assert.equal(s.winner, 0);
-  assert.equal(gameById('shanghai').result(s), 'Total 56');
+  assert.equal(gameById('shanghai').result(s), 'A wins with 56.');
   s = play('shanghai', ['A', 'B'], {}, rounds([1], [1, 1]).slice(0, -3));  // not finished until B's last visit
   assert.equal(s.winner, null);
 });
@@ -799,6 +799,29 @@ test('segment: points by multiplier on the chosen bed only', () => {
 test('segment: trebles only ignores singles', () => {
   const s = play('segment', ['A'], { seg: 19, counts: 'treble', darts: 30 }, [D(19), D(19, 3), D(19, 2)]);
   assert.equal(s.points[0], 3);
+});
+test('segment: trebles on the bull means the inner bull', () => {
+  const s = play('segment', ['A'], { seg: 25, counts: 'treble', darts: 30 }, [D(25, 2), D(25), D(25, 2)]);
+  assert.equal(s.points[0], 4); assert.equal(s.hits[0], 2);
+  const g = gameById('segment');
+  assert.deepEqual(g.target(s), { seg: 25, mult: 2 });
+  assert.equal(g.aim(s), 'bull'); assert.doesNotMatch(g.hint(s), /treble/);
+});
+test('clock: Round the World names the ring and lights the bed', () => {
+  const g = gameById('clock');
+  let s = play('clock', ['A'], { skip: 'no', hit: 'double' }, [D(1, 2), D(2, 2), D(3, 2), D(4, 2)]);
+  assert.equal(g.aim(s), 'Double 5'); assert.equal(g.hint(s), 'Aim for Double 5');
+  assert.equal(g.summary(s, 0).big, 'D5'); assert.deepEqual(g.target(s), { seg: 5, mult: 2 });
+  s = play('clock', ['A'], { skip: 'no', hit: 'treble' }, [D(1, 3)]);
+  assert.equal(g.aim(s), 'Treble 2'); assert.equal(g.summary(s, 0).big, 'T2'); assert.deepEqual(g.target(s), { seg: 2, mult: 3 });
+  assert.equal(g.aim({ ...s, target: [25] }), 'Bull'); assert.deepEqual(g.target({ ...s, target: [25] }), { seg: 25, mult: 1 });
+  s = play('clock', ['A'], { skip: 'no' }, [D(1)]);
+  assert.equal(g.aim(s), '2'); assert.equal(g.target(s), null);
+});
+test('clock: the options summary says each thing once', () => {
+  const [skip, hit] = gameById('clock').options;
+  assert.equal(hit.brief('any'), ''); assert.equal(skip.brief('yes', { hit: 'any' }), 'Doubles & trebles jump ahead');
+  assert.equal(skip.brief('yes', { hit: 'double' }), ''); assert.equal(hit.brief('treble'), 'Trebles only');
 });
 test('segment: ends after the set number of darts', () => {
   const s = play('segment', ['A'], { seg: 25, counts: 'any', darts: 30 }, Array(30).fill(D(25, 2)));

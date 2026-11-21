@@ -18,7 +18,7 @@ export default {
   minPlayers: 2,
   blurb: 'Count up from zero to exactly 301 or 501. Land on another player\'s score and they go back to zero. Go over and the visit is a bust.',
   options: [
-    { key: 'target', label: 'Target', choices: [[301, '301'], [501, '501']], default: 301, brief: v => `to ${v}` },
+    { key: 'target', label: 'Target', choices: [[301, '301'], [501, '501']], default: 301, brief: v => `To ${v}` },
   ],
 
   init(n) { return { score: Array(n).fill(0), visitStart: 0, before: [], event: '' }; },

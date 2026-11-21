@@ -156,10 +156,21 @@ def main():
             "hit_rate": 50.0, "avg_finish": None, "best_finish": None, "best_run": 1}
 
         # Round the World (hit=double): a single on the target is not a hit, a double is
-        # (Sam's other clock games only miss the 1, so his best run is this game's: D1 then D2 are not a run if the single counted)
+        # (the single 1 breaks nothing and is not a hit; D1 then D2 make a run of 2, which is Sam's best)
         ck2 = [throw(0, 1, 1, 1), throw(0, 1, 1, 2), throw(0, 1, 2, 2)]
         assert db.save_match("ck2", match(1, [sam["id"]], ck2, game="clock", opts={"skip": "no", "hit": "double"}))
         assert db.stats(sam["id"], "clock")["detail"]["best_run"] == 2
+
+        # skip is ignored when hit is not "any": D1 D2 D3 is a run of 3 (it would break if D1 jumped to 3)
+        ck3 = [throw(0, 1, 1, 2), throw(0, 1, 2, 2), throw(0, 1, 3, 2)]
+        assert db.save_match("ck3", match(1, [sam["id"]], ck3, game="clock", opts={"skip": "yes", "hit": "double"}))
+        assert db.stats(sam["id"], "clock")["detail"]["best_run"] == 3
+
+        # the bull counts on any part with hit=double: D1 to D20 then a single bull is a run of 21 and a finish in 21 darts
+        ck4 = [throw(0, n, n, 2) for n in range(1, 21)] + [throw(0, 21, 25, 1)]
+        assert db.save_match("ck4", match(1, [sam["id"]], ck4, game="clock", opts={"skip": "no", "hit": "double"}))
+        ck = db.stats(sam["id"], "clock")["detail"]
+        assert ck["best_run"] == 21 and ck["best_finish"] == 21
 
         # Cricket: Sam's T20 T20 20 is three marks to close, three that score and one more scoring;
         # once Alexa has closed 20 too, Sam's next 20 is dead and counts for nothing
@@ -229,6 +240,11 @@ def main():
         assert db.save_match("sg2", match(2, [alex["id"]], sg, winner=0, game="segment", opts={"seg": 19, "counts": "treble", "darts": 30}))
         d = db.stats(alex["id"], "segment")["detail"]
         assert d["best_points"] == 3 and d["hit_rate"] == 50.0 and d["points_per_dart"] == 1.17, d
+        # the bull has no treble: "Trebles" on the bull means the inner bull, so two inner bulls and an outer one score 4
+        sg = [throw(0, 1, 25, 2), throw(0, 1, 25, 1), throw(0, 1, 25, 2)]
+        assert db.save_match("sg3", match(3, [alex["id"]], sg, game="segment", opts={"seg": 25, "counts": "treble", "darts": 30}))
+        d = db.stats(alex["id"], "segment")["detail"]
+        assert d["hit_rate"] == 55.6 and d["points_per_dart"] == 1.22, d
 
         # Random Checkout: the server makes the same targets from the seed as the app.
         # Expected lists are the output of

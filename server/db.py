@@ -627,7 +627,7 @@ def _bobs27(db, player_id: int, dart_set: str | None = None):
             darts += len(visit)
             hits += len(got)
             score += sum(t["seg"] * 2 for t in got)
-            if len(visit) < 3:  # cut short: the game ended on this visit
+            if len(visit) < 3:  # fewer than 3 darts: the game was left unfinished here
                 continue
             if not got:
                 score -= target * 2
@@ -729,6 +729,8 @@ def _segment(db, player_id: int, dart_set: str | None = None):
     for m, _ids, throws in _matches(db, player_id, "segment", dart_set):
         o = json.loads(m["opts"])
         want = ring.get(o.get("counts"))
+        if o.get("seg", 20) == 25 and want == 3:  # the bull has no treble: Trebles means the inner bull
+            want = 2
         got = [t for t in throws
                if t["player_id"] == player_id and t["mult"] and t["seg"] == o.get("seg", 20) and want in (None, t["mult"])]
         darts += sum(t["player_id"] == player_id for t in throws)

@@ -83,7 +83,7 @@ It must run without OpenCV installed (`requirements-host.txt`).
 |---|---|
 | `app.js` | Every screen, and the events between them. The biggest file by far. |
 | `engine.js` | A match is `{gameId, players, opts, log}`; the state is always worked out by replaying the log, which makes Undo "drop the last entry". |
-| `games/*.js` | One small module per game (X01, Cricket, Around the Clock, Count Up, 121 Checkout, Killer, Random Targets, Free Mode); `games/index.js` lists them. |
+| `games/*.js` | One small module per game, match games (X01, Cricket, Killer) and training games alike; `games/index.js` lists them. |
 | `board.js` | The board's geometry again, and the board you tap. |
 | `sync.js` | Saved data, offline first: written to the device at once, queued, and sent when the server can be reached. |
 | `stats.js` | The deep stats, counted on the device from the history the server sends. |

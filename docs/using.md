@@ -36,7 +36,8 @@ account has a database of its own instead.
 - **Stats:** **Stats** has a page for all games together and one for
   each game type, with that game's own averages (X01 and Count Up: 3-dart
   average; Cricket: marks per round; Around the Clock: hit rate and darts to
-  finish; 121 Checkout: checkout rate) and a heat map of where the darts
+  finish; 121 Checkout: checkout rate; the other training games have their own
+  figures too, such as Bob's 27 score or Segment Training points per dart) and a heat map of where the darts
   landed on the board.
 - **X01 in depth:** the X01 page has the figures the PDC publishes for its
   matches: three-dart and first-nine averages, 180s / 140+ / 100+ / 60+,

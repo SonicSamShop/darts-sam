@@ -11,7 +11,10 @@ const MULT = { single: 1, double: 2, treble: 3 };
 const WORD = { any: '', single: 'single ', double: 'double ', treble: 'treble ' };
 const bed = n => (n === 25 ? 'bull' : String(n));
 
-const counts = (s, d) => d.seg === s.opts.seg && d.mult > 0 && (s.opts.counts === 'any' || MULT[s.opts.counts] === d.mult);
+// The bull has no treble: on the bull "Trebles" means the inner bull (the double ring).
+const ring = s => (s.opts.seg === 25 && s.opts.counts === 'treble' ? 2 : MULT[s.opts.counts]);
+const word = s => (s.opts.seg === 25 && s.opts.counts === 'treble' ? '' : WORD[s.opts.counts] ?? '');
+const counts = (s, d) => d.seg === s.opts.seg && d.mult > 0 && (s.opts.counts === 'any' || ring(s) === d.mult);
 const darts = s => s.opts.darts ?? 60;  // the app always sends the options; a bare {} gets the default
 
 function finish(s) {
@@ -53,15 +56,14 @@ export default {
   // The bed to light up, with its ring when only one ring counts.
   target(s) {
     if (s.winner != null) return null;
-    const m = MULT[s.opts.counts] ?? 1;
-    return { seg: s.opts.seg, mult: s.opts.seg === 25 && m === 3 ? 1 : m };  // the bull has no treble
+    return { seg: s.opts.seg, mult: ring(s) ?? 1 };
   },
 
-  aim(s) { return s.winner == null ? `${WORD[s.opts.counts] ?? ''}${bed(s.opts.seg)}` : ''; },
+  aim(s) { return s.winner == null ? `${word(s)}${bed(s.opts.seg)}` : ''; },
 
   hint(s) {
     if (s.turnOver || s.winner != null) return '';
     const left = darts(s) - s.thrown[s.current];
-    return `${left} dart${left === 1 ? '' : 's'} left on ${WORD[s.opts.counts] ?? ''}${bed(s.opts.seg)}`;
+    return `${left} dart${left === 1 ? '' : 's'} left on ${word(s)}${bed(s.opts.seg)}`;
   },
 };
