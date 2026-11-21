@@ -714,7 +714,7 @@ function open(want) {
 // The two ways to play, where they differ: [what, tapping the board, with cameras].
 // What it claims is what web/faq.html says: change one, change the other.
 // A small number as it is written in a sentence: 8 -> "eight".
-const inWords = n => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][n] ?? String(n);
+const inWords = n => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'][n] ?? String(n);
 const WAYS = [
   ['What you need', 'A phone, tablet, TV or computer', 'Also a Mac, Windows or Linux PC and two or three webcams'],
   ['Scoring', 'Tap the board or type the visit', 'The cameras score each dart. Tap to put one right'],

@@ -22,8 +22,10 @@ source.
   on the site: no computer, and it asks when it isn't sure.
 - **Finds the board by itself.** No stickers, no markers, no clicking round the
   wires: [one tap per camera, once](#the-cameras-find-the-board-by-themselves).
-- **Eight games:** X01 (legs and sets), Cricket, Around the Clock, Count Up,
-  121 Checkout, Killer, Random Targets and Free Mode. A game is one small
+- **Fourteen games.** Matches: X01 (legs and sets), Cricket, Killer and
+  Gotcha. Training: Around the Clock (with a Round the World option),
+  Bob's 27, Shanghai, Bermuda, Segment Training, Random Checkout, 121
+  Checkout, Count Up, Random Targets and Free Mode. A game is one small
   file, so [adding one](CONTRIBUTING.md#adding-a-game) is easy.
 - **Stats worth having.** The figures the PDC publishes for its matches
   (three-dart and first-nine averages, checkout rate, 180s), a heat map of
