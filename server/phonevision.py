@@ -25,6 +25,8 @@ _tracker: tracker.Tracker | None = None
 
 
 def _picture(rgba, w: int, h: int) -> np.ndarray:
+    if hasattr(rgba, "to_py"):  # a JavaScript array, as Pyodide hands it over
+        rgba = rgba.to_py()
     return cv2.cvtColor(np.frombuffer(rgba, np.uint8).reshape(h, w, 4), cv2.COLOR_RGBA2BGR)
 
 
@@ -62,7 +64,13 @@ def feed(rgba, w: int, h: int) -> list[dict]:
     """One picture from the camera: what happened, as /ws would say it."""
     if _tracker is None:
         return []
-    return _tracker.update({CAMERA: _picture(rgba, w, h)})
+    events = _tracker.update({CAMERA: _picture(rgba, w, h)})
+    if not events and _tracker.stable >= tracker.STABLE_FRAMES:
+        # Nothing to say, but the picture has settled: the page counts on
+        # hearing this, to tell a picture that never settles (autofocus
+        # hunting, a flickering light) from a quiet board.
+        return [{"type": "still"}]
+    return events
 
 
 def still_matches(rgba, w: int, h: int, calibration: dict) -> bool:

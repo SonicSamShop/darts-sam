@@ -25,7 +25,7 @@ from pydantic import BaseModel
 
 from . import admin, auth, build, data_api, db, hoststore, limits, mail, reportsync
 from .relay import FORGOTTEN, NoHelper, Relay, TimedOut
-from .version import WebFiles, web_version
+from .version import WebFiles, vision_files, web_version
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -561,6 +561,7 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
                                     "commit": b["commit"]}), media_type="application/json",
                         headers={"Cache-Control": "no-cache"})
 
+    vision_files(app)
     app.mount("/", WebFiles(directory=WEB, html=True, head=beacon), name="web")
     return app
 

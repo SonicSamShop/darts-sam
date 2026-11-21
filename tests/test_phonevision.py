@@ -53,6 +53,16 @@ def test_calibrate_fails_with_a_reason():
     assert found["ok"] is False and found["reason"], found
 
 
+def test_takes_a_browser_array():
+    """In the browser a picture arrives as a JavaScript array, which Pyodide
+    hands over as an object with to_py() (giving a memoryview)."""
+    class FromJs:
+        def __init__(self, b): self.b = b
+        def to_py(self): return memoryview(self.b)
+    found = phonevision.calibrate(FromJs(picture()), W, H, twenty())
+    assert found["ok"], found
+
+
 def test_nothing_before_start():
     phonevision.stop()
     assert phonevision.feed(picture(), W, H) == []
@@ -84,6 +94,16 @@ def test_restart_forgets_the_board():
     assert not [e for e in events if e["type"] == "dart"], events
 
 
+def test_says_when_the_picture_is_still():
+    """The page needs to know the picture settles at all (autofocus hunting or
+    a flickering light never does): a still board says "still"."""
+    phonevision.start(calibrated())
+    said = [phonevision.feed(picture(), W, H) for _ in range(5)]
+    assert said[-1] == [{"type": "still"}], said
+    moving = [phonevision.feed(picture([dart_at(0, 60)] if i % 2 else []), W, H) for i in range(6)]
+    assert not any({"type": "still"} in s for s in moving[1:]), moving
+
+
 def test_still_matches():
     cal = calibrated()
     assert phonevision.still_matches(picture(), W, H, cal)
@@ -94,9 +114,11 @@ def test_still_matches():
 def main():
     test_calibrate()
     test_calibrate_fails_with_a_reason()
+    test_takes_a_browser_array()
     test_nothing_before_start()
     test_scores_a_dart()
     test_restart_forgets_the_board()
+    test_says_when_the_picture_is_still()
     test_still_matches()
     print("OK")
 

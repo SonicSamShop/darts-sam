@@ -38,6 +38,18 @@ def main():
         app = host.create(Path(tmp), settings, check_google=check)
         ann, ann2, bob, nobody = (TestClient(app) for _ in range(4))
 
+        # The vision code a phone runs in its browser (web/vision-worker.js),
+        # and none of the rest of the server's code.
+        r = nobody.get("/vision/py/detect.py")
+        assert r.status_code == 200 and "def find_dart" in r.text, r
+        assert r.headers["content-type"].startswith("text/plain"), r.headers
+        for bad in ("/vision/py/app.py", "/vision/py/host.py", "/vision/py/version.py",
+                    "/vision/py/..%2Fhost.py", "/vision/py/detect.pyc"):
+            assert nobody.get(bad).status_code == 404, bad
+        import mimetypes
+        assert mimetypes.guess_type("pyodide.asm.wasm")[0] == "application/wasm"
+        assert mimetypes.guess_type("pyodide.mjs")[0] == "text/javascript"
+
         me = nobody.get("/api/me").json()
         assert me == {"hosted": True, "google_client_id": "client-123", "apple_client_id": None, "email": True,
                       "home": None, "app": None, "account": None, "helper": None}  # "dev": the sign-in email is printed, not sent

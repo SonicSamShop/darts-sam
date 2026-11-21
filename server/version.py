@@ -8,10 +8,33 @@ The app compares the stamp it was loaded with against the one the Pi has now,
 and reloads itself when they differ (web/update.js).
 """
 import hashlib
+import mimetypes
 from pathlib import Path
 
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import HTTPException
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+
+# Python in the browser (web/vision/pyodide/, see web/vision-worker.js): some
+# systems know neither type, and a browser won't run them sent as anything else.
+mimetypes.add_type("application/wasm", ".wasm")
+mimetypes.add_type("text/javascript", ".mjs")
+
+# The vision code a phone runs in its own browser to score with its camera.
+# Only these, and only from here: nothing else of the server's is sent.
+VISION_FILES = ("board", "calib", "autocalib", "detect", "tracker", "phonevision")
+SERVER = Path(__file__).resolve().parent
+
+
+def vision_files(app) -> None:
+    """Serve /vision/py/<name>.py for the phone's camera (both servers)."""
+    @app.get("/vision/py/{name}.py")
+    def vision_py(name: str):
+        p = SERVER / f"{name}.py"
+        if name not in VISION_FILES or not p.is_file():  # a built desktop app keeps no .py files
+            raise HTTPException(404)
+        return PlainTextResponse(p.read_text(encoding="utf-8"),
+                                 headers={"Cache-Control": "no-cache"})
 
 
 def web_version(folder: Path) -> str:

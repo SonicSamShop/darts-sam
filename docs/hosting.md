@@ -76,7 +76,11 @@ chown dartssam: /opt/dartssam /var/lib/dartssam /etc/dartssam/ssh /var/backups/d
 runuser -u dartssam -- git clone https://github.com/SonicSamShop/darts-sam.git /opt/dartssam
 runuser -u dartssam -- python3 -m venv /opt/dartssam/.venv
 runuser -u dartssam -- /opt/dartssam/.venv/bin/pip install --no-cache-dir -r /opt/dartssam/requirements-host.txt
+runuser -u dartssam -- python3 /opt/dartssam/tools/fetch_pyodide.py
 ```
+
+The last line fetches Python for the browser (about 27 MB, not kept in git), which
+phones use to score with their own camera ([People's cameras](#peoples-cameras)).
 
 If you run from a private fork instead, give the server a read-only
 [deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys)
@@ -245,8 +249,11 @@ puts it back where it was.)
 ```bash
 cd /opt/dartssam && runuser -u dartssam -- git pull
 runuser -u dartssam -- .venv/bin/pip install --no-cache-dir -r requirements-host.txt
+runuser -u dartssam -- python3 tools/fetch_pyodide.py
 systemctl restart dartssam-host
 ```
+
+`fetch_pyodide.py` only downloads anything when its pinned version has changed.
 
 If the update changed the `Caddyfile`, copy it over again and reload Caddy:
 
@@ -284,7 +291,13 @@ keep 1 GB; watch the server's disk with `df -h /var/lib/dartssam`.
 
 ## People's cameras
 
-The site itself has no cameras. Someone with cameras runs the ordinary server
+**A phone's own camera (Beta).** A phone can score with its own camera, all
+inside its browser: the site sends it Python for the browser from
+`web/vision/pyodide/` (put there by `tools/fetch_pyodide.py`) and the vision code
+from `server/` at `/vision/py/`. The site does no vision work and gets no pictures.
+Without the fetched files the app simply doesn't offer it.
+
+**Cameras at home.** The site itself has no cameras. Someone with cameras runs the ordinary server
 at home (it knows the site's address), pairs it once with a code
 ([setup.md](setup.md#using-your-cameras-with-the-hosted-site)), and it then stays
 connected to the site. Nothing needs opening on their router: the connection

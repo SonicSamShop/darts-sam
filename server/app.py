@@ -38,7 +38,7 @@ from . import autocalib, board, build, cameras, camlist, data_api, db, guard, li
 from .awake import keep_awake
 from . import calib
 from .tracker import Tracker
-from .version import WebFiles, web_version
+from .version import WebFiles, vision_files, web_version
 
 WEB = paths.BUNDLE / "web"
 CONFIG_PATH = paths.HOME / "config.json"
@@ -746,6 +746,7 @@ def main():
         start_cameras()
         threading.Thread(target=vision_loop, daemon=True).start()
 
+    vision_files(app)
     app.mount("/", WebFiles(directory=WEB, html=True), name="web")
     uvicorn.run(app, host="0.0.0.0", port=args.port, ssl_certfile=args.cert, ssl_keyfile=args.key)
 
