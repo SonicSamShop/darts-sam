@@ -653,6 +653,49 @@ def _shanghai(db, player_id: int, dart_set: str | None = None):
     }
 
 
+def _bermuda(db, player_id: int, dart_set: str | None = None):
+    """Bermuda: round N has its own target (see ROUNDS in web/games/bermuda.js),
+    so the player's visits are read by round. A visit with no hit halves the
+    total. Total and halved figures count finished games only."""
+    rounds = [12, 13, 14, "D", 15, 16, 17, "T", 18, 19, 20, 25, 50]
+
+    def hit(target, t):
+        if target == "D":
+            return t["mult"] == 2
+        if target == "T":
+            return t["mult"] == 3
+        if target == 50:
+            return t["seg"] == 25 and t["mult"] == 2
+        return t["seg"] == target
+
+    darts = hits = 0
+    totals, halves = [], []
+    for m, _ids, throws in _matches(db, player_id, "bermuda", dart_set):
+        total = halved = 0
+        for visit in _visits(throws):
+            if visit[0]["player_id"] != player_id:
+                continue
+            target = rounds[visit[0]["round"] - 1]
+            got = [t for t in visit if hit(target, t)]
+            darts += len(visit)
+            hits += len(got)
+            total += sum(t["seg"] * t["mult"] for t in got)
+            if len(visit) == 3 and not got:
+                total //= 2
+                halved += 1
+        if m["finished"]:
+            totals.append(total)
+            halves.append(halved)
+    if not darts:
+        return None
+    return {
+        "avg_total": round(sum(totals) / len(totals), 1) if totals else None,
+        "best_total": max(totals, default=None),
+        "avg_halved": round(sum(halves) / len(halves), 1) if halves else None,
+        "hit_rate": round(hits / darts * 100, 1),
+    }
+
+
 # Finishes that three darts cannot make (double out): everything over 170 too.
 _NO_FINISH = {159, 162, 163, 165, 166, 168, 169}
 
@@ -723,7 +766,7 @@ def _c121(db, player_id: int, dart_set: str | None = None):
     }
 
 
-GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai}
+GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai, "bermuda": _bermuda}
 
 
 def _gear(db, player_id: int, game_id: str | None) -> list[dict]:

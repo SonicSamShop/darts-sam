@@ -201,6 +201,13 @@ def main():
         assert d["shanghais"] == 2, d  # round 2's 2, D2, T2 counts even with the rule off
         assert d["avg_total"] == 6.0 and d["hit_rate"] == 77.8, d  # 7 of 9 darts; the unfinished game is not in the totals
 
+        # Bermuda: round 1 is 12, round 2 is 13: one treble 12 in six darts is a hit rate of 1 in 6
+        be = [throw(0, 1, 12, 3), throw(0, 1, 0, 0), throw(0, 1, 0, 0),
+              throw(0, 2, 0, 0), throw(0, 2, 0, 0), throw(0, 2, 0, 0)]
+        assert db.save_match("be1", match(1, [alex["id"]], be, game="bermuda", opts={}))
+        d = db.stats(alex["id"], "bermuda")["detail"]
+        assert d["hit_rate"] == 16.7
+
         # 121 Checkout from 81, six darts a target: T19 D12 checks out 81 in two; then 82 is
         # missed (a bust, then three darts that leave it); back on 81, D20 D20 is one dart short
         co = [throw(0, 1, 19, 3), throw(0, 1, 12, 2),

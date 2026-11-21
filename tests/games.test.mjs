@@ -657,7 +657,7 @@ test('closest to the bull: who throws first', () => {
 test('games are grouped into matches and training', () => {
   const ids = k => GAMES.filter(g => g.kind === k).map(g => g.id);
   assert.deepEqual(ids('match'), ['x01', 'cricket', 'killer']);
-  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'shanghai', 'c121', 'countup', 'random', 'free']);
+  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'shanghai', 'bermuda', 'c121', 'countup', 'random', 'free']);
   assert.ok(GAMES.every(g => g.kind === 'match' || g.kind === 'training'));
 });
 
@@ -737,5 +737,35 @@ test('shanghai: two players, the highest total wins and a tie goes to the earlie
   assert.deepEqual(s.total, [56, 56]); assert.equal(s.winner, 0);
   assert.equal(gameById('shanghai').result(s), 'Total 56');
   s = play('shanghai', ['A', 'B'], {}, rounds([1], [1, 1]).slice(0, -3));  // not finished until B's last visit
+  assert.equal(s.winner, null);
+});
+
+test('bermuda: hits score, a blank visit halves', () => {
+  let s = play('bermuda', ['A'], {}, [D(12), D(12, 3), D(0, 0)]);
+  assert.equal(s.total[0], 48);
+  s = play('bermuda', ['A'], {}, [D(12), D(12, 3), D(0, 0), D(1), D(1), D(1)]);
+  assert.equal(s.total[0], 24); assert.equal(s.halved[0], 1);
+});
+test('bermuda: any double and any treble rounds', () => {
+  const to4 = [D(12), D(0, 0), D(0, 0), D(13), D(0, 0), D(0, 0), D(14), D(0, 0), D(0, 0)];
+  const s = play('bermuda', ['A'], {}, [...to4, D(20, 2), D(25, 2), D(5)]);
+  assert.equal(s.total[0], 12 + 13 + 14 + 40 + 50);
+});
+test('bermuda: Next after one miss halves, undo gives it back', () => {
+  assert.equal(play('bermuda', ['A'], {}, [D(12), D(0, 0), D(0, 0), D(0, 0), NEXT]).total[0], 6);
+  assert.equal(play('bermuda', ['A'], {}, [D(12), D(0, 0), D(0, 0), D(0, 0), D(0, 0)]).total[0], 12);
+});
+test('bermuda: ends after the bull round', () => {
+  const s = play('bermuda', ['A'], {}, Array(39).fill(D(0, 0)));
+  assert.equal(s.winner, 0); assert.equal(s.total[0], 0);
+});
+test('bermuda: two players, the highest total wins', () => {
+  // B scores 36 in round 1 and halves away to nothing, then hits the bull in round 13; A never hits
+  const log = [...Array(3).fill(D(0, 0)), D(12), D(12), D(12), ...Array(66).fill(D(0, 0)),
+    ...Array(3).fill(D(0, 0)), D(25, 2), D(0, 0), D(0, 0)];
+  let s = play('bermuda', ['A', 'B'], {}, log);
+  assert.deepEqual(s.total, [0, 50]); assert.equal(s.winner, 1);
+  assert.equal(gameById('bermuda').result(s), 'B wins with 50.');
+  s = play('bermuda', ['A', 'B'], {}, log.slice(0, -3));  // not finished until B's last visit
   assert.equal(s.winner, null);
 });
