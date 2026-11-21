@@ -31,6 +31,13 @@ def main():
         assert {"pyodide.mjs", "pyodide.asm.mjs", "pyodide.asm.wasm", "python_stdlib.zip",
                 "pyodide-lock.json"} <= set(fetch_pyodide.HASHES)
         assert any(n.startswith("opencv_python-") for n in fetch_pyodide.HASHES)
+        # The phone keeps them under a name with the version in it (web/sw.js):
+        # a new version must be a new name, or phones keep the old files.
+        sw = (fetch_pyodide.ROOT / "web" / "sw.js").read_text()
+        assert f"'dartssam-vision-{fetch_pyodide.VERSION}'" in sw, "web/sw.js's VISION cache doesn't match VERSION"
+        # ...and the files the app starts with are kept for offline use
+        for f in ("phoneui.js", "phonecam.js", "ask.js", "phonecam.css"):
+            assert f"'{f}'" in sw, f"{f} is loaded when the app starts, so web/sw.js must keep it"
     print("OK")
 
 

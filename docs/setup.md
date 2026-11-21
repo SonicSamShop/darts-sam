@@ -231,7 +231,12 @@ after being replugged shows **No picture**: press **Look again**. Its
 calibration stays with the old number, so press **Find the board** for it and
 tap the 20 once more.
 
-**A phone as a camera** (single, experimental): run an IP-webcam app on the
+**A phone scoring by itself** (Beta): on the hosted site a phone can use its own
+camera with no computer at all; see [Using the app](using.md#scoring-with-your-phones-camera-beta).
+Browsers only give a page the camera over https, so this doesn't work from a plain
+`http://` address at home.
+
+**A phone as one of these cameras** (single, experimental): run an IP-webcam app on the
 phone, then in the app go to **Cameras → Add a camera** and type the address
 the phone app shows, such as `http://PHONE-IP:8080/video`. It is remembered in
 `config.json`.

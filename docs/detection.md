@@ -63,7 +63,18 @@ With three lines that don't agree, each camera is left out in turn and the
 best pair kept. Each result carries a confidence: 0.95 from three cameras that
 agree, 0.8 from two, lower when a camera had to be left out or the lines only
 roughly cross. With a single camera running there are no lines to cross, and
-the position is that camera's own guess at the tip (0.3).
+the position is that camera's own guess at the tip.
+
+**How sure is one camera?** (`detect.bed_odds`) A single camera knows the
+dart's line well but not where along it the point is. So its tip is taken as a
+spread of places, 6 mm along the dart and 2.5 mm across it to begin with
+(wider where the camera sees that part of the board coarsely, or saw little of
+the dart), and the spread is added up inside each bed. The dart then carries
+its likeliest beds, such as `"odds": [{"seg": 20, "mult": 3, "p": 0.71},
+{"seg": 20, "mult": 1, "p": 0.25}]`, and its confidence is the first one's. A
+phone scoring with its own camera (Beta) asks the player when that is under 80%
+(`web/ask.js`). The spreads are the constants at the top of `bed_odds`, to be
+tuned from what players choose.
 
 The tracker then says what happened, and the server passes it to every open
 app over a WebSocket (`/ws`):

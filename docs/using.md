@@ -66,6 +66,22 @@ account has a database of its own instead.
   player's stats adds up every game they threw in, a game quit part-way and
   kept counting up to its last dart.
 
+## Scoring with your phone's camera (Beta)
+
+On the hosted site a phone can score by itself with its own camera, with no
+computer and nothing to install. Open **Cameras** and press **Use this phone's
+camera**, stand the phone to one side of the board (about level with it, with
+the whole board in the picture), take the darts out, press **Find the board**
+and tap the 20. The first time it downloads about 27 MB; after that it starts
+in a few seconds, even with no network.
+
+It is in **Beta**: one camera can't be as sure as two or three, so it gets some
+darts wrong. When it isn't sure, it asks **Which bed?** with its best guesses
+and how likely each is; pick one, or **Somewhere else** and tap the board. After
+a dart it was sure of, **Change** shows for a few seconds to put it right. If
+the phone gets moved it says so: find the board again. Everything is worked
+out on the phone; no pictures are sent anywhere.
+
 ## When a dart is scored wrongly
 
 Use **Undo** and tap the board where the dart really is. If the cameras got it

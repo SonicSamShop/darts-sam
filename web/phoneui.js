@@ -247,7 +247,10 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
     async offered() {
       if (offered !== null) return offered;
       if (!createPhoneCam().supported()) return (offered = false);
-      try { offered = (await fetchFn(new URL('./vision/pyodide/pyodide.mjs', import.meta.url), { method: 'HEAD' })).ok; } catch { offered = false; }
+      const url = new URL('./vision/pyodide/pyodide.mjs', import.meta.url);
+      try { offered = (await fetchFn(url, { method: 'HEAD' })).ok; } catch { offered = false; }
+      // Offline, but loaded before: the service worker kept it (sw.js).
+      if (!offered) offered = !!(await globalThis.caches?.match(url).catch(() => null));
       return offered;
     },
     offeredNow: () => offered === true,

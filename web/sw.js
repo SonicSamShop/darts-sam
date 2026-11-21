@@ -7,7 +7,12 @@
 // It still tries the Pi first, so editing files on the Pi updates the app; if
 // the Pi doesn't answer quickly the saved copy is used instead.
 // Browsers only run this over https or on localhost (see docs/setup.md).
-const CACHE = 'dartssam-v17';
+const CACHE = 'dartssam-v18';
+// Python for the browser, for the phone's camera (Beta): 27 MB that never
+// change for a given version (tools/fetch_pyodide.py's VERSION), so they are
+// kept apart, not thrown away with each new version of the app, and only
+// fetched by phones that use the camera.
+const VISION = 'dartssam-vision-314.0.7';
 const DATA = 'dartssam-data';  // stats saved by app.js for showing offline
 const WAIT = 2500;             // ms to give the Pi before using the saved copy
 
@@ -15,7 +20,8 @@ const WAIT = 2500;             // ms to give the Pi before using the saved copy
 // say) are still saved the first time they are loaded.
 const FILES = [
   './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'engine.js', 'board.js', 'bot.js', 'install.js', 'voice.js', 'theme.js',
-  'games/index.js', 'games/x01.js', 'games/cricket.js', 'games/clock.js', 'games/bobs27.js', 'games/shanghai.js', 'games/bermuda.js', 'games/segment.js', 'games/countup.js', 'games/c121.js', 'games/random.js', 'games/killer.js', 'games/free.js',
+  'phoneui.js', 'phonecam.js', 'ask.js', 'phonecam.css',
+  'games/index.js', 'games/x01.js', 'games/cricket.js', 'games/clock.js', 'games/bobs27.js', 'games/shanghai.js', 'games/bermuda.js', 'games/segment.js', 'games/rcheckout.js', 'games/countup.js', 'games/c121.js', 'games/random.js', 'games/killer.js', 'games/free.js',
   'style.css', 'themes.css', 'manifest.json', 'privacy.html', 'faq.html', 'download.html', 'opensource.html', 'releases.html',
   'icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',
   'fonts/anton-400.woff2', 'fonts/barlow-condensed-600.woff2', 'fonts/barlow-condensed-700.woff2',
@@ -30,7 +36,7 @@ self.addEventListener('install', e => e.waitUntil(
 ));
 self.addEventListener('activate', e => e.waitUntil(
   // drop caches left over from earlier versions and the app's earlier names
-  caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== DATA).map(k => caches.delete(k))))
+  caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== DATA && k !== VISION).map(k => caches.delete(k))))
     .then(() => self.clients.claim())
 ));
 
@@ -47,6 +53,13 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin')
       || url.pathname.startsWith('/downloads/')) return;  // the apps to download are far too big to keep a copy of
+  if (url.pathname.startsWith('/vision/pyodide/')) {  // fixed files: the saved copy first
+    e.respondWith(caches.open(VISION).then(async c => (await c.match(e.request)) || fetch(e.request).then(res => {
+      if (res.ok) c.put(e.request, res.clone());
+      return res;
+    })));
+    return;
+  }
   const fresh = fetch(e.request).then(res => {
     if (res.ok) { const copy = res.clone(); return caches.open(CACHE).then(c => c.put(e.request, copy)).then(() => res); }
     return res;

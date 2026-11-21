@@ -43,6 +43,7 @@ through them:
 | `detect.py` | Finds a new dart in one camera's picture and crosses the cameras' lines. [detection.md](detection.md) |
 | `tracker.py` | Turns a stream of pictures into "dart", "takeout" and "removed". |
 | `report.py`, `replay.py` | Saves what the cameras saw when a dart is scored wrongly, and runs detection over it again. |
+| `phonevision.py` | The same, for one phone scoring with its own camera (Beta): run in the phone's browser, see below. |
 
 ## The server at home: `server/app.py`
 
@@ -88,6 +89,7 @@ It must run without OpenCV installed (`requirements-host.txt`).
 | `stats.js` | The deep stats, counted on the device from the history the server sends. |
 | `account.js`, `track.js` | The hosted version: who is signed in, and its notes on how the app is used. |
 | `voice.js` | Calling the scores in the device's own voice. |
+| `phoneui.js`, `phonecam.js`, `vision-worker.js`, `ask.js` | A phone scoring with its own camera (Beta): its screen; the camera and the frames; Python (Pyodide, from `vision/pyodide/`, put there by `tools/fetch_pyodide.py`) running `server/`'s vision files in the browser, served at `/vision/py/`; and asking **Which bed?** when it isn't sure. Nothing leaves the phone. |
 | `bot.js` | Computer players: the levels, and how one throws a dart. Which bed to aim at is each game's own `bot()`; `tools/bot_levels.mjs` works the levels out. |
 | `update.js`, `sw.js`, `install.js` | Reloading onto new files; keeping a copy for offline; "Add to Home Screen". |
 | `index.html`, `faq.html`, `download.html`, `releases.html`, `opensource.html`, `privacy.html` | The app's one page, and the site's plain pages. |
@@ -137,6 +139,7 @@ hardware. [CONTRIBUTING.md](../CONTRIBUTING.md) says how to run them.
 | `tools/build_exe.py` | Builds the desktop app for the system it is run on (PyInstaller). |
 | `tools/sign_release.py` | Signs a build so the apps can tell an update is genuine. |
 | `tools/fetch_apps.py` | On a site's server: fetches the newest builds for its download page. |
+| `tools/fetch_pyodide.py` | Where the app is served from: fetches Python for the browser (checked against pinned hashes) for phones' cameras. |
 | `tools/backup.sh` | On a site's server: a dated copy of everything it keeps. |
 | `tools/calib_figures.py` | Makes the pictures in [calibration.md](calibration.md) again. |
 | `tools/linux/install.sh` | Puts the Linux build in the app menu. |

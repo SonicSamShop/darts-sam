@@ -18,6 +18,8 @@ source.
 
 - **Scores by camera.** USB webcams round the board watch for each dart, work
   out the segment, and move on to the next player when the darts are pulled.
+  Or, in Beta, [your phone's own camera](docs/using.md#scoring-with-your-phones-camera-beta)
+  on the site: no computer, and it asks when it isn't sure.
 - **Finds the board by itself.** No stickers, no markers, no clicking round the
   wires: [one tap per camera, once](#the-cameras-find-the-board-by-themselves).
 - **Eight games:** X01 (legs and sets), Cricket, Around the Clock, Count Up,
