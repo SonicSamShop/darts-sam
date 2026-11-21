@@ -2,7 +2,7 @@
 // AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { half } from '../board.js';
+import { half, rng } from '../board.js';
 
 // "Treble 16", "Single 16": a single is spelled out, since only that bed
 // counts. In hard mode a single is one half of it: "Inner 16", "Outer 16".
@@ -17,18 +17,6 @@ const said = t => (t.seg === 25 ? (t.mult === 2 ? 'Bullseye' : 'Outer bull') : b
 // three targets. Every visit starts on a new bed, so the next thrower never
 // carries on at the bed the last one was left on. The most points after the
 // last go wins.
-
-// The targets come from the match's own seed (engine.js puts one in the
-// options of a `seeded` game), so replaying the log always gives the same ones.
-function rng(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6D2B79F5) >>> 0;
-    let t = Math.imul(a ^ (a >>> 15), a | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 // Every bed that can come up: singles (and the 25) always, doubles (and the
 // bull) and trebles if they are included. In hard mode the two halves of a
@@ -50,6 +38,8 @@ function beds(opts) {
 // starts on and the ones after a first and a second hit. A bed is never one of
 // the three before it, so whichever of a visit's beds a player got to, the
 // next thrower is given a different bed.
+// They come from the match's own seed (engine.js puts one in the options of
+// a `seeded` game), so replaying the log always gives the same ones.
 const PER_GO = 3;
 export function targets(opts, players = 1) {
   const pool = beds(opts), next = rng(opts.seed ?? 1), seq = [];

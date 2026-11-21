@@ -19,6 +19,20 @@ export function scoreAt(x, y) {
 
 export const value = d => d.seg * d.mult;
 
+// A seeded random number generator (mulberry32): rng(seed)() gives the next
+// number in [0, 1). Games that pick things at random (`seeded` in engine.js)
+// pick them from the match's seed, so replaying the log gives the same ones.
+// server/db.py has a copy (_rc_rng) that must give the same numbers.
+export function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), a | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // Which half of a single a dart landed in: 'in' (between the bull and the
 // treble ring) or 'out' (between the treble and the double). null for any
 // other bed, and for a dart with no position (one entered as a miss, say).

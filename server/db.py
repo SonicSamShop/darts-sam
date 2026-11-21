@@ -794,7 +794,82 @@ def _c121(db, player_id: int, dart_set: str | None = None):
     }
 
 
-GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai, "bermuda": _bermuda, "segment": _segment}
+def _rc_rng(seed: int):
+    """board.js rng(): the same numbers from the same seed, in 32-bit integer
+    maths (Math.imul and >>> done with & 0xFFFFFFFF on unsigned values)."""
+    m32 = 0xFFFFFFFF
+    a = seed & m32
+
+    def nxt() -> float:
+        nonlocal a
+        a = (a + 0x6D2B79F5) & m32
+        t = ((a ^ (a >> 15)) * (a | 1)) & m32
+        t ^= (t + (((t ^ (t >> 7)) * (t | 61)) & m32)) & m32
+        return ((t ^ (t >> 14)) & m32) / 4294967296
+    return nxt
+
+
+_RC_RANGES = {"low": (2, 40), "mid": (41, 100), "high": (101, 170), "all": (2, 170)}
+
+
+def _rc_targets(seed: int, rng_range: str, count: int) -> list[int]:
+    """targets() in web/games/rcheckout.js: the same list of finishes from the
+    same seed. Change the two together."""
+    lo, hi = _RC_RANGES.get(rng_range, _RC_RANGES["low"])
+    # the scores in range that three darts can check out: every one from 2 to 170 but these
+    pool = [t for t in range(lo, hi + 1) if t not in _NO_FINISH]
+    nxt, out = _rc_rng(seed), []
+    while len(out) < count:
+        t = pool[int(nxt() * len(pool))]
+        if not out or t != out[-1]:
+            out.append(t)
+    return out
+
+
+def _rcheckout(db, player_id: int, dart_set: str | None = None):
+    """Random Checkout: the targets are made again from the game's seed, and
+    only the player's own visits are replayed, as in 121."""
+    tries = made = 0
+    took = []  # darts used on each target that was checked out
+    played = False
+    for m, _ids, throws in _matches(db, player_id, "rcheckout", dart_set):
+        o = json.loads(m["opts"])
+        limit, count = o.get("darts", 6), o.get("count", 10)
+        targets = _rc_targets(o.get("seed", 1), o.get("range", "low"), count)
+        i, used = 0, 0
+        left = targets[0]
+        for visit in _visits(throws):
+            if visit[0]["player_id"] != player_id or i >= count:
+                continue
+            played = True
+            begin = left
+            for t in visit:
+                used += 1
+                after = left - t["seg"] * t["mult"]
+                if after < 0 or after == 1 or (after == 0 and t["mult"] != 2):
+                    left = begin
+                    used = -(-used // 3) * 3  # a bust uses up the whole visit
+                    break
+                left = after
+                if left == 0:
+                    break
+            if left == 0 or used >= limit:
+                tries += 1
+                if left == 0:
+                    made += 1
+                    took.append(used)
+                i, used = i + 1, 0
+                left = targets[i] if i < count else 0
+    if not played:
+        return None
+    return {
+        "rate": round(made / tries * 100, 1) if tries else None,
+        "made": made,
+        "avg_darts": round(sum(took) / len(took), 1) if took else None,
+    }
+
+
+GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai, "bermuda": _bermuda, "segment": _segment, "rcheckout": _rcheckout}
 
 
 def _gear(db, player_id: int, game_id: str | None) -> list[dict]:

@@ -22,6 +22,11 @@ def match(seq, players, throws, winner=None, game="x01", duration=None, opts=Non
             "started": 1, "players": players, "winner": winner, "duration": duration, "throws": throws}
 
 
+# Random Checkout targets as the app makes them (see the node command in main).
+EXPECTED_RC_MID = [99, 59, 70, 90, 71]
+EXPECTED_RC_ALL = [103, 2, 87, 161, 158, 47, 101, 118, 70, 170, 75, 81]
+
+
 def expect(exc, fn, *args):
     try:
         fn(*args)
@@ -218,6 +223,41 @@ def main():
         assert db.save_match("sg2", match(2, [alex["id"]], sg, winner=0, game="segment", opts={"seg": 19, "counts": "treble", "darts": 30}))
         d = db.stats(alex["id"], "segment")["detail"]
         assert d["best_points"] == 3 and d["hit_rate"] == 50.0 and d["points_per_dart"] == 1.17, d
+
+        # Random Checkout: the server makes the same targets from the seed as the app.
+        # Expected lists are the output of
+        #   node -e "import('./web/games/rcheckout.js').then(m => console.log(JSON.stringify(m.targets(12345, 'mid', 5))))"
+        assert db._rc_targets(12345, "mid", 5) == EXPECTED_RC_MID
+        assert db._rc_targets(1, "all", 12) == EXPECTED_RC_ALL
+        # A finished solo game, six darts a target: the first target out in one visit; the
+        # second after a bust (T20 is over any low target) and a second visit; the third
+        # missed (six darts that score nothing); the other seven out in one visit each.
+        rco = {"range": "low", "darts": 6, "count": 10, "seed": 7}
+        rc_list = db._rc_targets(7, "low", 10)
+
+        def rc_route(t):  # a finish for any target up to 40
+            return [(t // 2, 2)] if t % 2 == 0 else [(1, 1), ((t - 1) // 2, 2)]
+
+        rc, rnd = [], 0
+
+        def rc_visit(darts):
+            nonlocal rnd
+            rnd += 1
+            rc.extend(throw(0, rnd, seg, mult) for seg, mult in darts)
+
+        for i, t in enumerate(rc_list):
+            if i == 1:
+                rc_visit([(20, 3)])
+                rc[-1]["bust"] = True
+            if i == 2:
+                rc_visit([(0, 0)] * 3)
+                rc_visit([(0, 0)] * 3)
+                continue
+            rc_visit(rc_route(t))
+        took = sum(len(rc_route(t)) for i, t in enumerate(rc_list) if i != 2) + 3
+        assert db.save_match("rc1", match(1, [alex["id"]], rc, winner=0, game="rcheckout", opts=rco))
+        d = db.stats(alex["id"], "rcheckout")["detail"]
+        assert d == {"rate": 90.0, "made": 9, "avg_darts": round(took / 9, 1)}, d
 
         # 121 Checkout from 81, six darts a target: T19 D12 checks out 81 in two; then 82 is
         # missed (a bust, then three darts that leave it); back on 81, D20 D20 is one dart short

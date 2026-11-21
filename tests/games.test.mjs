@@ -9,6 +9,7 @@ import { newMatch, compute, gameById, elapsed, clock, timeSpent, previousVisit }
 import { checkout } from '../web/games/x01.js';
 import { scoreAt, value, label, spoken, half, heatGrid, bullUp } from '../web/board.js';
 import { GAMES } from '../web/games/index.js';
+import { targets as rcTargets } from '../web/games/rcheckout.js';
 
 const D = (seg, mult = 1) => ({ t: 'dart', seg, mult });
 const NEXT = { t: 'next' };
@@ -657,7 +658,7 @@ test('closest to the bull: who throws first', () => {
 test('games are grouped into matches and training', () => {
   const ids = k => GAMES.filter(g => g.kind === k).map(g => g.id);
   assert.deepEqual(ids('match'), ['x01', 'cricket', 'killer']);
-  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'shanghai', 'bermuda', 'segment', 'c121', 'countup', 'random', 'free']);
+  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'shanghai', 'bermuda', 'segment', 'rcheckout', 'c121', 'countup', 'random', 'free']);
   assert.ok(GAMES.every(g => g.kind === 'match' || g.kind === 'training'));
 });
 
@@ -793,5 +794,69 @@ test('segment: two players, most points wins, a tie goes to the first', () => {
   assert.equal(s.winner, 1); assert.equal(s.points[1], 12);
   assert.match(gameById('segment').result(s), /B wins/);
   s = play('segment', ['A', 'B'], opts, [...Array(10).fill(turn(D(20))).flat(), ...Array(10).fill(turn(D(20))).flat()]);
+  assert.equal(s.winner, 0);
+});
+
+test('random checkout: targets are seeded, in range and finishable', () => {
+  const a = rcTargets(12345, 'mid', 20);
+  assert.equal(a.length, 20);
+  assert.deepEqual(a, rcTargets(12345, 'mid', 20));
+  assert.ok(a.every(t => t >= 41 && t <= 100 && checkout(t, 3, true)));
+  assert.ok(rcTargets(1, 'high', 50).every(t => t >= 101 && t <= 170 && checkout(t, 3, true)));
+  assert.ok(rcTargets(1, 'low', 50).every(t => t >= 2 && t <= 40));
+  assert.notDeepEqual(rcTargets(1, 'all', 20), rcTargets(2, 'all', 20));
+});
+test('random checkout: finishing on a double counts and moves on', () => {
+  const opts = { range: 'low', darts: 6, count: 10, seed: 7 };
+  const t = rcTargets(7, 'low', 10)[0];
+  const route = checkout(t, 3, true);  // [{seg, mult}, …]
+  const s = play('rcheckout', ['A'], opts, route.map(d => D(d.seg, d.mult)));
+  assert.equal(s.made[0], 1); assert.equal(s.tried[0], 1); assert.equal(s.left[0], rcTargets(7, 'low', 10)[1]);
+  assert.equal(s.dartsMade[0], route.length);
+  assert.equal(gameById('rcheckout').left(s), rcTargets(7, 'low', 10)[1]);
+});
+test('random checkout: out of darts is a miss', () => {
+  const s = play('rcheckout', ['A'], { range: 'low', darts: 3, count: 10, seed: 7 }, [D(0, 0), D(0, 0), D(0, 0)]);
+  assert.equal(s.made[0], 0); assert.equal(s.tried[0], 1);
+  assert.equal(s.left[0], rcTargets(7, 'low', 10)[1]);
+});
+test('random checkout: a bust resets the visit and uses it up', () => {
+  const t = rcTargets(7, 'low', 10)[0];
+  let s = play('rcheckout', ['A'], { range: 'low', darts: 6, count: 10, seed: 7 }, [D(20, 3)]);  // over any low target
+  assert.equal(s.left[0], t); assert.equal(s.used[0], 3); assert.equal(s.tried[0], 0);
+  s = play('rcheckout', ['A'], { range: 'low', darts: 3, count: 10, seed: 7 }, [D(20, 3)]);
+  assert.equal(s.tried[0], 1); assert.equal(s.made[0], 0);
+});
+
+// Plays a whole game: plan(s, p) gives the darts of the current player's next visit.
+function playOut(players, opts, plan) {
+  const m = newMatch('rcheckout', players, opts);
+  for (let n = 0; n < 500; n++) {
+    const s = compute(m);
+    if (s.winner != null) return s;
+    if (s.turnOver) m.log.push(NEXT);  // checked out: pull the darts first
+    else m.log.push(...plan(s, s.current));
+  }
+  throw new Error('the game never ended');
+}
+const M = D(0, 0);
+const routeTo = left => checkout(left, 3, true).map(d => D(d.seg, d.mult));
+
+test('random checkout: a game ends once everyone has had every target; most made wins', () => {
+  const opts = { range: 'mid', darts: 3, count: 10, seed: 99 };
+  let s = playOut(['A', 'B'], opts, (s, p) => (p === 1 ? routeTo(s.left[p]) : [M, M, M]));
+  assert.equal(s.winner, 1); assert.deepEqual(s.made, [0, 10]); assert.deepEqual(s.tried, [10, 10]);
+  assert.match(gameById('rcheckout').result(s), /^B wins/);
+  s = playOut(['A'], opts, s => routeTo(s.left[0]));
+  assert.equal(s.winner, 0); assert.equal(s.made[0], 10);
+  assert.match(gameById('rcheckout').result(s), /10 of 10/);
+});
+test('random checkout: equal checkouts go to fewer darts, then to the first player', () => {
+  const opts = { range: 'low', darts: 6, count: 10, seed: 3 };
+  // A wastes a visit on every target; B goes straight out: 10 each, B in fewer darts
+  let s = playOut(['A', 'B'], opts, (s, p) => (p === 0 && s.used[p] === 0 ? [M, M, M] : routeTo(s.left[p])));
+  assert.deepEqual(s.made, [10, 10]); assert.ok(s.dartsMade[1] < s.dartsMade[0]);
+  assert.equal(s.winner, 1);
+  s = playOut(['A', 'B'], opts, (s, p) => routeTo(s.left[p]));
   assert.equal(s.winner, 0);
 });
