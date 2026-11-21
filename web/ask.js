@@ -31,11 +31,11 @@ export const question = ev => `${choices(ev).slice(0, 2).map(c => spoken(c)).joi
 // it waits, so the game's darts stay in the order they were thrown.
 // onPass(ev): put it in the game. onAsk(ev): ask about it.
 export function createQueue({ onPass, onAsk }) {
-  let asking = null;
+  let asking = null, held = false;
   const waiting = [];
 
   function next() {
-    while (!asking && waiting.length) {
+    while (!asking && !held && waiting.length) {
       const ev = waiting.shift();
       if (needsAsk(ev)) { asking = ev; onAsk(ev); } else onPass(best(ev));
     }
@@ -43,16 +43,20 @@ export function createQueue({ onPass, onAsk }) {
 
   return {
     add(ev) { waiting.push(ev); next(); },
-    // The player's answer: {seg, mult}, or null for "somewhere else" (they tap it in).
+    // The player's answer: {seg, mult}, or null for "somewhere else": they tap
+    // it in on the board, and until then (release()) the darts behind it wait,
+    // or they would go into the game ahead of it.
     settle(choice) {
       if (!asking) return;
       const ev = asking;
       asking = null;
-      if (choice) onPass({ ...ev, ...choice });
+      if (choice) onPass({ ...ev, ...choice }); else held = true;
       next();
     },
+    release() { held = false; next(); },
+    holding: () => held,
     current: () => asking,
     size: () => (asking ? 1 : 0) + waiting.length,
-    clear() { asking = null; waiting.length = 0; },
+    clear() { asking = null; held = false; waiting.length = 0; },
   };
 }

@@ -77,6 +77,7 @@ def test_scores_a_dart():
         events += phonevision.feed(picture([dart_at(0, 60)]), W, H)
     darts = [e for e in events if e["type"] == "dart"]
     assert len(darts) == 1, events
+    assert phonevision.darts_in() == 1  # the page goes by this, not its own count
     assert darts[0]["seg"] == 20 and darts[0]["odds"], darts
     json.dumps(events)  # posted from the worker as is
 

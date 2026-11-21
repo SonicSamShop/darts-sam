@@ -17,10 +17,12 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};
 
 // [headline, words, buttons] for each state. Buttons: [action, label, primary?]
 const SAY = {
-  loading: d => ['Getting ready…', `Loading the vision code (step ${d.step || 1} of 3). The first time this downloads about 27 MB; after that it starts in a few seconds.`, []],
-  denied: () => ['The camera isn\'t allowed', 'Allow this site to use the camera in the browser\'s settings, then try again.', [['retry', 'Try again', true]]],
-  'no-camera': () => ['No camera found', 'The browser can\'t find a camera on this device.', [['retry', 'Try again', true]]],
-  error: d => ['Something went wrong', `${d.reason || ''} You can still score by tapping the board.`, [['retry', 'Try again', true]]],
+  loading: d => ['Getting ready…', `Loading the vision code (step ${d.step || 1} of 3). The first time this downloads about 27 MB; after that it starts in a few seconds.`, [['off', 'Stop using the phone camera']]],
+  denied: () => ['The camera isn\'t allowed', 'Allow this site to use the camera in the browser\'s settings, then try again.', [['retry', 'Try again', true], ['off', 'Stop using the phone camera']]],
+  'no-camera': () => ['No camera found', 'The browser can\'t find a camera on this device.', [['retry', 'Try again', true], ['off', 'Stop using the phone camera']]],
+  busy: () => ['The camera is busy', 'Another app is using the camera. Close it, then try again.', [['retry', 'Try again', true], ['off', 'Stop using the phone camera']]],
+  lost: () => ['The camera stopped', 'The phone stopped the camera, perhaps while the app was in the background. Press Try again to start it.', [['retry', 'Try again', true], ['off', 'Stop using the phone camera']]],
+  error: d => ['Something went wrong', `${esc(d.reason)} You can still score by tapping the board.`, [['retry', 'Try again', true], ['off', 'Stop using the phone camera']]],
   aim: () => ['Line it up with the board',
     'Stand the phone to one side of the board, about level with it, with the whole board in the picture. Straight in front hides the dart\'s point behind its flight. Take the darts out, then press <b>Find the board</b>.',
     [['find', 'Find the board', true], ['off', 'Stop using the phone camera']]],
@@ -42,11 +44,13 @@ const SAY = {
 // state changed (for the status line). store: app.js's {get, set}. inGame():
 // is a game being played here (so a dart is worth asking about)? say(text):
 // the caller, if sound is on. note(kind, detail): the trial's notes
-// (track.js). undoLast(): take the game's last dart back out.
+// (track.js). undoLast(): take the game's last dart back out. dartCount(): how
+// many darts the game has, to see when one is tapped in by hand.
 export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, inGame = () => false, say = () => {},
-  note = () => {}, undoLast = () => {}, doc = globalThis.document, fetchFn = globalThis.fetch }) {
-  let cam = null, sheet = null, video = null, canvas = null, panel = null, toastTimer = 0, watchGame = 0;
+  note = () => {}, undoLast = () => {}, dartCount = () => 0, doc = globalThis.document, fetchFn = globalThis.fetch }) {
+  let cam = null, sheet = null, video = null, canvas = null, panel = null, toastTimer = 0, watchGame = 0, waitTap = 0;
   let state = 'off', detail = {}, lines = null, offered = null;
+  const STOPPED = ['denied', 'no-camera', 'busy'];  // never got going: as good as off
   let calibration = store.get(KEY, null)?.calibration ?? null;
 
   const set = (s, d = {}) => {
@@ -58,8 +62,7 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
 
   function build() {
     sheet = doc.createElement('div');
-    sheet.className = 'phonesheet';
-    sheet.hidden = true;
+    sheet.className = 'phonesheet tucked';
     sheet.innerHTML = `<div class="ps-top"><b>Phone camera</b><span class="beta" title="Still being tried out: it will get some darts wrong">Beta</span>
         <button class="ghost" data-ps="close">Close</button></div>
       <div class="ps-view"><video playsinline muted autoplay></video><canvas></canvas></div>
@@ -112,7 +115,7 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
   // What the camera saw. Outside a game nothing is asked (the bull-off goes by
   // where the dart is, not which bed).
   function seen(ev) {
-    hideToast();
+    if (!queue.holding()) hideToast();
     if (!inGame()) { queue.clear(); hidePanel(); return onEvent(ev); }
     queue.add(ev);
   }
@@ -133,7 +136,7 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
       });
     }
     panel.innerHTML = `<b class="ps-head">Which bed?</b>
-      <p class="dim">The phone camera isn't sure where that dart landed.</p>
+      <p class="dim">The phone camera <span class="beta">Beta</span> isn't sure where that dart landed.</p>
       <div class="row">${choices(ev).map((c, i) => `<button class="${i ? '' : 'primary'}" data-pick="${i}">${c.label}<span class="pct">${c.pct}%</span></button>`).join('')}
         <button class="ghost" data-pick="else">Somewhere else</button></div>`;
     panel.hidden = false;
@@ -148,8 +151,17 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
     if (!ev) return hidePanel();
     note('asked', { odds: ev.odds, chose: choice && { seg: choice.seg, mult: choice.mult }, changed: !!ev.ask });
     hidePanel();
-    if (choice) queue.settle({ seg: choice.seg, mult: choice.mult, asked: true });
-    else queue.settle(null);  // "somewhere else": tapped in on the board, as without a camera
+    if (choice) return queue.settle({ seg: choice.seg, mult: choice.mult, asked: true });
+    // "Somewhere else": tapped in on the board, as without a camera. Darts the
+    // camera saw after it wait until it is in, so the game keeps them in order.
+    const had = dartCount();
+    queue.settle(null);
+    hint('Tap the board where that dart landed.');
+    clearInterval(waitTap);
+    waitTap = setInterval(() => {
+      if (!inGame()) { clearInterval(waitTap); hideToast(); return queue.clear(); }
+      if (dartCount() > had) { clearInterval(waitTap); hideToast(); queue.release(); }
+    }, 250);
   }
 
   function hidePanel() {
@@ -172,12 +184,21 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
         queue.add({ ...d, ask: true });
       });
     }
-    const top = choices(ev)[0];
     t.dart = ev;
-    t.innerHTML = `<span>${top.label}<span class="pct">${top.pct}%</span></span><button data-change>Change</button>`;
+    t.hidden = false;
+    if (!ev) return;
+    const top = choices(ev)[0];
+    t.innerHTML = `<span class="beta">Beta</span><span>${top.label}<span class="pct">${top.pct}%</span></span><button data-change>Change</button>`;
     t.hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(hideToast, 6000);
+  }
+  // Words in the toast's place, with nothing to press, until hideToast().
+  function hint(text) {
+    showToast(null);
+    const t = doc.querySelector('.asktoast');
+    t.innerHTML = `<span class="beta">Beta</span><span>${esc(text)}</span>`;
+    clearTimeout(toastTimer);
   }
   function hideToast() {
     clearTimeout(toastTimer);
@@ -206,7 +227,7 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
   }
 
   function status(s, d) {
-    if (['loading', 'denied', 'no-camera', 'unsettled', 'knocked'].includes(s)) set(s, d);
+    if (['loading', 'denied', 'no-camera', 'busy', 'unsettled', 'knocked', 'lost', 'error'].includes(s)) set(s, d);
     else if (s === 'watching' && ['unsettled', 'watching'].includes(state)) set('watching');
   }
 
@@ -222,21 +243,24 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
     watch(calibration);
   }
 
+  // Out of the way, not display:none: some phones stop a video that isn't drawn.
+  function tuck() { sheet?.classList.add('tucked'); }
+
   function show() {
     if (!sheet) build();
-    sheet.hidden = false;
+    sheet.classList.remove('tucked');
     draw();
   }
 
   function act(a) {
-    if (a === 'close') { sheet.hidden = true; return; }
+    if (a === 'close') return tuck();
     if (a === 'retry') { set('loading', { step: 1 }); return begin(); }
-    if (a === 'find') return set('twenty');
-    if (a === 'aim') return set(calibration && cam?.watching() ? 'watching' : 'aim');
+    if (a === 'find') { cam?.pause(); return set('twenty'); }  // nothing scored while the board is found again
+    if (a === 'aim') return calibration ? watch(calibration) : set('aim');
     if (a === 'off') {
       cam?.stop();
       lines = null;
-      sheet.hidden = true;
+      tuck();
       set('off');
     }
   }
@@ -247,7 +271,7 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
     box.className = 'report';
     const show = html => { box.innerHTML = `<div class="report-in">${html}</div>`; };
     const close = '<div class="row"><button data-rep="close">Close</button></div>';
-    show(`<h1>Report a wrong score</h1>
+    show(`<h1>Report a wrong score <span class="beta">Beta</span></h1>
       <p class="dim">This sends the phone camera's last few pictures of the board to your account, to help put it right.</p>
       <label>What should it have been? <input type="text" id="rep-expected" placeholder="T20, or: second dart not seen" autocomplete="off"></label>
       <div class="row"><button class="primary" data-rep="send">Send report</button><button data-rep="close">Cancel</button></div>`);
@@ -291,10 +315,10 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
     // Open its screen, starting the camera the first time.
     open() {
       show();
-      if (state === 'off') { set('loading', { step: 1 }); begin(); }
+      if (state === 'off' || STOPPED.includes(state) || state === 'lost' || state === 'error') { set('loading', { step: 1 }); begin(); }
     },
 
-    on: () => state !== 'off',
+    on: () => state !== 'off' && !STOPPED.includes(state),
     scoring: () => state === 'watching' || state === 'unsettled',
 
     // For the status line, with the Beta label; '' when it isn't on.
@@ -303,6 +327,7 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
       if (state === 'watching') return 'Auto-scoring · phone camera (Beta)';
       if (state === 'unsettled') return 'Phone camera (Beta) · picture won\'t settle';
       if (state === 'knocked') return 'Phone camera (Beta) · find the board again';
+      if (state === 'lost' || state === 'error') return 'Phone camera (Beta) · stopped: open it to start again';
       return 'Phone camera (Beta) · not lined up';
     },
   };

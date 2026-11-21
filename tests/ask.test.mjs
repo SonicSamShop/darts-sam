@@ -56,6 +56,8 @@ test('a dart thrown while a question is open waits its turn', () => {
   assert.deepEqual(passed.map(e => [e.seg, e.mult]), [[20, 1], [1, 1]]);
   assert.equal(q.current(), c, 'the next unsure dart is asked about next');
   q.settle(null);  // "somewhere else": the player taps it in
+  assert.deepEqual(passed.map(e => e.type), ['dart', 'dart'], 'the takeout waits for the dart being tapped in');
+  q.release();     // ...it has been
   assert.deepEqual(passed.map(e => e.type), ['dart', 'dart', 'takeout']);
   assert.equal(q.current(), null);
   assert.equal(q.size(), 0);
@@ -81,4 +83,18 @@ test('an answered dart says it was asked about', () => {
   q.add(dart([20, 3, 0.6], [20, 1, 0.4]));
   q.settle({ seg: 20, mult: 3, asked: true });
   assert.equal(passed[0].asked, true);
+});
+
+test('"somewhere else" holds the darts behind it until that dart is tapped in', () => {
+  const passed = [];
+  const q = createQueue({ onPass: e => passed.push(e), onAsk: () => {} });
+  q.add(dart([20, 3, 0.6], [20, 1, 0.4])); q.add(dart([1, 1, 0.99]));
+  q.settle(null);
+  assert.equal(passed.length, 0, 'the second dart must not go in ahead of the first');
+  assert.equal(q.holding(), true);
+  q.add(dart([5, 1, 0.99]));
+  assert.equal(passed.length, 0);
+  q.release();
+  assert.deepEqual(passed.map(e => e.seg), [1, 5]);
+  assert.equal(q.holding(), false);
 });

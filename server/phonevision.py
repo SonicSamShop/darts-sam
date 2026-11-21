@@ -80,6 +80,13 @@ def feed(rgba, w: int, h: int) -> list[dict]:
     return events
 
 
+def darts_in() -> int:
+    """How many darts the tracker thinks are in the board. The page goes by
+    this rather than counting events: the tracker can start again by itself
+    (someone stood in front of it for a while) without saying so."""
+    return _tracker.darts if _tracker is not None else 0
+
+
 def still_matches(rgba, w: int, h: int, calibration: dict) -> bool:
     """Is the board still where the calibration says? The coloured rings'
     edges are looked for near where they should be; a knocked phone finds

@@ -31,7 +31,8 @@ navigator.storage?.persist?.().catch(() => {});  // ask the browser not to clear
 // Scoring with this phone's own camera (Beta): its screen is a sheet of its own (phoneui.js).
 const phone = createPhoneUi({ onEvent: onBoardEvent, onChange: refreshStatus, store,
   inGame: () => screen === 'game' && !!match && !botUp(), say: text => say(text),
-  note: (kind, detail) => tracker.track(kind, { match: match?.id, ...detail }), undoLast: () => undo() });
+  note: (kind, detail) => tracker.track(kind, { match: match?.id, ...detail }), undoLast: () => undo(),
+  dartCount: () => (match ? match.log.filter(e => e.t === 'dart').length : 0) });
 phone.offered();  // is it offered here? (asked once, before the Cameras screen needs to know)
 
 
@@ -415,7 +416,7 @@ function refreshStatus() {
     // The game's top bar is short of room: it gets fewer words (the full ones are the tooltip).
     const brief = n.classList.contains('brief') && !auto;
     n.title = full;
-    n.innerHTML = `<span class="dot ${auto ? 'ok' : ''}"></span>${brief ? (phone.on() ? 'Phone camera' : !connected ? 'Offline' : 'No cameras') : full}`;
+    n.innerHTML = `<span class="dot ${auto ? 'ok' : ''}"></span>${brief ? (phone.on() ? 'Phone camera (Beta)' : !connected ? 'Offline' : 'No cameras') : full}`;
   });
   fit();  // the new wording can wrap onto another line
 }

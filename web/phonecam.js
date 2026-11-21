@@ -41,7 +41,11 @@ function canvasGrab(video) {
   return () => {
     if (!video?.videoWidth) return null;
     const w = WIDTH, h = Math.round(video.videoHeight * WIDTH / video.videoWidth);
-    if (!canvas) { canvas = new OffscreenCanvas(w, h); ctx = canvas.getContext('2d', { willReadFrequently: true }); }
+    if (!canvas) {
+      // OffscreenCanvas on the page itself needs iOS 16.4 or later; a plain canvas does the same job.
+      canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(w, h) : Object.assign(globalThis.document.createElement('canvas'), { width: w, height: h });
+      ctx = canvas.getContext('2d', { willReadFrequently: true });
+    }
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
     ctx.drawImage(video, 0, 0, w, h);
     return { frame: ctx.getImageData(0, 0, w, h).data.buffer, w, h };
@@ -49,8 +53,9 @@ function canvasGrab(video) {
 }
 
 // onEvent(ev): a dart, takeout or removed. onStatus(status, detail): one of
-// loading (detail {step, of}), no-camera, denied, watching, unsettled,
-// knocked, stopped. The rest are stand-ins for the browser, for the tests.
+// loading (detail {step, of}), no-camera, denied, busy (another app has the
+// camera), watching, unsettled, knocked, lost (the camera stopped), error
+// (detail {reason}), stopped. The rest are stand-ins for the browser, for the tests.
 export function createPhoneCam({
   onEvent = () => {}, onStatus = () => {},
   nav = globalThis.navigator, doc = globalThis.document, secure = globalThis.isSecureContext,
@@ -59,6 +64,7 @@ export function createPhoneCam({
 } = {}) {
   let w = null, stream = null, video = null, grabber = grab, lock = null;
   let watching = false, busy = false, status = '', lastStill = 0, lastCheck = 0, darts = 0, seq = 0;
+  let loaded = false, looping = false;
   const pending = new Map();
 
   const say = (s, detail) => { if (s !== status || detail) { status = s; onStatus(s, detail); } };
@@ -66,6 +72,7 @@ export function createPhoneCam({
   function call(cmd, data = {}, transfer = []) {
     const id = ++seq;
     return new Promise((resolve, reject) => {
+      if (!w) return reject(new Error('The vision code has stopped.'));
       pending.set(id, { resolve, reject });
       w.postMessage({ id, cmd, ...data }, transfer);
     });
@@ -76,6 +83,24 @@ export function createPhoneCam({
     if (!p) return;
     pending.delete(m.id);
     if (m.type === 'error') p.reject(new Error(m.message)); else p.resolve(m);
+  }
+
+  // The worker died (out of memory, or its files couldn't be loaded): say so,
+  // rather than wait for answers that will never come. open() starts another.
+  function died(e) {
+    e?.preventDefault?.();
+    const err = new Error(e?.message || 'The vision code stopped.');
+    for (const p of pending.values()) p.reject(err);
+    pending.clear();
+    w = null; loaded = false; watching = false; busy = false;
+    say('error', { reason: err.message });
+  }
+
+  // The camera itself stopped (the phone took it back while the app was in the background).
+  function lost() {
+    if (!watching) return;
+    watching = false;
+    say('lost');
   }
 
   async function wake() {
@@ -94,7 +119,7 @@ export function createPhoneCam({
   }
 
   function onFrame(m) {
-    const t = now();
+    const t = now(), before = darts;
     for (const ev of m.events || []) {
       lastStill = t;
       if (ev.type === 'still') continue;
@@ -103,6 +128,9 @@ export function createPhoneCam({
       else if (ev.type === 'takeout') darts = 0;
       onEvent(ev);
     }
+    // The tracker's own count wins: it can start again by itself without saying so.
+    if (typeof m.darts === 'number') darts = m.darts;
+    if (before > 0 && darts === 0) lastCheck = -Infinity;  // the board just emptied: look at once whether the phone moved
     if (watching) say(settleState(t, lastStill));
   }
 
@@ -122,15 +150,22 @@ export function createPhoneCam({
     call('frame', shot, [shot.frame]).then(onFrame).catch(() => {}).finally(() => { busy = false; });
   }
 
+  // One loop at a time, however often start() is called; it ends when watching stops.
   function loop() {
-    if (!watching) return;
-    tick();
+    if (!watching) { looping = false; return; }
+    try { tick(); } finally { schedule(loop); }
+  }
+  function startLoop() {
+    if (looping) return;
+    looping = true;
     schedule(loop);
   }
 
   doc?.addEventListener?.('visibilitychange', () => {
     if (!watching) return;
     if (doc.visibilityState === 'hidden') { lock?.release?.().catch?.(() => {}); lock = null; return; }
+    const track = stream?.getVideoTracks?.()[0];
+    if (!track || track.readyState === 'ended') return lost();
     // The camera stopped while hidden; the board may have changed meanwhile.
     lastStill = lastCheck = now();
     darts = 0;
@@ -145,21 +180,28 @@ export function createPhoneCam({
     // code (about 27 MB the first time, kept for next time).
     async open(videoEl) {
       video = videoEl;
+      for (const t of stream?.getTracks?.() || []) t.stop();  // trying again: let go of the last one first
       try {
         stream = await nav.mediaDevices.getUserMedia({
           audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         });
       } catch (e) {
-        say(e?.name === 'NotAllowedError' || e?.name === 'SecurityError' ? 'denied' : 'no-camera');
+        say(e?.name === 'NotAllowedError' || e?.name === 'SecurityError' ? 'denied' : e?.name === 'NotReadableError' ? 'busy' : 'no-camera');
         throw e;
       }
+      stream.getVideoTracks?.()[0]?.addEventListener?.('ended', lost);
       if (video) { video.srcObject = stream; video.muted = true; video.playsInline = true; await video.play?.(); }
       grabber ||= canvasGrab(video);
       if (!w) {
         w = worker();
         w.onmessage = e => answer(e.data);
+        w.onerror = died;
+        w.onmessageerror = died;
+      }
+      if (!loaded) {
         say('loading', { step: 0, of: 3 });
         await call('load');
+        loaded = true;
       }
     },
 
@@ -193,8 +235,11 @@ export function createPhoneCam({
       lastStill = lastCheck = now();
       say('watching');
       wake();
-      schedule(loop);
+      startLoop();
     },
+
+    // Stop scoring for a moment (while the board is found again), keeping the camera.
+    pause() { watching = false; },
 
     stop() {
       watching = false;

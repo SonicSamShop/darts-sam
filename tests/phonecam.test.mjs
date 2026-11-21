@@ -17,7 +17,7 @@ function fakes({ camera = 'ok' } = {}) {
     // answer the last request of this kind
     answer(cmd, m) { const req = [...posted].reverse().find(p => p.cmd === cmd); this.reply({ id: req.id, ...m }); },
   };
-  const track = { stop() { this.stopped = true; }, getCapabilities: () => ({}), applyConstraints: async () => {} };
+  const track = { readyState: 'live', stop() { this.stopped = true; }, getCapabilities: () => ({}), applyConstraints: async () => {}, addEventListener() {} };
   const nav = {
     mediaDevices: {
       getUserMedia: async () => {
@@ -29,13 +29,14 @@ function fakes({ camera = 'ok' } = {}) {
     wakeLock: { request: async () => ({ release: async () => {} }) },
   };
   const doc = { visibilityState: 'visible', addEventListener: (n, f) => { listeners[n] = f; } };
+  const scheduled = { n: 0 };
   const cam = createPhoneCam({
     onEvent: e => events.push(e), onStatus: s => statuses.push(s),
     nav, doc, secure: true, worker: () => worker, now: () => clock,
-    grab: () => ({ frame: new ArrayBuffer(16), w: 2, h: 2 }), schedule: () => {},
+    grab: () => ({ frame: new ArrayBuffer(16), w: 2, h: 2 }), schedule: () => { scheduled.n++; },
   });
   const video = { play: async () => {} };
-  return { cam, worker, posted, statuses, events, track, doc, listeners, video, tick: ms => { clock += ms; } };
+  return { cam, worker, posted, statuses, events, track, doc, listeners, video, scheduled, tick: ms => { clock += ms; } };
 }
 
 async function watching(f) {
@@ -171,4 +172,82 @@ test('a report comes back with its own id, apart from the request\'s', async () 
   const made = await asking;
   assert.equal(made.id, '2026-11-21_18-00-00');
   assert.deepEqual([...made.zip], [1]);
+});
+
+test('the knock check goes by the tracker\'s own count of darts', async () => {
+  const f = fakes();
+  await watching(f);
+  f.cam.tick();
+  f.worker.answer('frame', { type: 'events', events: [{ type: 'dart', seg: 1, mult: 1 }], darts: 1 });
+  await new Promise(r => setTimeout(r));
+  // The tracker started again by itself (someone stood in front of it): it has no darts now, though no takeout was said.
+  f.cam.tick();
+  f.worker.answer('frame', { type: 'events', events: [], darts: 0 });
+  await new Promise(r => setTimeout(r));
+  f.cam.tick();
+  assert.ok(f.posted.some(p => p.cmd === 'check'), 'the board emptied: look straight away whether the phone moved');
+});
+
+test('the knock check runs straight after the darts are pulled', async () => {
+  const f = fakes();
+  await watching(f);
+  f.cam.tick();
+  f.worker.answer('frame', { type: 'events', events: [{ type: 'dart', seg: 1, mult: 1 }], darts: 1 });
+  await new Promise(r => setTimeout(r));
+  f.cam.tick();
+  f.worker.answer('frame', { type: 'events', events: [{ type: 'takeout' }], darts: 0 });
+  await new Promise(r => setTimeout(r));
+  f.cam.tick();
+  assert.ok(f.posted.some(p => p.cmd === 'check'));
+});
+
+test('a failed load is tried again', async () => {
+  const f = fakes();
+  const first = f.cam.open(f.video);
+  await new Promise(r => setTimeout(r));
+  f.worker.answer('load', { type: 'error', message: 'network' });
+  await assert.rejects(first);
+  const again = f.cam.open(f.video);
+  await new Promise(r => setTimeout(r));
+  assert.equal(f.posted.filter(p => p.cmd === 'load').length, 2);
+  f.worker.answer('load', { type: 'ready' });
+  await again;
+});
+
+test('a worker that dies says so instead of leaving it loading', async () => {
+  const f = fakes();
+  const opening = f.cam.open(f.video);
+  await new Promise(r => setTimeout(r));
+  f.worker.onerror({ message: 'out of memory' });
+  await assert.rejects(opening);
+  assert.equal(f.statuses.at(-1), 'error');
+});
+
+test('a camera that stopped while the page was hidden is noticed', async () => {
+  const f = fakes();
+  await watching(f);
+  f.doc.visibilityState = 'hidden'; f.listeners.visibilitychange();
+  f.track.readyState = 'ended';
+  f.doc.visibilityState = 'visible'; f.listeners.visibilitychange();
+  assert.equal(f.statuses.at(-1), 'lost');
+  f.cam.tick();
+  assert.equal(f.posted.filter(p => p.cmd === 'frame').length, 0);
+});
+
+test('finding the board again keeps one picture loop', async () => {
+  const f = fakes();
+  await watching(f);
+  const n = f.scheduled.n;
+  const again = f.cam.start({ points: [] });
+  f.worker.answer('start', { type: 'started' });
+  await again;
+  assert.equal(f.scheduled.n, n, 'the loop already running carries on; no second one');
+});
+
+test('paused while the board is found, nothing is scored', async () => {
+  const f = fakes();
+  await watching(f);
+  f.cam.pause();
+  f.cam.tick();
+  assert.equal(f.posted.filter(p => p.cmd === 'frame').length, 0);
 });
