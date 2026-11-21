@@ -14,7 +14,8 @@ import rcheckout from './rcheckout.js';
 import countup from './countup.js';
 import c121 from './c121.js';
 import killer from './killer.js';
+import gotcha from './gotcha.js';
 import random from './random.js';
 import free from './free.js';
 
-export const GAMES = [x01, cricket, killer, clock, bobs27, shanghai, bermuda, segment, rcheckout, c121, countup, random, free];
+export const GAMES = [x01, cricket, killer, gotcha, clock, bobs27, shanghai, bermuda, segment, rcheckout, c121, countup, random, free];

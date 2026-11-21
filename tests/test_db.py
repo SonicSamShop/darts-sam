@@ -265,6 +265,12 @@ def main():
         d = db.stats(alex["id"], "rcheckout")["detail"]
         assert d == {"rate": 90.0, "made": 9, "avg_darts": round(took / 9, 1)}, d
 
+        # Gotcha: a visit of 180, then B throws a 1; the average counts A's visits that did not bust
+        go = [throw(0, 1, 20, 3), throw(0, 1, 20, 3), throw(0, 1, 20, 3), throw(1, 1, 1, 1)]
+        assert db.save_match("got1", match(1, [alex["id"], sam["id"]], go, game="gotcha", opts={"target": 301}))
+        assert db.stats(alex["id"], "gotcha")["detail"]["average"] == 180.0
+        assert db.stats(alex["id"], "gotcha")["detail"]["won"] == 0
+
         # 121 Checkout from 81, six darts a target: T19 D12 checks out 81 in two; then 82 is
         # missed (a bust, then three darts that leave it); back on 81, D20 D20 is one dart short
         co = [throw(0, 1, 19, 3), throw(0, 1, 12, 2),

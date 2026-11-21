@@ -5,7 +5,7 @@
 // node --test tests/
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newMatch, compute, gameById, elapsed, clock, timeSpent, previousVisit } from '../web/engine.js';
+import { newMatch, compute, gameById, canStart, elapsed, clock, timeSpent, previousVisit } from '../web/engine.js';
 import { checkout } from '../web/games/x01.js';
 import { scoreAt, value, label, spoken, half, heatGrid, bullUp } from '../web/board.js';
 import { GAMES } from '../web/games/index.js';
@@ -678,7 +678,7 @@ test('closest to the bull: who throws first', () => {
 
 test('games are grouped into matches and training', () => {
   const ids = k => GAMES.filter(g => g.kind === k).map(g => g.id);
-  assert.deepEqual(ids('match'), ['x01', 'cricket', 'killer']);
+  assert.deepEqual(ids('match'), ['x01', 'cricket', 'killer', 'gotcha']);
   assert.deepEqual(ids('training'), ['clock', 'bobs27', 'shanghai', 'bermuda', 'segment', 'rcheckout', 'c121', 'countup', 'random', 'free']);
   assert.ok(GAMES.every(g => g.kind === 'match' || g.kind === 'training'));
 });
@@ -880,4 +880,25 @@ test('random checkout: equal checkouts go to fewer darts, then to the first play
   assert.equal(s.winner, 1);
   s = playOut(['A', 'B'], opts, (s, p) => routeTo(s.left[p]));
   assert.equal(s.winner, 0);
+});
+
+const T20x3 = [D(20, 3), D(20, 3), D(20, 3)];
+test('gotcha: matching a score sends the other player back to zero', () => {
+  const s = play('gotcha', ['A', 'B'], {}, [...T20x3, ...T20x3]);
+  assert.deepEqual(s.score, [0, 180]);
+  assert.equal(gameById('gotcha').call(s), 'Gotcha! A back to zero');
+});
+test('gotcha: going over is a bust, exactly the target wins', () => {
+  let s = play('gotcha', ['A', 'B'], {}, [...T20x3, D(1), NEXT, D(20, 3), D(20, 3), D(20, 3)]);
+  // A 180, B 1, A 360 > 301: bust back to 180
+  assert.equal(s.score[0], 180); assert.equal(s.bust, 0);
+  s = play('gotcha', ['A', 'B'], {}, [...T20x3, D(1), NEXT, D(20, 3), D(20, 3), D(1)]);
+  assert.equal(s.score[0], 301); assert.equal(s.winner, 0);
+});
+test('gotcha: a miss does not send anyone back, and a game needs two players', () => {
+  const s = play('gotcha', ['A', 'B'], {}, [D(0, 0), D(0, 0), D(0, 0), D(0, 0)]);
+  assert.deepEqual(s.score, [0, 0]);
+  assert.equal(canStart(gameById('gotcha'), 1), false);
+  assert.equal(canStart(gameById('gotcha'), 2), true);
+  assert.equal(canStart(gameById('x01'), 1), true);
 });

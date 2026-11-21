@@ -592,6 +592,23 @@ def _countup(db, player_id: int, dart_set: str | None = None):
     }
 
 
+def _gotcha(db, player_id: int, dart_set: str | None = None):
+    """Gotcha: games won, and the three-dart average over the player's visits
+    that did not bust (the score being sent back to zero does not matter here)."""
+    won = darts = points = 0
+    played = False
+    for m, _ids, throws in _matches(db, player_id, "gotcha", dart_set):
+        played = True
+        won += m["winner_id"] == player_id
+        for v in _visits([t for t in throws if t["player_id"] == player_id]):
+            if not any(t["bust"] for t in v):
+                darts += len(v)
+                points += sum(t["seg"] * t["mult"] for t in v)
+    if not played:
+        return None
+    return {"won": won, "average": round(points / darts * 3, 1) if darts else None}
+
+
 def _bobs27(db, player_id: int, dart_set: str | None = None):
     """Bob's 27: every player has their own score and double, so only the
     player's own visits are replayed, with the game's own options. Score
@@ -874,7 +891,7 @@ def _rcheckout(db, player_id: int, dart_set: str | None = None):
     }
 
 
-GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai, "bermuda": _bermuda, "segment": _segment, "rcheckout": _rcheckout}
+GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai, "bermuda": _bermuda, "segment": _segment, "rcheckout": _rcheckout, "gotcha": _gotcha}
 
 
 def _gear(db, player_id: int, game_id: str | None) -> list[dict]:

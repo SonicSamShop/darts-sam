@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { GAMES } from './games/index.js';
-import { gameById, newMatch, compute, elapsed, clock, timeSpent, previousVisit } from './engine.js';
+import { gameById, canStart, newMatch, compute, elapsed, clock, timeSpent, previousVisit } from './engine.js';
 import { buildBoard, label, spoken, value, bullUp, bullMm } from './board.js';
 import { createSync } from './sync.js';
 import { createUpdater } from './update.js';
@@ -978,7 +978,8 @@ function renderHome() {
   }
   cleanSetup();
   store.set('setup', setup);
-  const start = `<button class="primary start" data-act="start" ${seats().some(id => id !== BOT) ? '' : 'disabled'}>Start ${game.name}</button>`;
+  const enough = canStart(game, seats().length);
+  const start = `<button class="primary start" data-act="start" ${seats().some(id => id !== BOT) && enough ? '' : 'disabled'}>Start ${game.name}</button>`;
   const scrolled = document.querySelector('.home-body')?.scrollTop ?? 0;  // a tap redraws the menu: stay where it was
   const steps = [['game', 'Game', esc(game.name)]];
   if (game.options.length) steps.push(['options', 'Options', esc(optsBrief(game))]);
@@ -1014,6 +1015,7 @@ function renderHome() {
       return `<button class="chip ${n >= 0 ? 'on' : ''}" data-pick="${p.id}">${n >= 0 ? `<i>${n + 1}</i>` : ''}${esc(p.name)}</button>`;
     }).join('')}${game.bot ? botChip() : ''}${addingPlayer ? '' : '<button class="chip ghost" data-act="newplayer">+ New</button>'}</div>
     <p class="muted small">Tap who is playing, in throwing order. With two or more, Start asks who throws first: closest to the bull, or random.</p>
+    ${enough ? '' : `<p class="warn small">${game.name} needs two or more players.</p>`}
     ${botRow()}${dartsRows()}`
       : '<p class="muted">Add a player to get started.</p>'}
     ${addingPlayer || !players.length ? newPlayerRow() : ''}`)}
@@ -1299,6 +1301,7 @@ const GAME_TILES = {
   bermuda: [['Average total', 'avg_total'], ['Best total', 'best_total'], ['Rounds halved per game', 'avg_halved'],
     ['Hit rate', 'hit_rate', '%']],
   segment: [['Hit rate', 'hit_rate', '%'], ['Points per dart', 'points_per_dart'], ['Best session', 'best_points']],
+  gotcha: [['Games won', 'won'], ['3-dart average', 'average']],
   rcheckout: [['Checkout rate', 'rate', '%'], ['Checkouts hit', 'made'], ['Average darts per checkout', 'avg_darts']],
   c121: [['Checkout rate', 'rate', '%'], ['Checkouts hit', 'made'], ['Highest checkout', 'highest'],
     ['Average darts per checkout', 'avg_darts']],

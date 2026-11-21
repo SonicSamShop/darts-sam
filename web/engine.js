@@ -53,6 +53,9 @@ import { value } from './board.js';
 
 export const gameById = id => GAMES.find(g => g.id === id);
 
+// Can a match of this game start with this many players picked? (Gotcha needs two.)
+export const canStart = (game, seatCount) => seatCount >= (game.minPlayers ?? 1);
+
 export function newMatch(gameId, players, opts) {
   // A game that picks things at random gets a seed to pick them from, kept
   // with the match so that replaying the log always comes out the same.
