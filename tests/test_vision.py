@@ -339,7 +339,52 @@ def test_bent_lens():
         assert 0 <= d.tip_px[0] < W and 0 <= d.tip_px[1] < H
 
 
+def _line(x, y, dx=0.0, dy=1.0, area=900):
+    return detect.DartLine(point=np.array([x, y]), direction=np.array([dx, dy]), tip=np.array([x, y]), area=area)
+
+
+def test_odds_middle_of_bed():
+    odds = detect.bed_odds(_line(0, 60.0), np.eye(3))
+    assert (odds[0]["seg"], odds[0]["mult"]) == (20, 1) and odds[0]["p"] >= 0.97, odds
+
+
+def test_odds_on_treble_wire():
+    odds = detect.bed_odds(_line(0, 99.0), np.eye(3))
+    assert {(o["seg"], o["mult"]) for o in odds[:2]} == {(20, 1), (20, 3)}, odds
+    assert all(o["p"] > 0.25 for o in odds[:2]) and sum(o["p"] for o in odds) <= 1.0, odds
+
+
+def test_odds_spread_is_along_the_line():
+    # 3 mm inside the treble: a line across the ring spreads over its wires,
+    # a line running round the ring stays inside it.
+    radial = detect.bed_odds(_line(0, 102.0), np.eye(3))
+    round_ = detect.bed_odds(_line(0, 102.0, 1.0, 0.0), np.eye(3))
+    assert radial[0]["p"] < round_[0]["p"], (radial, round_)
+
+
+def test_odds_are_plain_numbers():
+    odds = detect.bed_odds(_line(0, 99.0), np.eye(3))
+    json.dumps(odds)  # sent to the app as JSON
+    assert all(type(o["p"]) is float and type(o["seg"]) is int for o in odds), odds
+
+
+def test_odds_are_repeatable():
+    ln = _line(10, 100.0, 0.1, 0.995)
+    assert detect.bed_odds(ln, np.eye(3)) == detect.bed_odds(ln, np.eye(3))
+
+
+def test_odds_wider_for_a_small_dart():
+    big, small = detect.bed_odds(_line(0, 95.0), np.eye(3)), detect.bed_odds(_line(0, 95.0, area=200), np.eye(3))
+    assert small[0]["p"] < big[0]["p"], (big, small)
+
+
 def main(trials=120, seed=7):
+    test_odds_middle_of_bed()
+    test_odds_on_treble_wire()
+    test_odds_spread_is_along_the_line()
+    test_odds_are_plain_numbers()
+    test_odds_are_repeatable()
+    test_odds_wider_for_a_small_dart()
     test_bent_lens()
     test_dart_in_pieces()
     test_shake_is_not_a_dart()

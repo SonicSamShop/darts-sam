@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
-from . import calib
+from . import board, calib
 
 MIN_DART_AREA = 150      # px of changed pixels; smaller is noise
 MAX_DART_FRACTION = 0.12  # more of the frame than this changing is a hand/body
@@ -191,3 +191,42 @@ def locate(lines: list[DartLine]) -> tuple[np.ndarray, float] | None:
     if res > 4.0:
         conf = 0.5
     return x, conf
+
+
+# One camera's tip is unsure mostly ALONG the dart (where along its line the
+# point really is) and much less across it. These are the spreads, in mm, for
+# a dart seen clearly at ODDS_REF_MM_PER_PX; tuned from players' corrections.
+ODDS_ALONG_MM = 6.0
+ODDS_ACROSS_MM = 2.5
+ODDS_REF_MM_PER_PX = 0.6
+_GRID = np.linspace(-3, 3, 21)
+_WEIGHTS = np.exp(-0.5 * (_GRID[:, None] ** 2 + _GRID[None, :] ** 2))
+
+
+def bed_odds(line: DartLine, view, along: float = ODDS_ALONG_MM, across: float = ODDS_ACROSS_MM) -> list[dict]:
+    """How likely each bed is for a dart one camera saw: up to three
+    {"seg", "mult", "p"}, likeliest first.
+
+    The tip's position is taken as a spread longer along the dart's line than
+    across it, wider when the camera sees that part of the board coarsely or
+    saw little of the dart, and the spread is added up inside each bed. A fixed
+    grid, not random samples, so the same dart always gets the same odds."""
+    view = calib.view(view)
+    k = 1.0
+    if line.tip_px is not None:
+        a, b = view.to_board([line.tip_px, np.asarray(line.tip_px) + (1.0, 0.0)])
+        k = max(1.0, float(np.linalg.norm(b - a)) / ODDS_REF_MM_PER_PX)
+    if line.area < 2 * MIN_DART_AREA:
+        k *= 1.5
+    d = line.direction / np.linalg.norm(line.direction)
+    n = np.array([-d[1], d[0]])
+    totals: dict[tuple[int, int], float] = {}
+    for i, u in enumerate(_GRID * along * k):
+        for j, v in enumerate(_GRID * across * k):
+            x, y = line.tip + u * d + v * n
+            s = board.score(x, y)
+            key = (s["seg"], s["mult"])
+            totals[key] = totals.get(key, 0.0) + _WEIGHTS[i, j]
+    whole = float(_WEIGHTS.sum())
+    best = sorted(totals.items(), key=lambda kv: -kv[1])[:3]
+    return [{"seg": int(seg), "mult": int(mult), "p": round(float(w) / whole, 2)} for (seg, mult), w in best]
