@@ -464,8 +464,8 @@ def _history(db, player_id: int, game_id: str | None, darts: str | None = None) 
     A visit typed in as one number has no darts to list and is
     [player, round, ts, bust, None, total, darts used].
     """
-    names = _names(db)
-    return [{**_sheet(m, ids, throws, names), "me": ids.index(player_id)}
+    names, bots = _names(db), _bots(db)
+    return [{**_sheet(m, ids, throws, names, bots), "me": ids.index(player_id)}
             for m, ids, throws in _matches(db, player_id, game_id, darts)]
 
 
@@ -473,7 +473,12 @@ def _names(db) -> dict:
     return {r["id"]: r["name"] for r in db.execute("SELECT id, name FROM players")}
 
 
-def _sheet(m, ids, throws, names) -> dict:
+def _bots(db) -> dict:
+    """Each computer player's level by its id."""
+    return {r["id"]: r["bot"] for r in db.execute("SELECT id, bot FROM players WHERE bot IS NOT NULL")}
+
+
+def _sheet(m, ids, throws, names, bots) -> dict:
     """One match of a history: who played, how it ended and every visit."""
     visits = []
     for v in _visits(throws):
@@ -486,6 +491,7 @@ def _sheet(m, ids, throws, names) -> dict:
         "id": m["id"], "game": m["game_id"], "name": m["game_name"], "opts": json.loads(m["opts"]),
         "started": m["started"], "finished": m["finished"], "duration": m["duration"],
         "players": [names[i] for i in ids],
+        "bots": [bots.get(i) for i in ids],  # which were computer players: the level, or None for a person
         "winner": ids.index(m["winner_id"]) if m["winner_id"] in ids else None,
         "visits": visits,
     }
@@ -502,7 +508,7 @@ def match(match_id: str) -> dict:
         ids = [r["player_id"] for r in db.execute(
             "SELECT player_id FROM match_players WHERE match_id = ? ORDER BY position", (match_id,))]
         throws = db.execute("SELECT * FROM throws WHERE match_id = ? ORDER BY id", (match_id,)).fetchall()
-        return _sheet(m, ids, throws, _names(db))
+        return _sheet(m, ids, throws, _names(db), _bots(db))
 
 
 def _cricket(db, player_id: int, dart_set: str | None = None):

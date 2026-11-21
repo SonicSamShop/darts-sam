@@ -52,6 +52,7 @@ export function matchSheet(m) {
     id: m.id, game: m.gameId, name: gameById(m.gameId).name, opts: m.opts, started: m.started,
     finished: s.winner != null ? m.log.at(-1)?.ts ?? m.started : null,
     duration: s.winner != null ? elapsed(m, s) : null, players: m.players, winner: s.winner,
+    bots: m.bots ?? m.players.map(() => null),  // which seats the computer had: its level, or null for a person
     visits: visits.map(v => [v[0].player, v[0].round, v.at(-1).ts, +v.some(t => t.bust),
       ...(v[0].src === 'visit' ? [null, v[0].seg, v.length] : [v.map(t => t.mult ? t.seg * 10 + t.mult : 0)])]),
   };

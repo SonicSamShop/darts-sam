@@ -59,6 +59,8 @@ def main():
         expect(db.Invalid, db.add_player, "Bot 0", 0)
         db.save_match("mb", match(1, [sam["id"], bot["id"]], [throw(0, 1, 20, 1), {**throw(1, 1, 20, 3), "src": "bot"}]))
         assert db.total_darts() == 1
+        # the history says which seats the computer had, by level (the app's achievements read it)
+        assert db.stats(sam["id"])["matches"][0]["bots"] == [None, 7]
         db.delete_match("mb")
         db.remove_player(bot["id"])
         assert db.add_player("bot 7", 7)["id"] == bot["id"]
@@ -93,6 +95,7 @@ def main():
         h = s["matches"][0]
         assert (h["game"], h["players"], h["me"], h["winner"], h["duration"]) == ("x01", ["Sam", "Alexa"], 0, 0, 95000)
         assert h["opts"] == {"start": 101} and h["finished"] is not None
+        assert h["bots"] == [None, None]
         assert h["visits"] == [[0, 1, 1000, 0, [203]], [1, 1, 1000, 1, [203, 203]], [0, 2, 2000, 0, [91, 162]]]
         assert s["recent"] == [[0.0, 103.0]]
         assert s["games"] == [{"game": "X01", "played": 1, "won": 1, "avg_ms": 95000, "best_ms": 95000, "total_ms": 95000}]

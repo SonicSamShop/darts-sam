@@ -145,7 +145,10 @@ Names and thresholds are proposals for Sam to change.
 | the game's initials | First game of X01, of Cricket, … | Finish a game of it |
 | 14 | Been round the board | Finish a game of every one |
 
-### Scoring (any game where a visit adds up, unless it says X01)
+### Scoring
+
+Ton, Ton forty and Maximum count in the games where a visit's total is its
+score: X01, Count Up and Gotcha. The rest count in any game.
 
 | Mark | Name | How |
 |---|---|---|
@@ -192,8 +195,8 @@ Names and thresholds are proposals for Sam to change.
 | 27+ | In profit | Bob's 27: finish above the 27 you started on |
 | ½ | Never halved | Bermuda: finish without being halved |
 | K | Last one standing | Killer: win |
-| K5 | Untouched | Killer: win without losing a life |
-| 121 | Ladder | 121 Checkout: check out 121 |
+| K♥ | Untouched | Killer: win without losing a life |
+| 121 | One-two-one | 121 Checkout: check out 121 or more |
 | RC | Clean sheet | Random Checkout: make every target in a game |
 
 ### Long service
@@ -215,9 +218,14 @@ says how to get it.
   the scoreboard.
   - Stays about 6 seconds, then goes. A tap opens that player's Achievements tab
     only once the game is over; during a game a tap just closes it.
-  - Two or more at once (a first 180 that is also a first Ton forty and a
-    first Ton): the slip shows the highest of a family (Maximum, not Ton) and
-    the rest are held quietly. Unrelated ones queue, one slip after another.
+  - **A visit's total is judged when the visit is over** (learned from the
+    prototype: otherwise "Ton" pops after the second treble 20 and "Maximum"
+    a dart later).
+  - **Several from one dart make one slip** (also from the prototype: a 170
+    finish in a first game earns six at once). It shows the greatest of them,
+    and of a family only the greatest (Maximum, not Ton), with the rest named
+    under it: `Also: First game of X01, Bull finish`. Slips from different
+    darts queue, one after another.
   - It slides in; with `prefers-reduced-motion` it just appears. No sound of
     its own.
 - **The caller** says it after the score, when the caller is on: "One hundred
