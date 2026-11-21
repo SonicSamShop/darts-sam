@@ -1,20 +1,6 @@
 {
-  "version": "1.4",
-  "unreleased": [
-    "The cameras now line themselves up each time you open the app: every camera that has been lined up before finds the board again by itself, so a camera that got nudged no longer needs Find the board again pressed on each one. Switch it off on the Cameras screen (Auto-calibrate on start).",
-    "Every game now has its rules written out: on the Play screen, tap How to play under the game you have chosen to read how it works and what each option changes, without leaving the game menu.",
-    "Score with your phone's camera (Beta): on the site, open Cameras and press Use this phone's camera. Stand the phone beside the board and it scores each dart by itself, with no computer, and asks which bed when it isn't sure.",
-    "Killer has two new options: become a killer with a treble instead of a double, and take lives by hitting any part of a player's number (single, double or treble) instead of only their double.",
-    "Every option of every game now has a ? beside it: tap it to see what the setting you have chosen means. On a computer, hold the pointer over a choice to see what it would mean before you pick it.",
-    "Killer now needs two or more players, as its rules say. Started with one, it used to end on the first dart.",
-    "When Start can't be pressed, a line above it now says why: the game needs more players, or the bot has nobody to play.",
-    "In the League Scoresheet and Soft-tip Arcade themes, the links on the Play screen are no longer drawn as boxes.",
-    "Playing the computer, it now waits 8 seconds after your visit before it throws, with a countdown, so you can undo a wrongly scored dart first. Tap Throw now to skip the wait.",
-    "The Play screen now splits the games into Matches and Training, so the practice games are easy to find.",
-    "Five new training games: Bob's 27 (every double in turn, starting on 27), Shanghai, Bermuda, Segment Training (pick a number or the bull and see how often you hit it) and Random Checkout. Each has its own stats.",
-    "Around the Clock has a Round the World option: count only doubles, or only trebles.",
-    "New game: Gotcha, a race to exactly 301 or 501, where landing on another player's score sends them back to zero."
-  ],
+  "version": "1.5",
+  "unreleased": [],
   "notes": {
     "1.0": [
       "First release."
@@ -50,6 +36,21 @@
       "The Chalk & Oche theme is now written in one hand throughout, and its sevens no longer have a bar through them.",
       "Names with letters such as ł, š or ğ are now drawn in each theme's own lettering, instead of borrowing those letters from another.",
       "Sound is now off to begin with: switch it on under Settings › In a game. With it on, the caller says each visit's total; a new Call each dart switch has every dart called as well."
+    ],
+    "1.5": [
+      "The cameras now line themselves up each time you open the app: every camera that has been lined up before finds the board again by itself, so a camera that got nudged no longer needs Find the board again pressed on each one. Switch it off on the Cameras screen (Auto-calibrate on start).",
+      "Every game now has its rules written out: on the Play screen, tap How to play under the game you have chosen to read how it works and what each option changes, without leaving the game menu.",
+      "Score with your phone's camera (Beta): on the site, open Cameras and press Use this phone's camera. Stand the phone beside the board and it scores each dart by itself, with no computer, and asks which bed when it isn't sure.",
+      "Killer has two new options: become a killer with a treble instead of a double, and take lives by hitting any part of a player's number (single, double or treble) instead of only their double.",
+      "Every option of every game now has a ? beside it: tap it to see what the setting you have chosen means. On a computer, hold the pointer over a choice to see what it would mean before you pick it.",
+      "Killer now needs two or more players, as its rules say. Started with one, it used to end on the first dart.",
+      "When Start can't be pressed, a line above it now says why: the game needs more players, or the bot has nobody to play.",
+      "In the League Scoresheet and Soft-tip Arcade themes, the links on the Play screen are no longer drawn as boxes.",
+      "Playing the computer, it now waits 8 seconds after your visit before it throws, with a countdown, so you can undo a wrongly scored dart first. Tap Throw now to skip the wait.",
+      "The Play screen now splits the games into Matches and Training, so the practice games are easy to find.",
+      "Five new training games: Bob's 27 (every double in turn, starting on 27), Shanghai, Bermuda, Segment Training (pick a number or the bull and see how often you hit it) and Random Checkout. Each has its own stats.",
+      "Around the Clock has a Round the World option: count only doubles, or only trebles.",
+      "New game: Gotcha, a race to exactly 301 or 501, where landing on another player's score sends them back to zero."
     ]
   }
 }
