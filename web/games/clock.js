@@ -6,6 +6,7 @@ const name = t => (t === 25 ? 'Bull' : String(t));
 
 export default {
   id: 'clock',
+  kind: 'training',
   name: 'Around the Clock',
   blurb: 'Hit 1 through 20 in order, then the bull. First to finish wins.',
   showTotal: false,  // the three-dart sum means nothing in this game

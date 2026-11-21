@@ -12,4 +12,4 @@ import killer from './killer.js';
 import random from './random.js';
 import free from './free.js';
 
-export const GAMES = [x01, cricket, clock, countup, c121, random, killer, free];
+export const GAMES = [x01, cricket, killer, clock, c121, countup, random, free];

@@ -29,6 +29,7 @@ function loseLife(s, i) {
 
 export default {
   id: 'killer',
+  kind: 'match',
   name: 'Killer',
   blurb: 'Weak hand for your number, hit your double (or treble) to become a killer, then take lives off the others\' numbers. Last one standing wins.',
   showTotal: false,  // the three-dart sum means nothing in this game

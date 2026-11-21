@@ -73,6 +73,7 @@ function finish(s) {
 
 export default {
   id: 'random',
+  kind: 'training',
   name: 'Random Targets',
   blurb: 'The board lights up a random target. Hit it for a point and your next dart is at a new one, so a good visit takes three. Hard mode splits each single into its inner and outer half. Most points wins.',
   showTotal: false,  // the three-dart sum means nothing in this game

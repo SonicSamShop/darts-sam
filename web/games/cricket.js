@@ -12,6 +12,7 @@ const SAID = ['', 'one mark', 'two marks', 'closed'];
 
 export default {
   id: 'cricket',
+  kind: 'match',
   name: 'Cricket',
   blurb: 'Close 15–20 and bull with three marks each; score on what others have open.',
   showTotal: false,  // the three-dart sum means nothing in this game

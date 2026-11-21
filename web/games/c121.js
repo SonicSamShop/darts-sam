@@ -56,6 +56,7 @@ function stillOn(s) {
 
 export default {
   id: 'c121',
+  kind: 'training',
   name: '121 Checkout',
   blurb: 'Check out 121 in nine darts. Hit it and the target goes up; miss and it comes back down, never below the start.',
   options: [

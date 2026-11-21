@@ -220,6 +220,9 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .setup .spacer { min-height: 14px; }
 /* the app's totals, kept as quiet as a version number */
 .totals { grid-area: totals; align-self: end; margin: 0; padding-top: 10px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; opacity: .8; }
+/* the Play screen's two groups of games */
+.page .group { margin: 14px 0 6px; font: 600 14px/1.4 var(--font); color: var(--muted); }  /* .page: outranks the themes' headings */
+.page .group:first-child { margin-top: 0; }
 .games { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
 /* home: game names only; the chosen game's blurb goes underneath */
 /* every card the same size, however its name wraps */

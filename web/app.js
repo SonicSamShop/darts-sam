@@ -988,8 +988,9 @@ function renderHome() {
     <div class="home-body">
     <div class="pick">
     ${match ? '<h2>In progress</h2><button class="start" data-act="resume">Resume game in progress</button>' : ''}
-    ${step('game', `<div class="games">${GAMES.map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
-      <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>
+    ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>
+    <div class="games">${GAMES.filter(g => g.kind === kind).map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
+      <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>`).join('')}
     <p class="blurb muted small">${game.blurb}</p>`)}
     </div>
     <div class="setup">

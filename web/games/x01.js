@@ -113,6 +113,7 @@ function wonLeg(s, p) {
 
 export default {
   id: 'x01',
+  kind: 'match',
   name: 'X01',
   blurb: 'Race from 501 (or 301 / 701) down to exactly zero. One leg, or first to a number of legs and sets.',
   options: [

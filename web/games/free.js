@@ -9,6 +9,7 @@ import { value } from '../board.js';
 // reach and no winner: it goes on until the game is quit.
 export default {
   id: 'free',
+  kind: 'training',
   name: 'Free Mode',
   blurb: 'Just throw. Each dart is called out, then the total of the three. No running score and no end.',
   options: [],

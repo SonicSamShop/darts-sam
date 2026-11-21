@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { newMatch, compute, gameById, elapsed, clock, timeSpent, previousVisit } from '../web/engine.js';
 import { checkout } from '../web/games/x01.js';
 import { scoreAt, value, label, spoken, half, heatGrid, bullUp } from '../web/board.js';
+import { GAMES } from '../web/games/index.js';
 
 const D = (seg, mult = 1) => ({ t: 'dart', seg, mult });
 const NEXT = { t: 'next' };
@@ -651,4 +652,11 @@ test('closest to the bull: who throws first', () => {
   assert.deepEqual(b.order, [2, 1]);
   // a dart with no position is the furthest away
   assert.deepEqual(bullUp([1, 2], [{ seg: 0, mult: 0 }, at(0, 160)]).order, [2, 1]);
+});
+
+test('games are grouped into matches and training', () => {
+  const ids = k => GAMES.filter(g => g.kind === k).map(g => g.id);
+  assert.deepEqual(ids('match'), ['x01', 'cricket', 'killer']);
+  assert.deepEqual(ids('training'), ['clock', 'c121', 'countup', 'random', 'free']);
+  assert.ok(GAMES.every(g => g.kind === 'match' || g.kind === 'training'));
 });

@@ -11,6 +11,7 @@ function finish(s) {
 
 export default {
   id: 'countup',
+  kind: 'training',
   name: 'Count Up',
   blurb: 'Highest total after a set number of rounds. Good solo practice.',
   options: [
