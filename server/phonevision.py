@@ -10,18 +10,22 @@ bytes a canvas gives; answers go back as plain dicts and lists, ready to post
 to the page. Nothing here touches a camera, a file or the network, so it is
 tested on drawn pictures like the rest (python -m tests.test_phonevision).
 
-One phone is one camera, called "phone".
+One phone is one camera.
 """
 import cv2
 import numpy as np
 
 from . import autocalib, board, calib, tracker
 
-CAMERA = "phone"
+CAMERA = 0  # its number, as the cameras' computer numbers them: reports say "Camera 1" (report.py)
 MOVED_PX = 3.0   # rings' edges further than this from where the calibration puts them: the phone moved
 MIN_EDGES = 40   # of up to 320 ring edges; fewer found and the board isn't where it was
 
+REPORTS = "/tmp/reports"  # in the browser's own file system; packed and sent, then gone
+
 _tracker: tracker.Tracker | None = None
+_calibration: dict | None = None
+_last: np.ndarray | None = None  # the newest picture, for a report's "now"
 
 
 def _picture(rgba, w: int, h: int) -> np.ndarray:
@@ -44,8 +48,9 @@ def calibrate(rgba, w: int, h: int, twenty=None) -> dict:
 def start(calibration: dict) -> None:
     """Start watching with this calibration. The next picture is taken as the
     empty board."""
-    global _tracker
+    global _tracker, _calibration
     _tracker = tracker.Tracker({CAMERA: calib.view(calibration)})
+    _calibration = calibration
 
 
 def stop() -> None:
@@ -62,9 +67,11 @@ def restart() -> None:
 
 def feed(rgba, w: int, h: int) -> list[dict]:
     """One picture from the camera: what happened, as /ws would say it."""
+    global _last
     if _tracker is None:
         return []
-    events = _tracker.update({CAMERA: _picture(rgba, w, h)})
+    _last = _picture(rgba, w, h)
+    events = _tracker.update({CAMERA: _last})
     if not events and _tracker.stable >= tracker.STABLE_FRAMES:
         # Nothing to say, but the picture has settled: the page counts on
         # hearing this, to tell a picture that never settles (autofocus
@@ -99,3 +106,23 @@ def outline(calibration: dict) -> list[list[list[float]]]:
     wires = [[board.polar(9 + 18 * i, r) for r in np.linspace(board.R_OUTER_BULL, board.R_DOUBLE_OUT, 12)]
              for i in range(20)]
     return [np.round(view.to_picture(line), 1).tolist() for line in rings + wires]
+
+
+def report(app: dict, expected: str = "", note: str = "") -> dict:
+    """A problem report of what the camera saw (report.py's folder), packed as
+    the site takes them (reportsync.py): {"id", "zip"}. Made only when the
+    player taps Report; the page sends it to their account."""
+    from pathlib import Path
+    from . import report as reports, reportsync
+    if _tracker is None or _last is None:
+        raise ValueError("The phone camera isn't watching the board.")
+    root = Path(REPORTS)
+    made = reports.save(reports.snapshot(_tracker, {CAMERA: _last}), {str(CAMERA): _calibration}, app=app, root=root)
+    if expected or note:
+        reports.annotate_report(made["id"], expected, note, root=root)
+    folder = root / made["id"]
+    packed = reportsync.pack(folder, "all")
+    for p in folder.iterdir():
+        p.unlink()
+    folder.rmdir()
+    return {"id": made["id"], "zip": packed}

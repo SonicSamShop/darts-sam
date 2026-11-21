@@ -13,7 +13,7 @@
 
 import { loadPyodide } from './vision/pyodide/pyodide.mjs';
 
-const FILES = ['board', 'calib', 'autocalib', 'detect', 'tracker', 'phonevision'];
+const FILES = ['board', 'calib', 'autocalib', 'detect', 'tracker', 'phonevision', 'report', 'reportsync', 'paths'];
 let py = null, vision = null, calibration = null;  // the calibration being watched with, for knock checks
 
 const toJs = proxy => {
@@ -50,6 +50,10 @@ const COMMANDS = {
   frame: m => ({ type: 'events', events: toJs(vision.feed(picture(m), m.w, m.h)) }),
   check: m => ({ type: 'checked', ok: vision.still_matches(picture(m), m.w, m.h, py.toPy(calibration)) }),
   outline: m => ({ type: 'outline', lines: toJs(vision.outline(py.toPy(m.calibration))) }),
+  report: m => {
+    const made = toJs(vision.report(py.toPy(m.app || {}), m.expected || '', m.note || ''));
+    return { type: 'report', reportId: made.id, zip: made.zip };  // not `id`: that is which request this answers
+  },
   restart: () => { vision.restart(); return { type: 'restarted' }; },
   stop: () => { vision?.stop(); return { type: 'stopped' }; },
 };

@@ -294,8 +294,10 @@ keep 1 GB; watch the server's disk with `df -h /var/lib/dartssam`.
 **A phone's own camera (Beta).** A phone can score with its own camera, all
 inside its browser: the site sends it Python for the browser from
 `web/vision/pyodide/` (put there by `tools/fetch_pyodide.py`) and the vision code
-from `server/` at `/vision/py/`. The site does no vision work and gets no pictures.
-Without the fetched files the app simply doesn't offer it.
+from `server/` at `/vision/py/`. The site does no vision work and gets no pictures,
+except a problem report the player chooses to send (`POST /api/phone/reports/<id>`,
+signed in, packed and limited like a paired computer's). Without the fetched
+files the app simply doesn't offer it.
 
 **Cameras at home.** The site itself has no cameras. Someone with cameras runs the ordinary server
 at home (it knows the site's address), pairs it once with a code

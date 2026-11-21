@@ -179,6 +179,12 @@ export function createPhoneCam({
       return (await call('outline', { calibration })).lines;
     },
 
+    // A problem report of what it saw: {id, zip}, packed as the site takes them.
+    async report(app, expected) {
+      const m = await call('report', { app, expected });
+      return { id: m.reportId, zip: m.zip };
+    },
+
     async start(calibration) {
       await call('start', { calibration });
       await holdPicture();

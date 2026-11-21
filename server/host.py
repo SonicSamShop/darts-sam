@@ -148,7 +148,8 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
         return await call_next(request)
 
     # Every request's size is counted as it arrives, not taken from its headers.
-    app.add_middleware(limits.BodyLimit, most=MATCH_MOST, bigger={"/api/helper/reports/": reportsync.MOST})
+    app.add_middleware(limits.BodyLimit, most=MATCH_MOST, bigger={"/api/helper/reports/": reportsync.MOST,
+                                                                   "/api/phone/reports/": reportsync.MOST})
 
     def full(path: Path) -> bool:
         return path.exists() and path.stat().st_size > ACCOUNT_MOST
@@ -427,6 +428,16 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
         account_id = store.helper_account(bearer(request)) or store.install_account(bearer(request))
         if account_id is None:
             raise HTTPException(401, "Not paired.")
+        return await take_report(account_id, report_id, request)
+
+    @app.post("/api/phone/reports/{report_id}")
+    async def phone_report_up(report_id: str, request: Request):
+        """A phone scoring with its own camera (Beta) sends a problem report it made
+        itself (server/phonevision.py), packed the same way. It has no computer
+        paired, so it is the person signed in on it who sends it."""
+        return await take_report(signed_in(request)["id"], report_id, request)
+
+    async def take_report(account_id: str, report_id: str, request: Request):
         try:
             folder = store.report_folder(account_id, report_id)
         except ValueError:

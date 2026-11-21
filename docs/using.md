@@ -80,7 +80,9 @@ darts wrong. When it isn't sure, it asks **Which bed?** with its best guesses
 and how likely each is; pick one, or **Somewhere else** and tap the board. After
 a dart it was sure of, **Change** shows for a few seconds to put it right. If
 the phone gets moved it says so: find the board again. Everything is worked
-out on the phone; no pictures are sent anywhere.
+out on the phone; no pictures are sent anywhere, except when you tap **Report**
+in a game: that sends the camera's last few pictures to your account, to help
+put it right.
 
 ## When a dart is scored wrongly
 

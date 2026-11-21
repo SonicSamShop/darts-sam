@@ -1854,7 +1854,7 @@ function renderGame() {
     <div class="top"><button class="ghost" data-act="home">‹ Menu</button><b>${game.name}</b>
       <span class="clock" title="Match time">${clock(elapsed(match, s))}</span>
       <span class="spacer"></span><span class="conn brief muted"></span>
-      ${connected && cameraCount > 0 ? '<button data-act="report" title="A dart was scored wrongly: save what the cameras saw">Report</button>' : ''}
+      ${(connected && cameraCount > 0) || phone.scoring() ? '<button data-act="report" title="A dart was scored wrongly: save what the cameras saw">Report</button>' : ''}
       ${canTv(game, s) ? `<button data-act="tv">${tv ? 'Card view' : 'TV view'}</button>` : ''}
       ${game.visit ? `<button data-act="entry">${pad ? 'Use board' : 'Type scores'}</button>` : ''}
       ${s.winner == null ? `<button class="danger" data-act="quit">Quit game</button>` : ''}</div>
@@ -1900,6 +1900,10 @@ let reportBox = null;
 function closeReport() { reportBox?.remove(); reportBox = null; }
 async function reportProblem() {
   closeReport();
+  if (phone.scoring() && !(connected && cameraCount > 0)) {  // this phone's own camera: it makes and sends the report itself
+    const s = compute(match);
+    return phone.report({ match: match.id, game: match.gameId, opts: match.opts, players: s.players, throwing: s.current, log: match.log.slice(-9) });
+  }
   const box = reportBox = document.body.appendChild(document.createElement('div'));
   box.className = 'report';
   const show = html => { box.innerHTML = `<div class="report-in">${html}</div>`; };

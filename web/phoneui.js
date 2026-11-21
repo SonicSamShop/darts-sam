@@ -241,7 +241,40 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
     }
   }
 
+  // ---------- reporting a dart it got wrong ----------
+  function reportBox(app) {
+    const box = doc.body.appendChild(doc.createElement('div'));
+    box.className = 'report';
+    const show = html => { box.innerHTML = `<div class="report-in">${html}</div>`; };
+    const close = '<div class="row"><button data-rep="close">Close</button></div>';
+    show(`<h1>Report a wrong score</h1>
+      <p class="dim">This sends the phone camera's last few pictures of the board to your account, to help put it right.</p>
+      <label>What should it have been? <input type="text" id="rep-expected" placeholder="T20, or: second dart not seen" autocomplete="off"></label>
+      <div class="row"><button class="primary" data-rep="send">Send report</button><button data-rep="close">Cancel</button></div>`);
+    box.addEventListener('click', async e => {
+      const b = e.target.closest('[data-rep]');
+      if (!b) return;
+      if (b.dataset.rep === 'close') return box.remove();
+      const expected = box.querySelector('#rep-expected')?.value || '';
+      show('<p class="dim">Sending…</p>');
+      try {
+        const made = await cam.report(app, expected);
+        const r = await fetchFn(new URL(`./api/phone/reports/${encodeURIComponent(made.id)}`, import.meta.url), {
+          method: 'POST', body: made.zip, credentials: 'same-origin', headers: { 'Content-Type': 'application/zip' } });
+        if (!r.ok) throw new Error(r.status === 413 ? 'There is no room left for reports.' : `the site said ${r.status}`);
+        note('report', { phone: true });
+        show(`<h1>Report sent</h1><p class="dim">Thank you: it helps make the phone camera better.</p>${close}`);
+      } catch (err) {
+        show(`<p class="warn">The report could not be sent: ${esc(err?.message || err)}.</p>${close}`);
+      }
+    });
+    box.querySelector('#rep-expected')?.focus();
+  }
+
   return {
+    // A dart was scored wrongly: report what the camera saw (app: about the game).
+    report: app => (cam?.watching() ? reportBox(app) : undefined),
+
     // Whether to offer it here: a browser that gives pages the camera, on a
     // secure page, with the vision code on the server (tools/fetch_pyodide.py).
     async offered() {

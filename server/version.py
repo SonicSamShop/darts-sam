@@ -22,7 +22,7 @@ mimetypes.add_type("text/javascript", ".mjs")
 
 # The vision code a phone runs in its own browser to score with its camera.
 # Only these, and only from here: nothing else of the server's is sent.
-VISION_FILES = ("board", "calib", "autocalib", "detect", "tracker", "phonevision")
+VISION_FILES = ("board", "calib", "autocalib", "detect", "tracker", "phonevision", "report", "reportsync", "paths")
 SERVER = Path(__file__).resolve().parent
 
 

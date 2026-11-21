@@ -249,6 +249,13 @@ def main():
         rep1 = store.report(acc["id"], "r1")
         assert rep1["expected"] == "T19" and rep1["note"] == "hit the wire" and rep1["bytes"] == 300 + len(noted)
         assert (folder / "frame-01.png").exists() and len(store.reports(acc["id"])) == 1
+        # A phone scoring with its own camera sends its report itself, signed in: it has no computer paired.
+        assert nobody.post("/api/phone/reports/p1", content=body).status_code == 401
+        assert ann.post("/api/phone/reports/p1", content=b"not a zip").status_code == 400
+        assert ann.post("/api/phone/reports/..%2Fx", content=body).status_code in (400, 404, 405)
+        assert ann.post("/api/phone/reports/p1", content=body).json() == {"ok": True}
+        assert store.report(acc["id"], "p1")["summary"] == "2 s ago: scored T20"
+        assert ann.post("/api/phone/reports/p2", content=b"x", headers={"Content-Length": str(61 * 2**20)}).status_code == 413
         # too much: refused, and what is there is untouched
         r = nobody.post("/api/helper/reports/r2", content=b"x", headers={**bearer, "Content-Length": str(61 * 2**20)})
         assert r.status_code == 413

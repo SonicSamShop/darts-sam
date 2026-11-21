@@ -162,3 +162,13 @@ test('the board\'s outline comes from the worker', async () => {
   f.worker.answer('outline', { type: 'outline', lines: [[[1, 2], [3, 4]]] });
   assert.deepEqual(await asking, [[[1, 2], [3, 4]]]);
 });
+
+test('a report comes back with its own id, apart from the request\'s', async () => {
+  const f = fakes();
+  await watching(f);
+  const asking = f.cam.report({ game: 'x01' }, 'T20');
+  f.worker.answer('report', { type: 'report', reportId: '2026-11-21_18-00-00', zip: new Uint8Array([1]) });
+  const made = await asking;
+  assert.equal(made.id, '2026-11-21_18-00-00');
+  assert.deepEqual([...made.zip], [1]);
+});

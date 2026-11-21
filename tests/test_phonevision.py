@@ -117,6 +117,30 @@ def test_outline_sits_on_the_board():
         assert min(np.hypot(x - t[0], y - t[1]) for x, y in double_out) < 6, t
 
 
+def test_report_replays():
+    """A problem report from the phone is a report like any other: packed as the
+    site takes them, and server.replay finds the same dart in it again."""
+    import contextlib, io, tempfile
+    from pathlib import Path
+    from server import replay, reportsync
+    phonevision.start(calibrated())
+    for _ in range(5):
+        phonevision.feed(picture(), W, H)
+    for _ in range(5):
+        phonevision.feed(picture([dart_at(0, 60)]), W, H)
+    made = phonevision.report({"game": "x01"}, "T20")
+    assert made["id"] and isinstance(made["zip"], bytes), made.keys()
+    with tempfile.TemporaryDirectory() as tmp:
+        folder = Path(tmp) / made["id"]
+        reportsync.unpack(made["zip"], folder)
+        rep = json.loads((folder / "report.json").read_text())
+        assert rep["expected"] == "T20" and rep["app"] == {"game": "x01"}, rep.keys()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            replay.replay(folder)
+        assert "now 20 (" in out.getvalue(), out.getvalue()
+
+
 def test_still_matches():
     cal = calibrated()
     assert phonevision.still_matches(picture(), W, H, cal)
@@ -133,6 +157,7 @@ def main():
     test_restart_forgets_the_board()
     test_says_when_the_picture_is_still()
     test_outline_sits_on_the_board()
+    test_report_replays()
     test_still_matches()
     print("OK")
 
