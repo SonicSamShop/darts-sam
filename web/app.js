@@ -1043,7 +1043,7 @@ function renderHome() {
 function optsBrief(game) {
   return game.options.map(o => {
     const v = setup.opts[o.key];
-    if (o.brief) return o.brief(v);
+    if (o.brief) return o.brief(v, setup.opts);
     return `${o.label}: ${o.choices ? o.choices.find(c => c[0] === v)[1] : v}`;
   }).filter(Boolean).join(' · ');
 }

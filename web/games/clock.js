@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 const name = t => (t === 25 ? 'Bull' : String(t));
+const RING = { double: 2, treble: 3 };
+// What to aim at: with Round the World the ring too ("Double 5"); the bull is the bull.
+const aimAt = (s, t) => (t === 25 || !RING[s.opts.hit] ? name(t) : `${s.opts.hit === 'double' ? 'Double' : 'Treble'} ${t}`);
 
 export default {
   id: 'clock',
@@ -11,8 +14,8 @@ export default {
   blurb: 'Hit 1 through 20 in order, then the bull. First to finish wins. Choose doubles only or trebles only for Round the World.',
   showTotal: false,  // the three-dart sum means nothing in this game
   options: [
-    { key: 'skip', label: 'Doubles & trebles', choices: [['no', 'Count as one'], ['yes', 'Jump ahead 2 / 3']], default: 'no', brief: v => v === 'yes' ? 'Doubles & trebles jump ahead' : 'Doubles & trebles count as one' },
-    { key: 'hit', label: 'What counts', choices: [['any', 'Any part'], ['double', 'Doubles only'], ['treble', 'Trebles only']], default: 'any', brief: v => v === 'double' ? 'Doubles only' : v === 'treble' ? 'Trebles only' : 'Any part of the number counts' },
+    { key: 'skip', label: 'Doubles & trebles', choices: [['no', 'Count as one'], ['yes', 'Jump ahead 2 / 3']], default: 'no', brief: (v, o) => o?.hit === 'double' || o?.hit === 'treble' ? '' : v === 'yes' ? 'Doubles & trebles jump ahead' : 'Doubles & trebles count as one' },
+    { key: 'hit', label: 'What counts', choices: [['any', 'Any part'], ['double', 'Doubles only'], ['treble', 'Trebles only']], default: 'any', brief: v => v === 'double' ? 'Doubles only' : v === 'treble' ? 'Trebles only' : '' },
   ],
 
   init(n) {
@@ -35,12 +38,19 @@ export default {
   summary(s, i) {
     const n = s.thrown[i];
     const rate = n ? `${Math.round(s.hits[i] / n * 100)}% hit · ${n} dart${n === 1 ? '' : 's'}` : '';
-    return { big: s.winner === i ? '✓' : name(s.target[i]), small: rate };
+    return { big: s.winner === i ? '✓' : s.target[i] !== 25 && RING[s.opts.hit] ? `${s.opts.hit === 'double' ? 'D' : 'T'}${s.target[i]}` : name(s.target[i]), small: rate };
   },
 
   // The number needed, as the caller says it at the start of each visit and
   // after each hit.
-  aim(s) { return s.winner == null ? name(s.target[s.current]) : ''; },
+  aim(s) { return s.winner == null ? aimAt(s, s.target[s.current]) : ''; },
 
-  hint(s) { return s.turnOver ? '' : `Aim for ${name(s.target[s.current])}`; },
+  hint(s) { return s.turnOver ? '' : `Aim for ${aimAt(s, s.target[s.current])}`; },
+
+  // Round the World lights the ring to hit; any part of the number lights nothing extra.
+  target(s) {
+    const t = s.target[s.current], m = RING[s.opts.hit];
+    if (s.winner != null || !m) return null;
+    return t === 25 ? { seg: 25, mult: 1 } : { seg: t, mult: m };
+  },
 };
