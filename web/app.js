@@ -12,7 +12,6 @@ import { createAccount } from './account.js';
 import { createTracker } from './track.js';
 import { createVoice } from './voice.js';
 import { LEVELS, botLevel, throwAt } from './bot.js';
-import { createPhoneUi } from './phoneui.js';
 import { X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith } from './stats.js';
 
 const $app = document.getElementById('app');
@@ -28,9 +27,6 @@ const store = {
   },
 };
 navigator.storage?.persist?.().catch(() => {});  // ask the browser not to clear it when space runs short
-// Scoring with this phone's own camera (Beta): its screen is a sheet of its own (phoneui.js).
-const phone = createPhoneUi({ onEvent: onBoardEvent, onChange: refreshStatus, store });
-phone.offered();  // is it offered here? (asked once, before the Cameras screen needs to know)
 
 
 // ---------- saved data ----------
@@ -387,24 +383,19 @@ function connect() {
   ws.onmessage = e => {
     const ev = JSON.parse(e.data);
     if (ev.type === 'hello') { cameraCount = ev.cameras; helperLinked = !!ev.helper; refreshStatus(); return updater.seen(ev.version); }
-    onBoardEvent(ev);
+    if (screen === 'bull' && bull) { if (ev.type === 'dart') bullDart({ seg: ev.seg, mult: ev.mult, x: ev.x, y: ev.y }); return; }
+    if (screen !== 'game' || !match) return;
+    if (botUp()) return;  // the computer is throwing: nothing at the board is part of the game
+    if (ev.type === 'dart') push({ t: 'dart', seg: ev.seg, mult: ev.mult, x: ev.x, y: ev.y, src: 'cam' });
+    // A takeout with no darts thrown is just someone touching the board.
+    const s = compute(match);
+    if (ev.type === 'takeout' && (s.turn.length || s.turnOver)) push({ t: 'next' });
   };
-}
-// What the cameras saw: from the cameras' computer (/ws) or this phone's own camera (phoneui.js).
-function onBoardEvent(ev) {
-  if (screen === 'bull' && bull) { if (ev.type === 'dart') bullDart({ seg: ev.seg, mult: ev.mult, x: ev.x, y: ev.y }); return; }
-  if (screen !== 'game' || !match) return;
-  if (botUp()) return;  // the computer is throwing: nothing at the board is part of the game
-  if (ev.type === 'dart') push({ t: 'dart', seg: ev.seg, mult: ev.mult, x: ev.x, y: ev.y, src: 'cam' });
-  // A takeout with no darts thrown is just someone touching the board.
-  const s = compute(match);
-  if (ev.type === 'takeout' && (s.turn.length || s.turnOver)) push({ t: 'next' });
 }
 function refreshStatus() {
   document.querySelectorAll('.conn').forEach(n => {
-    const cams = connected && cameraCount > 0, auto = cams || phone.scoring(), owed = data.waiting();
-    const full = (cams ? `Auto-scoring · ${cameraCount} cam${cameraCount > 1 ? 's' : ''}`
-      : phone.on() ? phone.statusText()
+    const auto = connected && cameraCount > 0, owed = data.waiting();
+    const full = (auto ? `Auto-scoring · ${cameraCount} cam${cameraCount > 1 ? 's' : ''}`
       : !connected ? 'Offline · manual scoring'
       : account.hosted ? (helperLinked ? 'Cameras linked · not calibrated' : 'Signed in · scoring by hand')
       : 'No camera lined up · scoring by hand')
@@ -413,7 +404,7 @@ function refreshStatus() {
     // The game's top bar is short of room: it gets fewer words (the full ones are the tooltip).
     const brief = n.classList.contains('brief') && !auto;
     n.title = full;
-    n.innerHTML = `<span class="dot ${auto ? 'ok' : ''}"></span>${brief ? (phone.on() ? 'Phone camera' : !connected ? 'Offline' : 'No cameras') : full}`;
+    n.innerHTML = `<span class="dot ${auto ? 'ok' : ''}"></span>${brief ? (!connected ? 'Offline' : 'No cameras') : full}`;
   });
   fit();  // the new wording can wrap onto another line
 }
@@ -2142,7 +2133,6 @@ async function renderCameras() {
   if (!account.hosted) linkInfo = await api('/link', 'GET', undefined, 4000).catch(() => null);
   let status = null;
   try { status = await api('/status', 'GET', undefined, 6000); } catch { /* no Pi, or no cameras connected */ }
-  if (account.hosted) await phone.offered();
   if (screen !== 'cameras') return;
   watchLink();
   drawCameras(status);
@@ -2311,18 +2301,10 @@ function hostedCameras() {
     <div class="row camadd"><input type="text" id="pair-code" maxlength="12" autocapitalize="characters" autocomplete="off"
         spellcheck="false" placeholder="ABC234" aria-label="The code" value="${esc(pairCode)}"><button class="primary" data-act="pair">Connect</button></div>
     ${note}
-    <p class="camskip"><button class="ghost" data-act="home">No camera: score by tapping the board</button></p></div>${phoneOffer()}</div>`;
+    <p class="camskip"><button class="ghost" data-act="home">No camera: score by tapping the board</button></p></div></div>`;
   return `<p class="dim">${account.helper.connected ? 'Your cameras\' computer didn\'t answer.'
       : 'Your cameras\' computer isn\'t connected. Check it is switched on and Darts S.A.M is running.'}</p>
-    ${note}<div class="row"><button data-act="pair-retry">Try again</button>${unpairButton()}</div>${phoneOffer()}`;
-}
-// This phone's own camera instead of a computer's (phoneui.js), where it can be used.
-function phoneOffer() {
-  if (!phone.offeredNow()) return '';
-  return `<div class="camwizard phoneoffer"><b class="camlead">Or use this phone's camera <span class="beta">Beta</span></b>
-    <p class="dim">${phone.on() ? esc(phone.statusText())
-      : 'No computer needed: stand this phone beside the board and it scores by itself. It is new, so it gets some darts wrong, and asks when it isn\'t sure.'}</p>
-    <div class="row"><button data-act="phonecam">${phone.on() ? 'Open the phone camera' : 'Use this phone\'s camera'}</button></div></div>`;
+    ${note}<div class="row"><button data-act="pair-retry">Try again</button>${unpairButton()}</div>`;
 }
 function unpairButton() {
   if (!account.hosted || !account.helper) return '';
@@ -2773,7 +2755,6 @@ $app.addEventListener('click', e => {
     case 'report': return reportProblem();
     case 'pair': return pairCameras();
     case 'pair-retry': pairNote = ''; return renderCameras();
-    case 'phonecam': return phone.open();
     case 'unpair': unpairAsk = true; return renderCameras();
     case 'unpair-no': unpairAsk = false; return renderCameras();
     case 'unpair-yes': return unpairCameras();
