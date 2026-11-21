@@ -55,6 +55,8 @@ export const gameById = id => GAMES.find(g => g.id === id);
 
 // Can a match of this game start with this many players picked? (Gotcha needs two.)
 export const canStart = (game, seatCount) => seatCount >= (game.minPlayers ?? 1);
+// Is the game one that needs more than a lone player, with too few picked so far?
+export const needsMore = (game, seatCount) => (game.minPlayers ?? 1) > 1 && !canStart(game, seatCount);
 
 export function newMatch(gameId, players, opts) {
   // A game that picks things at random gets a seed to pick them from, kept

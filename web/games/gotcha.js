@@ -21,15 +21,16 @@ export default {
     { key: 'target', label: 'Target', choices: [[301, '301'], [501, '501']], default: 301, brief: v => `to ${v}` },
   ],
 
-  init(n) { return { score: Array(n).fill(0), visitStart: 0, event: '' }; },
+  init(n) { return { score: Array(n).fill(0), visitStart: 0, before: [], event: '' }; },
 
-  turnStart(s) { s.visitStart = s.score[s.current]; },
+  turnStart(s) { s.visitStart = s.score[s.current]; s.before = [...s.score]; },
 
   dart(s, d) {
     const p = s.current, v = value(d);
     s.event = '';
     if (s.score[p] + v > target(s)) {
-      s.score[p] = s.visitStart;
+      s.score = [...s.before];  // the whole visit is void, including anyone it sent back to zero
+      s.event = '';
       s.note = 'BUST';
       s.turnOver = true;
       return;

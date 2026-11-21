@@ -5,7 +5,7 @@
 // node --test tests/
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newMatch, compute, gameById, canStart, elapsed, clock, timeSpent, previousVisit } from '../web/engine.js';
+import { newMatch, compute, gameById, canStart, needsMore, elapsed, clock, timeSpent, previousVisit } from '../web/engine.js';
 import { checkout } from '../web/games/x01.js';
 import { scoreAt, value, label, spoken, half, heatGrid, bullUp } from '../web/board.js';
 import { GAMES } from '../web/games/index.js';
@@ -901,4 +901,16 @@ test('gotcha: a miss does not send anyone back, and a game needs two players', (
   assert.equal(canStart(gameById('gotcha'), 1), false);
   assert.equal(canStart(gameById('gotcha'), 2), true);
   assert.equal(canStart(gameById('x01'), 1), true);
+});
+test('gotcha: a bust voids the whole visit, including a player it sent back to zero', () => {
+  // Target 100. A scores 60. B's first dart matches it (A to zero), B's second goes over: both are put back.
+  const s = play('gotcha', ['A', 'B'], { target: 100 }, [D(20, 3), D(0, 0), D(0, 0), D(20, 3), D(20, 3)]);
+  assert.deepEqual(s.score, [60, 0]);
+  assert.equal(s.bust, 1);
+  assert.equal(gameById('gotcha').call(s), '');
+});
+test('needsMore only shows for a game that needs more players', () => {
+  assert.equal(needsMore(gameById('gotcha'), 0), true);
+  assert.equal(needsMore(gameById('gotcha'), 2), false);
+  assert.equal(needsMore(gameById('x01'), 0), false);
 });

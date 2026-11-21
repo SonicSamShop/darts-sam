@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { GAMES } from './games/index.js';
-import { gameById, canStart, newMatch, compute, elapsed, clock, timeSpent, previousVisit } from './engine.js';
+import { gameById, canStart, needsMore, newMatch, compute, elapsed, clock, timeSpent, previousVisit } from './engine.js';
 import { buildBoard, label, spoken, value, bullUp, bullMm } from './board.js';
 import { createSync } from './sync.js';
 import { createUpdater } from './update.js';
@@ -1015,7 +1015,7 @@ function renderHome() {
       return `<button class="chip ${n >= 0 ? 'on' : ''}" data-pick="${p.id}">${n >= 0 ? `<i>${n + 1}</i>` : ''}${esc(p.name)}</button>`;
     }).join('')}${game.bot ? botChip() : ''}${addingPlayer ? '' : '<button class="chip ghost" data-act="newplayer">+ New</button>'}</div>
     <p class="muted small">Tap who is playing, in throwing order. With two or more, Start asks who throws first: closest to the bull, or random.</p>
-    ${enough ? '' : `<p class="warn small">${game.name} needs two or more players.</p>`}
+    ${needsMore(game, seats().length) ? `<p class="warn small">${game.name} needs two or more players.</p>` : ''}
     ${botRow()}${dartsRows()}`
       : '<p class="muted">Add a player to get started.</p>'}
     ${addingPlayer || !players.length ? newPlayerRow() : ''}`)}
