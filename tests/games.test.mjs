@@ -657,6 +657,51 @@ test('closest to the bull: who throws first', () => {
 test('games are grouped into matches and training', () => {
   const ids = k => GAMES.filter(g => g.kind === k).map(g => g.id);
   assert.deepEqual(ids('match'), ['x01', 'cricket', 'killer']);
-  assert.deepEqual(ids('training'), ['clock', 'c121', 'countup', 'random', 'free']);
+  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'c121', 'countup', 'random', 'free']);
   assert.ok(GAMES.every(g => g.kind === 'match' || g.kind === 'training'));
+});
+
+const miss3 = [D(0, 0), D(0, 0), D(0, 0)];
+test("bob's 27: hits add, a blank visit takes the double away", () => {
+  let s = play('bobs27', ['A'], {}, [D(1, 2), D(5), D(5)]);
+  assert.equal(s.score[0], 29); assert.equal(s.target[0], 2);
+  s = play('bobs27', ['A'], {}, [D(1, 2), D(5), D(5), ...miss3]);
+  assert.equal(s.score[0], 25);
+  s = play('bobs27', ['A'], {}, [D(1, 2), D(5), D(5), D(2, 2), D(2, 2), D(0, 0)]);
+  assert.equal(s.score[0], 37);
+});
+test("bob's 27: Next after one dart still costs the double", () => {
+  const s = play('bobs27', ['A'], {}, [D(0, 0), NEXT]);
+  assert.equal(s.score[0], 25);
+});
+test("bob's 27: undoing the third dart gives the penalty back", () => {
+  const s = play('bobs27', ['A'], {}, [D(0, 0), D(0, 0)]);
+  assert.equal(s.score[0], 27);
+});
+test("bob's 27: falling to zero ends a solo game", () => {
+  // 27 -2 -4 -6 -8 -10 = -3, out at D5
+  const s = play('bobs27', ['A'], {}, Array(5).fill(miss3).flat());
+  assert.equal(s.score[0], -3); assert.equal(s.winner, 0);
+  assert.ok(gameById('bobs27').result(s));
+});
+test("bob's 27: one player out, the other plays on and wins", () => {
+  const log = [];
+  for (let r = 0; r < 5; r++) log.push(...miss3, D(r + 1, 2), D(0, 0), D(0, 0));
+  const s = play('bobs27', ['A', 'B'], {}, log);
+  assert.equal(s.winner, null); assert.equal(s.current, 1);  // A is passed over
+});
+test("bob's 27: a full round without the bull ends after D20", () => {
+  const log = [];
+  for (let d = 1; d <= 20; d++) log.push(D(d, 2), D(0, 0), D(0, 0));
+  const s = play('bobs27', ['A'], { bull: 'no' }, log);
+  assert.equal(s.score[0], 27 + 420); assert.equal(s.winner, 0);
+});
+test("bob's 27: the bull is the last double, and the game goes on past zero if asked", () => {
+  const log = [];
+  for (let d = 1; d <= 20; d++) log.push(D(d, 2), D(0, 0), D(0, 0));
+  let s = play('bobs27', ['A'], {}, log);
+  assert.equal(s.winner, null); assert.deepEqual(gameById('bobs27').target(s), { seg: 25, mult: 2 });
+  assert.equal(gameById('bobs27').aim(s), 'Bull');
+  s = play('bobs27', ['A'], { zero: 'on' }, Array(6).fill(miss3).flat());
+  assert.equal(s.winner, null); assert.equal(gameById('bobs27').aim(s), 'Double 7');
 });

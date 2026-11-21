@@ -1281,6 +1281,8 @@ const GAME_TILES = {
     ['Best run of hits', 'best_run']],
   countup: [['3-dart average', 'average'], ['Highest visit', 'highest'], ['Visits of 100+', 't100'],
     ['Average game total', 'avg_total'], ['Best game total', 'best_total']],
+  bobs27: [['Average score', 'avg_score'], ['Best score', 'best_score'], ['Doubles hit', 'double_rate', '%'],
+    ['Games above zero', 'above_zero']],
   c121: [['Checkout rate', 'rate', '%'], ['Checkouts hit', 'made'], ['Highest checkout', 'highest'],
     ['Average darts per checkout', 'avg_darts']],
 };

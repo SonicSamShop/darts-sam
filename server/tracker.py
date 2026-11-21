@@ -187,4 +187,10 @@ class Tracker:
         look["outcome"] = "dart"
         look["event"] = {"type": "dart", "x": round(float(x), 1), "y": round(float(y), 1),
                          "confidence": conf, "cameras": len(lines), **board.score(x, y)}
+        if len(lines) == 1:
+            # One camera can't cross lines: say how sure it is of each bed, so
+            # the app can ask the player when it isn't.
+            cam = next(c for c, s in sightings.items() if s is not None)
+            odds = detect.bed_odds(lines[0], self.H[cam])
+            look["event"].update(odds=odds, confidence=odds[0]["p"])
         return [look["event"]]

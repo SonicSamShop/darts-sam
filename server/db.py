@@ -587,6 +587,43 @@ def _countup(db, player_id: int, dart_set: str | None = None):
     }
 
 
+def _bobs27(db, player_id: int, dart_set: str | None = None):
+    """Bob's 27: every player has their own score and double, so only the
+    player's own visits are replayed, with the game's own options. Score
+    figures count finished games only."""
+    darts = hits = 0
+    scores = []
+    for m, _ids, throws in _matches(db, player_id, "bobs27", dart_set):
+        o = json.loads(m["opts"])
+        last = 20 if o.get("bull") == "no" else 25
+        stop = o.get("zero") != "on"
+        score, target, over = 27, 1, False
+        for visit in _visits(throws):
+            if visit[0]["player_id"] != player_id or over:
+                continue
+            got = [t for t in visit if t["mult"] == 2 and t["seg"] == target]
+            darts += len(visit)
+            hits += len(got)
+            score += sum(t["seg"] * 2 for t in got)
+            if len(visit) < 3:  # cut short: the game ended on this visit
+                continue
+            if not got:
+                score -= target * 2
+                over = stop and score <= 0
+            over = over or target >= last
+            target = 25 if target == 20 else target + 1
+        if m["finished"]:
+            scores.append(score)
+    if not darts:
+        return None
+    return {
+        "avg_score": round(sum(scores) / len(scores), 1) if scores else None,
+        "best_score": max(scores, default=None),
+        "double_rate": round(hits / darts * 100, 1),
+        "above_zero": sum(s > 0 for s in scores),
+    }
+
+
 # Finishes that three darts cannot make (double out): everything over 170 too.
 _NO_FINISH = {159, 162, 163, 165, 166, 168, 169}
 
@@ -657,7 +694,7 @@ def _c121(db, player_id: int, dart_set: str | None = None):
     }
 
 
-GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121}
+GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27}
 
 
 def _gear(db, player_id: int, game_id: str | None) -> list[dict]:

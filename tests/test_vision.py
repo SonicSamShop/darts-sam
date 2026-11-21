@@ -170,9 +170,10 @@ def test_shake_is_not_a_dart():
 class Rig:
     """Three simulated cameras and a tracker watching them."""
 
-    def __init__(self, seed):
+    def __init__(self, seed, angles=(0, 120, 240)):
         self.rng = np.random.default_rng(seed)
-        self.cams = {i: make_camera(a) for i, a in enumerate((0, 120, 240))}
+        self.cams = {i: make_camera(a) for i, a in enumerate(angles)}
+        self.events = []  # what the last settle() said, in full
         self.tracker = Tracker({
             i: homography([project(P, np.array([*p["xy"], 0.0])) for p in board.CALIBRATION_POINTS])
             for i, P in self.cams.items()})
@@ -189,11 +190,28 @@ class Rig:
                 for i, f in frames.items():
                     paint(i, f)
             events += self.tracker.update(frames)
+        self.events = events
         return [e["type"] for e in events]
 
 
 def dart_at(x, y, lean=(8.0, 20.0)):
     return np.array([x, y, 0.0]), np.array([x + lean[0], y + lean[1], 150.0])
+
+
+def test_single_camera_odds():
+    """With one camera the dart comes with how likely each bed is, and its
+    confidence is the likeliest bed's."""
+    rig = Rig(5, angles=(30,))
+    rig.settle([])
+    assert rig.settle([dart_at(0, 60)]) == ["dart"]
+    ev = rig.events[0]
+    assert "odds" in ev, ev
+    assert ev["confidence"] == ev["odds"][0]["p"], ev
+    assert (ev["odds"][0]["seg"], ev["odds"][0]["mult"]) == (ev["seg"], ev["mult"]), ev
+    three = Rig(5)
+    three.settle([])
+    assert three.settle([dart_at(0, 60)]) == ["dart"]
+    assert "odds" not in three.events[0], three.events[0]
 
 
 def test_empty_picture_heals():
@@ -379,6 +397,7 @@ def test_odds_wider_for_a_small_dart():
 
 
 def main(trials=120, seed=7):
+    test_single_camera_odds()
     test_odds_middle_of_bed()
     test_odds_on_treble_wire()
     test_odds_spread_is_along_the_line()

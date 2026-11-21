@@ -17,8 +17,8 @@ def throw(player, rnd, seg, mult, bust=False, x=None, y=None):
             "src": "tap", "bust": bust, "ts": 1000 * rnd}
 
 
-def match(seq, players, throws, winner=None, game="x01", duration=None):
-    return {"seq": seq, "game_id": game, "game_name": game.upper(), "opts": {"start": 101}, "log": [],
+def match(seq, players, throws, winner=None, game="x01", duration=None, opts=None):
+    return {"seq": seq, "game_id": game, "game_name": game.upper(), "opts": opts or {"start": 101}, "log": [],
             "started": 1, "players": players, "winner": winner, "duration": duration, "throws": throws}
 
 
@@ -169,6 +169,23 @@ def main():
         assert u["detail"] == {"average": 62.0, "highest": 100, "t100": 1, "avg_total": 186, "best_total": 186}
         assert u["darts"] == 6  # the typed visit has no single darts
         assert u["matches"][0]["visits"][-1] == [0, 3, 3000, 0, None, 60, 3]  # sent as a total, not darts
+
+        # Bob's 27: D1 hit once then D2 missed (27 + 2 - 4 = 25), left unfinished
+        o27 = {"bull": "yes", "zero": "stop"}
+        b = [throw(0, 1, 1, 2), throw(0, 1, 0, 0), throw(0, 1, 0, 0),
+             throw(0, 2, 0, 0), throw(0, 2, 0, 0), throw(0, 2, 0, 0)]
+        assert db.save_match("b1", match(1, [alex["id"]], b, game="bobs27", opts=o27))
+        d = db.stats(alex["id"], "bobs27")["detail"]
+        assert d["double_rate"] == 16.7 and d["best_score"] is None and d["above_zero"] == 0
+        # the same again, finished: 25 above zero
+        assert db.save_match("b2", match(1, [alex["id"]], b, winner=0, game="bobs27", opts=o27))
+        d = db.stats(alex["id"], "bobs27")["detail"]
+        assert d == {"avg_score": 25.0, "best_score": 25, "double_rate": 16.7, "above_zero": 1}, d
+        # five blank visits: 27 - 2 - 4 - 6 - 8 - 10 = -3, out at D5 (the game stops there)
+        z = [throw(0, r, 0, 0) for r in range(1, 6) for _ in range(3)]
+        assert db.save_match("b3", match(1, [alex["id"]], z, winner=0, game="bobs27", opts=o27))
+        d = db.stats(alex["id"], "bobs27")["detail"]
+        assert d == {"avg_score": 11.0, "best_score": 25, "double_rate": 7.4, "above_zero": 1}, d
 
         # 121 Checkout from 81, six darts a target: T19 D12 checks out 81 in two; then 82 is
         # missed (a bust, then three darts that leave it); back on 81, D20 D20 is one dart short
