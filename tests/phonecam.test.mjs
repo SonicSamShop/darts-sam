@@ -4,7 +4,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPhoneCam, settleState, videoPoint } from '../web/phonecam.js';
+import { createPhoneCam, screenPoint, settleState, videoPoint } from '../web/phonecam.js';
 
 // Stand-ins for the browser: a worker that answers when told to, a camera,
 // a page that can be hidden, and a clock.
@@ -147,4 +147,18 @@ test('a tap on the shown picture is turned into the camera picture\'s pixels', (
   assert.deepEqual(videoPoint(rect, 1280, 720, 320, 240), [640, 360]);
   assert.deepEqual(videoPoint(rect, 1280, 720, 0, 60), [0, 0]);
   assert.equal(videoPoint(rect, 1280, 720, 320, 30), null, 'a tap on the bars is not on the picture');
+});
+
+test('a point in the camera\'s picture is drawn where it shows on screen', () => {
+  const rect = { left: 0, top: 0, width: 640, height: 480 };
+  assert.deepEqual(screenPoint(rect, 1280, 720, 640, 360), [320, 240]);
+  assert.deepEqual(screenPoint(rect, 1280, 720, 0, 0), [0, 60]);
+});
+
+test('the board\'s outline comes from the worker', async () => {
+  const f = fakes();
+  await watching(f);
+  const asking = f.cam.outline({ points: [] });
+  f.worker.answer('outline', { type: 'outline', lines: [[[1, 2], [3, 4]]] });
+  assert.deepEqual(await asking, [[[1, 2], [3, 4]]]);
 });

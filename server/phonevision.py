@@ -15,7 +15,7 @@ One phone is one camera, called "phone".
 import cv2
 import numpy as np
 
-from . import autocalib, calib, tracker
+from . import autocalib, board, calib, tracker
 
 CAMERA = "phone"
 MOVED_PX = 3.0   # rings' edges further than this from where the calibration puts them: the phone moved
@@ -86,3 +86,16 @@ def still_matches(rgba, w: int, h: int, calibration: dict) -> bool:
         return False
     expected = autocalib._apply(np.linalg.inv(view.H), mm)
     return float(np.sqrt(np.mean(np.sum((expected - px) ** 2, axis=1)))) < MOVED_PX
+
+
+def outline(calibration: dict) -> list[list[list[float]]]:
+    """Where the board's rings and wires are in the picture (px), to draw over
+    it so the player can see the board was found right: six rings (bull out to
+    the outer double wire), then the twenty wires between the numbers."""
+    view = calib.view(calibration)
+    rings = [[board.polar(a, r) for a in range(0, 361, 3)]
+             for r in (board.R_BULL, board.R_OUTER_BULL, board.R_TRIPLE_IN, board.R_TRIPLE_OUT,
+                       board.R_DOUBLE_IN, board.R_DOUBLE_OUT)]
+    wires = [[board.polar(9 + 18 * i, r) for r in np.linspace(board.R_OUTER_BULL, board.R_DOUBLE_OUT, 12)]
+             for i in range(20)]
+    return [np.round(view.to_picture(line), 1).tolist() for line in rings + wires]

@@ -104,6 +104,19 @@ def test_says_when_the_picture_is_still():
     assert not any({"type": "still"} in s for s in moving[1:]), moving
 
 
+def test_outline_sits_on_the_board():
+    """The lines drawn over the phone's picture to show where it found the
+    board: rings and wires, in the picture's pixels, where the board really is."""
+    cal = calibrated()
+    lines = phonevision.outline(cal)
+    json.dumps(lines)
+    assert len(lines) == 6 + 20, len(lines)  # six rings, twenty wires
+    double_out = lines[5]
+    truth = [project(P, np.array([*board.polar(a, board.R_DOUBLE_OUT), 0.0])) for a in (0, 90, 180, 270)]
+    for t in truth:
+        assert min(np.hypot(x - t[0], y - t[1]) for x, y in double_out) < 6, t
+
+
 def test_still_matches():
     cal = calibrated()
     assert phonevision.still_matches(picture(), W, H, cal)
@@ -119,6 +132,7 @@ def main():
     test_scores_a_dart()
     test_restart_forgets_the_board()
     test_says_when_the_picture_is_still()
+    test_outline_sits_on_the_board()
     test_still_matches()
     print("OK")
 

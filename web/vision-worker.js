@@ -49,6 +49,7 @@ const COMMANDS = {
   start: m => { vision.start(py.toPy(m.calibration)); return { type: 'started' }; },
   frame: m => ({ type: 'events', events: toJs(vision.feed(picture(m), m.w, m.h)) }),
   check: m => ({ type: 'checked', ok: vision.still_matches(picture(m), m.w, m.h, py.toPy(calibration)) }),
+  outline: m => ({ type: 'outline', lines: toJs(vision.outline(py.toPy(m.calibration))) }),
   restart: () => { vision.restart(); return { type: 'restarted' }; },
   stop: () => { vision?.stop(); return { type: 'stopped' }; },
 };

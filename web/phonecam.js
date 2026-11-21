@@ -29,6 +29,13 @@ export function videoPoint(rect, vw, vh, clientX, clientY) {
   return [Math.round(x), Math.round(y)];
 }
 
+// The other way: where a point in the camera's picture shows on screen.
+export function screenPoint(rect, vw, vh, x, y) {
+  const scale = Math.min(rect.width / vw, rect.height / vh);
+  const left = rect.left + (rect.width - vw * scale) / 2, top = rect.top + (rect.height - vh * scale) / 2;
+  return [left + x * scale, top + y * scale];
+}
+
 function canvasGrab(video) {
   let canvas, ctx;
   return () => {
@@ -164,6 +171,12 @@ export function createPhoneCam({
       const scale = shot.w / (video?.videoWidth || shot.w);
       const m = await call('calibrate', { ...shot, twenty: twenty && twenty.map(v => v * scale) }, [shot.frame]);
       return m.result;
+    },
+
+    // Where the found board's rings and wires are in the pictures the vision
+    // code is given (the calibration's own size), to draw over the picture.
+    async outline(calibration) {
+      return (await call('outline', { calibration })).lines;
     },
 
     async start(calibration) {
