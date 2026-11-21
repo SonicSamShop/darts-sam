@@ -4,7 +4,8 @@
 
 """The trial's private pages, for whoever runs the hosted site.
 
-  /admin            every account: set-up, how far along, games, how accurate the cameras were
+  /admin            every account: set-up, how far along, games, how accurate the cameras were;
+                    sorted and filtered from the address, e.g. /admin?sort=games&dir=desc&setup=paired
   /admin/reports    problem reports sent up by people's helpers, with the pictures
   /admin/feedback   what people have written
 
@@ -14,9 +15,11 @@ addresses do not exist (404). Everything a person typed is escaped.
 """
 import io
 import json
+import time
 import zipfile
 from datetime import datetime, timezone
 from html import escape as e
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse
@@ -42,6 +45,10 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 figure { display: inline-block; margin: 0 10px 14px 0; max-width: 400px; vertical-align: top; }
 figure img { max-width: 100%; display: block; } figcaption { font-size: 13px; color: #555; }
 h1 { font-size: 22px; } h2 { font-size: 17px; margin-top: 26px; }
+th a { color: inherit; text-decoration: none; } th a:hover { text-decoration: underline; } th a.on { color: #1c1c1c; }
+form.filter { display: flex; gap: 10px 16px; flex-wrap: wrap; align-items: end; margin: 0 0 12px; }
+form.filter label { display: flex; flex-direction: column; font-size: 12px; color: #666; gap: 2px; }
+form.filter input, form.filter select, form.filter button { font: inherit; padding: 4px 6px; }
 """
 
 # The pages have no scripts, so the browser is told to run none: if something a
@@ -70,6 +77,75 @@ def page(title: str, body: str) -> HTMLResponse:
                         headers=HEADERS)
 
 
+# The People table's columns: (sort key, heading, numeric?, value to sort by).
+# Sorting and filtering are done here from the address (?sort=games&dir=desc&q=ann),
+# so the page still needs no script.
+COLUMNS = [
+    ("who", "Who", False, lambda p: (p["nickname"] or "").lower()),
+    ("path", "Path", False, lambda p: sum(p["steps"])),
+    ("setup", "Set-up", False, lambda p: None if not p["helper"] else (p["helper"]["cameras"] or 0)),
+    ("games", "Games", True, lambda p: p["n"]["games"]),
+    ("darts", "Darts", True, lambda p: p["n"]["darts"]),
+    ("kept", "Camera darts kept", True, lambda p: p["n"]["kept"]),
+    ("corrected", "Corrected", True, lambda p: p["n"]["corrected"]),
+    ("missed", "Missed", True, lambda p: p["n"]["missed"]),
+    ("accuracy", "Accuracy", True, lambda p: p["n"]["accuracy"]),
+    ("days", "Days played", True, lambda p: p["n"]["days_played"]),
+    ("time", "Time played", True, lambda p: p["n"]["played_ms"]),
+    ("reports", "Reports", True, lambda p: p["reports"]),
+    ("joined", "Joined", False, lambda p: p["created"]),
+    ("signins", "Sign-ins", True, lambda p: p["signins"]),
+    ("last", "Last signed in", False, lambda p: p["last_seen"]),
+]
+SORTS = {key: value for key, _, _, value in COLUMNS}
+SETUPS = {"": "Anyone", "none": "No cameras", "paired": "Has cameras", "connected": "Connected now",
+          "1": "1 camera", "2": "2 cameras", "3": "3 cameras", "4": "4+ cameras"}
+SEEN = {"": "Any time", "1": "Last 24 hours", "7": "Last 7 days", "30": "Last 30 days", "old": "Over 30 days ago"}
+
+
+def sort_rows(rows: list[dict], sort: str, desc: bool) -> list[dict]:
+    """Sorted by one column; people with nothing in it always go last."""
+    value = SORTS.get(sort)
+    if not value:
+        return rows
+    have = [p for p in rows if value(p) is not None]
+    return sorted(have, key=value, reverse=desc) + [p for p in rows if value(p) is None]
+
+
+def filter_rows(rows: list[dict], q: str, setup: str, reached: str, seen: str, now_ms: int) -> list[dict]:
+    q = q.strip().lower()
+
+    def keep(p):
+        h = p["helper"]
+        if q and q not in (p["nickname"] or "").lower():
+            return False
+        if setup == "none" and h:
+            return False
+        if setup == "paired" and not h:
+            return False
+        if setup == "connected" and not p["connected"]:
+            return False
+        if setup in ("1", "2", "3") and not (h and h["cameras"] == int(setup)):
+            return False
+        if setup == "4" and not (h and (h["cameras"] or 0) >= 4):
+            return False
+        if reached.isdigit() and int(reached) < len(insight.STEPS):
+            if not p["steps"][int(reached)]:
+                return False
+        if seen:
+            ago = now_ms - (p["last_seen"] or 0)
+            if seen == "old" and ago <= 30 * 86400000:
+                return False
+            if seen.isdigit() and ago > int(seen) * 86400000:
+                return False
+        return True
+    return [p for p in rows if keep(p)]
+
+
+def options(choices: dict, chosen: str) -> str:
+    return "".join(f'<option value="{e(k)}"{" selected" if k == chosen else ""}>{e(v)}</option>' for k, v in choices.items())
+
+
 def make_router(store, relay, account) -> APIRouter:
     """account(request) -> the signed-in account or None."""
     router = APIRouter()
@@ -93,9 +169,16 @@ def make_router(store, relay, account) -> APIRouter:
         return out
 
     @router.get("/admin")
-    def home(request: Request):
+    def home(request: Request, q: str = "", setup: str = "", reached: str = "", seen: str = "",
+             sort: str = "", dir: str = ""):
         admin(request)
-        rows = people()
+        everyone = people()
+        setup = setup if setup in SETUPS else ""
+        seen = seen if seen in SEEN else ""
+        sort = sort if sort in SORTS else ""
+        desc = dir == "desc"
+        rows = sort_rows(filter_rows(everyone, q, setup, reached, seen, int(time.time() * 1000)), sort, desc)
+        filters = {k: v for k, v in (("q", q.strip()), ("setup", setup), ("reached", reached), ("seen", seen)) if v}
 
         def accuracy(group):
             kept = sum(p["n"]["kept"] for p in group)
@@ -128,10 +211,26 @@ def make_router(store, relay, account) -> APIRouter:
                     f'<td class=n>{n["played_ms"] // 3600000}h {n["played_ms"] // 60000 % 60:02d}m</td>'
                     f'<td class=n><a href="/admin/reports?who={e(p["id"])}">{p["reports"]}</a></td>'
                     f'<td>{when(p["created"])}</td><td class=n>{p["signins"]}</td><td>{when(p["last_seen"])}</td></tr>')
-        table = ("<table><tr><th>Who</th><th>Path</th><th>Set-up</th><th class=n>Games</th><th class=n>Darts</th>"
-                 "<th class=n>Camera darts kept</th><th class=n>Corrected</th><th class=n>Missed</th><th class=n>Accuracy</th>"
-                 "<th class=n>Days played</th><th class=n>Time played</th><th class=n>Reports</th><th>Joined</th><th class=n>Sign-ins</th><th>Last signed in</th></tr>"
-                 + "".join(row(p) for p in rows) + "</table>")
+        def heading(key, name, numeric, _):
+            # a click sorts by the column; a second click turns it round. Numbers start biggest first.
+            on = key == sort
+            down = (not desc) if on else (numeric or key in ("joined", "last", "path", "setup"))
+            link = "/admin?" + urlencode({**filters, "sort": key, "dir": "desc" if down else "asc"})
+            mark = (" ▼" if desc else " ▲") if on else ""
+            return f'<th{" class=n" if numeric else ""}><a href="{e(link)}"{" class=on" if on else ""}>{e(name)}{mark}</a></th>'
+        table = ("<table><tr>" + "".join(heading(*c) for c in COLUMNS) + "</tr>"
+                 + "".join(row(p) for p in rows) + "</table>") if rows else '<p class="muted">Nobody matches.</p>'
+        steps_choice = {"": "Anywhere"} | {str(i): name for i, name in enumerate(insight.STEPS) if i}
+        hidden = "".join(f'<input type="hidden" name="{k}" value="{e(v)}">' for k, v in (("sort", sort), ("dir", dir)) if sort)
+        form = (f'<form class="filter" method="get" action="/admin">'
+                f'<label>Name<input type="search" name="q" value="{e(q.strip())}"></label>'
+                f'<label>Set-up<select name="setup">{options(SETUPS, setup)}</select></label>'
+                f'<label>Got as far as<select name="reached">{options(steps_choice, reached)}</select></label>'
+                f'<label>Last signed in<select name="seen">{options(SEEN, seen)}</select></label>'
+                f'{hidden}<button type="submit">Filter</button>'
+                + (f'<span class="muted">Showing {len(rows)} of {len(everyone)} · <a href="/admin">Clear</a></span>'
+                   if filters or sort else "")
+                + "</form>")
         legend = ('<p class="muted">Path: ' + " → ".join(insight.STEPS) + ". Kept: camera darts left as scored. Corrected: "
                   "camera darts undone and entered by hand. Missed: darts entered by hand in a game the cameras were "
                   "scoring. Accuracy = kept ÷ (kept + corrected + missed). Time played: every game from its start to its winning "
@@ -139,7 +238,7 @@ def make_router(store, relay, account) -> APIRouter:
                   "(90 days on a device) is not a new one, and sign-ins before version 1.4 were not counted. Times are UTC.</p>")
         cams = (f"<h2>Accuracy by number of cameras</h2><table style='width:auto'><tr><th>Set-up</th><th class=n>People</th>"
                 f"<th class=n>Accuracy</th><th class=n>Camera darts</th></tr>{split}</table>") if split else ""
-        return page("People", f'<div class="tiles">{tiles}</div>{table}{legend}{cams}')
+        return page("People", f'<div class="tiles">{tiles}</div>{form}{table}{legend}{cams}')
 
     @router.get("/admin/feedback")
     def feedback(request: Request):

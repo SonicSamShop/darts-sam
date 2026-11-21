@@ -8,11 +8,18 @@
 // takes a life off anyone whose double they hit, their own included. Last
 // player with a life left wins.
 //
+// Two options change which darts count (both are doubles unless set):
+//   - opts.become 'treble': it takes your own treble to become a killer;
+//   - opts.kill 'any': a killer takes a life with any part of a number, single,
+//     double or treble (one life a dart), their own number included.
+//
 // House rules (opts.mode 'house') add two things:
 //   - hit someone else's double before you are a killer and *they* become one;
 //   - a Shanghai on your own number (single, double and treble of it in one
 //     visit, in any order) wins the game there and then.
 const picking = s => s.num.includes(null);
+const becomeMult = s => (s.opts.become === 'treble' ? 3 : 2);
+const kills = (s, d) => (s.opts.kill === 'any' ? d.mult > 0 : d.mult === 2);
 const alive = s => s.lives.map((l, i) => (l > 0 ? i : -1)).filter(i => i >= 0);
 
 function loseLife(s, i) {
@@ -23,10 +30,12 @@ function loseLife(s, i) {
 export default {
   id: 'killer',
   name: 'Killer',
-  blurb: 'Weak hand for your number, hit your double to become a killer, then take lives off the others\' doubles. Last one standing wins.',
+  blurb: 'Weak hand for your number, hit your double (or treble) to become a killer, then take lives off the others\' numbers. Last one standing wins.',
   showTotal: false,  // the three-dart sum means nothing in this game
   options: [
     { key: 'lives', label: 'Lives', choices: [[3, '3'], [5, '5']], default: 5, brief: v => `${v} lives` },
+    { key: 'become', label: 'Become a killer', choices: [['double', 'Double'], ['treble', 'Treble']], default: 'double', brief: v => v === 'treble' ? 'Treble to start' : '' },
+    { key: 'kill', label: 'Take lives with', choices: [['double', 'Double'], ['any', 'Any part']], default: 'double', brief: v => v === 'any' ? 'Any part kills' : '' },
     { key: 'mode', label: 'Rules', choices: [['house', 'House rules'], ['classic', 'Classic']], default: 'house', brief: v => v === 'classic' ? 'Classic rules' : 'House rules' },
   ],
 
@@ -57,13 +66,16 @@ export default {
       return;
     }
 
-    const o = d.mult === 2 ? s.num.indexOf(d.seg) : -1;  // whose double, if anyone's
+    // Whose number, if anyone's. Before you are a killer only the bed that makes
+    // one counts; after, only the ones that take a life.
+    const o = d.mult ? s.num.indexOf(d.seg) : -1;
+    const makes = d.mult === becomeMult(s);
     if (o >= 0 && s.lives[o] > 0) {
       if (o === p) {
-        if (s.killer[p]) loseLife(s, p);
-        else { s.killer[p] = true; s.event = `${s.players[p]} is a killer`; }
-      } else if (s.killer[p]) loseLife(s, o);
-      else if (s.opts.mode === 'house' && !s.killer[o]) {
+        if (s.killer[p]) { if (kills(s, d)) loseLife(s, p); }
+        else if (makes) { s.killer[p] = true; s.event = `${s.players[p]} is a killer`; }
+      } else if (s.killer[p]) { if (kills(s, d)) loseLife(s, o); }
+      else if (makes && s.opts.mode === 'house' && !s.killer[o]) {
         s.killer[o] = true;
         s.event = `${s.players[o]} is a killer`;
       }
@@ -96,8 +108,11 @@ export default {
     const p = s.current;
     let tip;
     if (picking(s)) tip = 'Weak hand: one dart for your number';
-    else if (!s.killer[p]) tip = `Hit D${s.num[p]} to become a killer`;
-    else tip = 'Killer: ' + alive(s).filter(i => i !== p).map(i => `D${s.num[i]} ${s.players[i]}`).join(', ');
+    else if (!s.killer[p]) tip = `Hit ${becomeMult(s) === 3 ? 'T' : 'D'}${s.num[p]} to become a killer`;
+    else {
+      const bed = s.opts.kill === 'any' ? '' : 'D';
+      tip = 'Killer: ' + alive(s).filter(i => i !== p).map(i => `${bed}${s.num[i]} ${s.players[i]}`).join(', ');
+    }
     return [s.event, tip].filter(Boolean).join(' · ');
   },
 };

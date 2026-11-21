@@ -378,6 +378,9 @@ svg.heat .b-num { fill: #d9dce3; }
 .lastvisit { color: var(--muted); font-size: 20px; line-height: 1.2; text-align: center; text-wrap: balance; }
 .lastvisit b { color: var(--text); font-weight: 700; }
 .hint { min-height: 26px; color: var(--gold); font-size: 18px; text-align: center; }
+.botwait { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 12px; color: var(--muted); font-size: 18px; text-align: center; }
+.botwait b { color: var(--text); }
+.botwait button { min-height: 44px; }
 .banner { background: var(--panel); border: 1px solid var(--line); border-radius: var(--round); padding: 12px; text-align: center; font-size: 18px; }
 .banner.bust { border-color: var(--warn); color: var(--warn); font-weight: 800; }
 .banner.win { border-color: var(--gold); color: var(--gold); font-size: 24px; font-weight: 800; }

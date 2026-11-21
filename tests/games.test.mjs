@@ -528,6 +528,29 @@ test('killer: house rules', () => {
   assert.equal(s.winner, null);
 });
 
+test('killer: treble to become a killer, any part of a number to take a life', () => {
+  const pick = [D(7), D(3), D(12), NEXT], M = D(0, 0);
+  // Treble to start: A's double does nothing, the treble makes A a killer.
+  let s = play('killer', ['A', 'B', 'C'], { lives: 3, mode: 'classic', become: 'treble' }, [...pick, D(7, 2), D(7, 3)]);
+  assert.deepEqual(s.killer, [true, false, false]); assert.equal(s.event, 'A is a killer');
+  assert.match(gameById('killer').hint(play('killer', ['A', 'B', 'C'], { lives: 3, become: 'treble' }, pick)), /T7/);
+  // House rules with treble to start: someone else's treble makes them a killer, their double doesn't.
+  s = play('killer', ['A', 'B', 'C'], { lives: 3, mode: 'house', become: 'treble' }, [...pick, D(3, 2), D(12, 3)]);
+  assert.deepEqual(s.killer, [false, false, true]);
+  // Any part: a killer's single takes a life (one a dart, whatever the bed); doubles still only.
+  const any = { lives: 3, mode: 'classic', kill: 'any' };
+  s = play('killer', ['A', 'B', 'C'], any, [...pick, D(7, 2), D(3), D(12, 3)]);
+  assert.deepEqual(s.lives, [3, 2, 2]);
+  s = play('killer', ['A', 'B', 'C'], { lives: 3, mode: 'classic' }, [...pick, D(7, 2), D(3), D(12, 3)]);
+  assert.deepEqual(s.lives, [3, 3, 3]);
+  // Before you are a killer a single on your own number does nothing; after, it costs a life.
+  s = play('killer', ['A', 'B', 'C'], any, [...pick, D(7), D(7, 2), D(7)]);
+  assert.deepEqual(s.lives, [2, 3, 3]);
+  // Both together.
+  s = play('killer', ['A', 'B', 'C'], { ...any, become: 'treble' }, [...pick, D(7, 3), D(3), D(3), M]);
+  assert.deepEqual(s.lives, [3, 1, 3]);
+});
+
 test('random targets: seeded targets, a point for each hit, up to three in a visit', async () => {
   const { targets } = await import('../web/games/random.js');
   const o = { doubles: 'yes', trebles: 'yes', hard: 'no', goes: 20, seed: 7 };

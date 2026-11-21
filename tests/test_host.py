@@ -256,6 +256,17 @@ def main():
         assert "&lt;b&gt;Ann&lt;/b&gt;" in home and "<b>Ann</b>" not in home     # typed text is shown as text
         assert "Bob" in home and "(admin)" in home and "Accuracy" in home and "<script" not in home.lower()
         assert "Sign-ins" in home
+        # sorted and filtered from the address, still with no script
+        by_name = bob.get("/admin?sort=who&dir=asc").text
+        assert by_name.index("&lt;b&gt;Ann") < by_name.index("<b>Bob")
+        by_name = bob.get("/admin?sort=who&dir=desc").text
+        assert by_name.index("<b>Bob") < by_name.index("&lt;b&gt;Ann") and "Who ▼" in by_name
+        only = bob.get("/admin?q=bob&sort=games&dir=desc").text
+        assert "<b>Bob" in only and "&lt;b&gt;Ann" not in only and "Showing 1 of" in only
+        assert 'name="sort" value="games"' in only and "q=bob" in only   # sorting keeps the filter, filtering keeps the sort
+        assert "Nobody matches" in bob.get("/admin?q=zzz").text
+        assert bob.get("/admin?sort=nonsense&setup=nonsense&reached=99&seen=x").status_code == 200
+        assert "<script" not in only.lower()
         said_page = bob.get("/admin/feedback").text
         assert "The 20s are &lt;b&gt;great&lt;/b&gt;" in said_page and "<b>great</b>" not in said_page
         listing = bob.get("/admin/reports").text

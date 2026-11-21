@@ -141,18 +141,40 @@ function botPlayer(level) {
 // The level of the computer player whose throw it is in the game in progress, or null.
 const botUp = (s = compute(match)) => s.winner == null ? match.bots?.[s.current] ?? null : null;
 // The computer throws by itself, a dart at a time, whenever the game is on screen and it is its
-// turn: renderGame() asks for the next dart each time it draws. It waits a little longer before
-// the first dart of a visit, which leaves time to undo a wrong dart before it starts.
-const BOT_WAIT = 2200, BOT_PACE = 1200;
-let botTimer = 0;
+// turn: renderGame() asks for the next dart each time it draws. Straight after a person's visit
+// it holds off for a while, counting down on screen, so a wrongly scored dart can be put right
+// (Undo) before it starts; "Throw now" skips the wait. The countdown is kept while the screen
+// redraws, and starts again only when something new goes into the game.
+const BOT_WAIT = 2200, BOT_PACE = 1200, BOT_HOLD = 8000;
+let botTimer = 0, botTick = 0;
+let botHold = null;  // {at: match.log.length, due: time} while waiting after a person's visit
 let botFlight = false;  // the dart about to be drawn is the computer's: show it landing
 function botSoon() {
   clearTimeout(botTimer);
+  clearInterval(botTick);
   if (screen !== 'game' || !match) return;
   const s = compute(match);
-  if (botUp(s)) botTimer = setTimeout(botThrow, s.turn.length ? BOT_PACE : BOT_WAIT);
+  if (!botUp(s)) { botHold = null; return; }
+  if (!botHolds(s)) {
+    botHold = null;
+    botTimer = setTimeout(botThrow, s.turn.length ? BOT_PACE : BOT_WAIT);
+    return;
+  }
+  if (botHold?.at !== match.log.length) botHold = { at: match.log.length, due: Date.now() + BOT_HOLD };
+  botTimer = setTimeout(botThrow, Math.max(0, botHold.due - Date.now()));
+  botTick = setInterval(showBotHold, 250);
+  showBotHold();
+}
+// Whether the computer's next dart waits on a person's visit just gone in.
+const botHolds = s => !!botUp(s) && !s.turn.length && match.log.length > 0 && match.log.at(-1).src !== 'bot';
+const botHoldLeft = () => botHold ? Math.max(1, Math.ceil((botHold.due - Date.now()) / 1000)) : 0;
+function showBotHold() {
+  const el = document.querySelector('.botwait b');
+  if (el) el.textContent = botHoldLeft();
 }
 function botThrow() {
+  clearInterval(botTick);
+  botHold = null;
   if (screen !== 'game' || !match) return;
   if (quitAsk) return botSoon();  // being asked whether to quit: wait for the answer
   const s = compute(match), level = botUp(s), game = gameById(match.gameId);
@@ -1826,6 +1848,8 @@ function renderGame() {
     ${last}
     ${game.hint ? `<div class="hint">${s.winner == null ? esc(game.hint(s, { checkouts: settings.checkouts !== false })) : ''}</div>` : ''}
     ${banner}
+    ${botHolds(s) ? `<div class="botwait"><span>${esc(s.players[s.current])} throws in <b>${botHold?.at === match.log.length ? botHoldLeft() : BOT_HOLD / 1000}</b>s. Score wrong? Undo it now.</span>
+      <button data-act="botgo">Throw now</button></div>` : ''}
     <div class="actions ${pad && s.winner == null ? 'solo' : ''}">
       <button data-act="undo" ${match.log.length ? '' : 'disabled'}>Undo</button>
       ${s.winner != null
@@ -2713,6 +2737,7 @@ $app.addEventListener('click', e => {
       return renderGame();
     case 'tv': settings.view = settings.view === 'tv' ? 'cards' : 'tv'; saveSettings(); return renderGame();
     case 'miss': return botUp() ? undefined : push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
+    case 'botgo': return botUp() ? (clearTimeout(botTimer), botThrow()) : undefined;
     case 'next':
       if (compute(match).lastVisit?.auto || botUp()) return;  // the third dart already moved play on, or the computer is up
       return push({ t: 'next' });

@@ -1,6 +1,9 @@
 {
   "version": "1.4",
-  "unreleased": [],
+  "unreleased": [
+    "Killer has two new options: become a killer with a treble instead of a double, and take lives by hitting any part of a player's number (single, double or treble) instead of only their double.",
+    "Playing the computer, it now waits 8 seconds after your visit before it throws, with a countdown, so you can undo a wrongly scored dart first. Tap Throw now to skip the wait."
+  ],
   "notes": {
     "1.0": [
       "First release."
