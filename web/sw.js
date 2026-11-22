@@ -21,6 +21,7 @@ const WAIT = 2500;             // ms to give the Pi before using the saved copy
 const FILES = [
   './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'achievements.js', 'engine.js', 'board.js', 'bot.js', 'install.js', 'voice.js', 'theme.js',
   'phoneui.js', 'phonecam.js', 'ask.js', 'phonecam.css',
+  'screens/sharing.js',
   'games/index.js', 'games/x01.js', 'games/cricket.js', 'games/clock.js', 'games/bobs27.js', 'games/shanghai.js', 'games/bermuda.js', 'games/segment.js', 'games/rcheckout.js', 'games/countup.js', 'games/c121.js', 'games/random.js', 'games/killer.js', 'games/gotcha.js', 'games/free.js',
   'style.css', 'themes.css', 'manifest.json', 'privacy.html', 'faq.html', 'rules.html', 'download.html', 'opensource.html', 'releases.html',
   'icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',

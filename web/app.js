@@ -15,13 +15,16 @@ import { LEVELS, botLevel, levelFor, throwAt } from './bot.js';
 import { createPhoneUi } from './phoneui.js';
 import { X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith } from './stats.js';
 import { ACHIEVEMENTS, GROUPS, byId, held, newly, chief, add, tally as gameTally, totalOf, timeline, visitOf, standing, earnedBy } from './achievements.js';
+import {
+  deleteShared, loadShare, openDetail, setShare, share, shareAsk, sharePanel, sharing
+} from './screens/sharing.js';
 
 const $app = document.getElementById('app');
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // Saved on this device. If the browser refuses to store something (storage
 // full, private mode) it is kept in memory so the app carries on until closed.
 const unsaved = new Map();
-const store = {
+export const store = {
   get: (k, d) => { try { return JSON.parse(unsaved.get(k) ?? localStorage.getItem(k)) ?? d; } catch { return d; } },
   set: (k, v) => {
     const text = JSON.stringify(v);
@@ -45,7 +48,7 @@ phone.offered();  // is it offered here? (asked once, before the Cameras screen 
 // (api.js says what a refusal means to the queue of changes waiting to be sent.)
 const call = (url, method, body, timeout) => request((u, o) => fetch(u, o), url, method, body, timeout)
   .catch(e => { if (e.signedOut) account.expired(); throw e; });
-async function api(path, method = 'GET', body, timeout = 10000) {
+export async function api(path, method = 'GET', body, timeout = 10000) {
   // Hosted and not signed in: there is no account to send to yet. Fail the way
   // an unreachable server does, so everything waits on this device.
   if (account.hosted && !account.account) throw Object.assign(new Error('Sign in first.'), { signedOut: true });
@@ -57,19 +60,15 @@ const account = createAccount({ request: call, store, onChange: () => {
   if (account.locked) redraw(renderLanding); else if (screen === 'landing') begin();
   refreshStatus();
 } });
-// The server at home only: has its owner agreed to send what it records to Darts
-// Sam, with no account? {asked, on, paired, site}, or null until it has said
-// (see "sharing without an account" below, and server/share.py).
-let share = null;
 // The trial's notes on how the app is used (see track.js): the hosted version's
 // go to the account, the server at home's are passed on by it while sharing is on.
-const tracker = createTracker({
+export const tracker = createTracker({
   store, recording: () => account.hosted || !!share?.on, sending: () => account.hosted ? !!account.account : !!share?.on,
   send: batch => call(account.hosted ? '/api/events' : '/api/share/events', 'POST', { events: batch }),
 });
 setInterval(() => tracker.flush(), 60000);
 // What the app calls the machine it talks to: at home a Raspberry Pi, hosted just "the server".
-const pi = () => account.hosted ? 'the server' : 'the Pi';
+export const pi = () => account.hosted ? 'the server' : 'the Pi';
 const Pi = () => account.hosted ? 'The server' : 'The Pi';
 
 let match = store.get('match', null);
@@ -102,7 +101,7 @@ let addingPlayer = false;  // home: the "new player" box is out of sight until a
 // lines and Start, and otherwise the players.
 let homeStep;
 let stepMoved = false;  // a step has just been opened: bring it into view
-let screen = match ? 'game' : 'home';
+export let screen = match ? 'game' : 'home';
 const MAX_PLAYERS = 6;
 
 // ---------- themes ----------
@@ -316,7 +315,7 @@ const updater = createUpdater({
     set: v => { try { sessionStorage.setItem('reloadedFor', v); } catch { /* private mode */ } },
   },
 });
-let appVersion = null;
+export let appVersion = null;
 let appBuild = null;  // {release, build, commit}: which code the server is running (server/build.py)
 // The version this page's own files came with (from the saved copy when that is what loaded).
 if (location.host) fetch('version.json').then(r => r.ok ? r.json() : null)
@@ -2392,13 +2391,13 @@ const chevron = icon('<path d="M9 5l7 7-7 7"/>'), tickMark = icon('<path d="M5 1
 const setRow = (id, name, value) => `<button class="srow ${settingsTab === id ? 'cur' : ''}" data-sopen="${id}">
     <span><b>${name}</b>${value ? `<small>${value}</small>` : ''}</span><u>${chevron}</u></button>`;
 // attr: what a tap does (the data- attribute read by the click handler), written for the way it is not now.
-const switchRow = (name, on, attr, hint = '') => `<button class="srow switchrow" role="switch" aria-checked="${on}" ${attr}>
+export const switchRow = (name, on, attr, hint = '') => `<button class="srow switchrow" role="switch" aria-checked="${on}" ${attr}>
     <span><b>${name}</b>${hint ? `<small>${hint}</small>` : ''}</span><i class="switch"></i></button>`;
 const pickRow = (name, on, attr, hint = '') => `<button class="srow pickrow ${on ? 'on' : ''}" role="radio" aria-checked="${on}" ${attr}>
     <span><b>${name}</b>${hint ? `<small>${hint}</small>` : ''}</span><u>${on ? tickMark : ''}</u></button>`;
 const canFeedBack = () => account.hosted ? !!account.account : !!share?.on;
 // jump: open the section asked for, for someone sent to it from elsewhere.
-function renderSettings(jump) {
+export function renderSettings(jump) {
   if (account.locked) return renderLanding();
   if (jump) { settingsOpen = true; fromList = false; }
   const was = screen === 'settings' ? document.querySelector('.setbody') : null;
@@ -2852,97 +2851,11 @@ function accountPanel() {
     <div class="row"><button class="danger" data-act="acct-delete-yes">Delete</button><button data-act="acct-delete-no">Keep</button></div>`
     : '<button class="ghost danger" data-act="acct-delete">Delete my account</button>'}</div></div>`;
 }
-const onAccountTab = () => screen === 'settings' && (sectShown('acct') || sectShown('share') || sectShown('feedback') || listShown());
+export const onAccountTab = () => screen === 'settings' && (sectShown('acct') || sectShown('share') || sectShown('feedback') || listShown());
 const feedbackBox = () => `<div class="feedback"><label for="fb-text">Tell us what you think: what works, what doesn't, what's missing.</label>
       <textarea id="fb-text" rows="3" maxlength="2000"></textarea>
       <div class="row"><button data-act="feedback">Send feedback</button><span class="muted">${esc(fbNote)}</span></div></div>`;
 
-// ---------- sharing without an account (the server at home only, see server/share.py) ----------
-// Someone using the desktop app by itself has no account, so nothing it records
-// reaches Darts S.A.M. They are asked once, the first time the app is opened,
-// whether it may be sent; yes or no, it can be changed in Settings → Sharing.
-const SHARED = `<ul>
-      <li><b>Your games and scores:</b> every game and each dart in it. Players go as "Player 1", "Player 2": their names are not sent.</li>
-      <li><b>How the cameras did:</b> how many there are, whether calibrating worked, and when a dart they scored was put right by hand.</li>
-      <li><b>Problem reports,</b> when you press Report in a game: the cameras' pictures of the last few darts and what you type about them.</li>
-      <li><b>Feedback</b> you choose to write.</li></ul>`;
-const openDetail = () => ({
-  version: appVersion, browser: navigator.userAgent, w: innerWidth, h: innerHeight, touch: navigator.maxTouchPoints > 0,
-  installed: matchMedia('(display-mode: standalone)').matches || !!navigator.standalone,
-});
-let shareNote = '';        // what went wrong last
-let shareDeleting = false; // "Delete what has been sent" pressed once: asking if they are sure
-let shareAsk = null;       // the question, while it is on screen
-async function loadShare() {
-  try { share = await api('/share', 'GET', undefined, 4000); } catch { return; }  // no Pi, or one from before this
-  if (share.on) { tracker.track('open', openDetail()); tracker.flush(); }
-  // Paired with an online account, what the cameras record goes with that account already.
-  if (!share.asked && !share.paired) askShare();
-  if (screen === 'settings') renderSettings();  // the Sharing tab appears
-}
-function askShare() {
-  if (shareAsk) return;
-  shareAsk = document.body.appendChild(document.createElement('div'));
-  shareAsk.className = 'report shareask';
-  shareAsk.innerHTML = `<div class="report-in">
-    <h1>Help make Darts S.A.M better?</h1>
-    <p>Darts S.A.M is new, and its camera scoring improves by seeing where it goes wrong.
-      If you say yes, this computer sends to Darts S.A.M:</p>
-    ${SHARED}
-    <p>You are not asked for an account, a name or an email address. Say no and everything stays on this computer;
-      the app works just the same. You can change your mind at any time in <b>Settings → Sharing</b>,
-      and delete what has been sent from there.</p>
-    <div class="row"><button class="primary" data-share="yes">Yes, send it</button><button data-share="no">No thanks</button>
-      <span class="warn" id="share-error"></span></div>
-    <p class="muted small"><a href="privacy.html" target="_blank" rel="noopener">What is sent, and what is done with it</a></p></div>`;
-}
-// Yes or no, from the question or from Settings.
-async function setShare(on) {
-  shareNote = '';
-  try {
-    share = await api('/share', 'PUT', { on });
-    shareAsk?.remove(); shareAsk = null;
-    if (screen === 'welcome') document.getElementById('welcome-name')?.focus();  // the next question
-    if (share.on) { tracker.track('open', openDetail()); tracker.flush(); }
-  } catch (e) {
-    shareNote = e.status ? e.message : `Not saved: ${pi()} did not answer.`;
-    const line = shareAsk?.querySelector('#share-error');
-    if (line) line.textContent = shareNote;
-  }
-  shareDeleting = false;
-  if (onAccountTab()) renderSettings();
-}
-async function deleteShared() {
-  shareNote = '';
-  try {
-    share = await api('/share', 'DELETE', undefined, 30000);
-    store.set('events', []);  // notes not yet sent
-    shareNote = 'Deleted. Nothing more is sent.';
-  } catch (e) {
-    shareNote = e.status ? e.message : `Nothing was deleted: ${pi()} did not answer.`;
-  }
-  shareDeleting = false;
-  if (onAccountTab()) renderSettings();
-}
-function sharePanel() {
-  if (!share) return '<p class="muted">Not connected to the Pi.</p>';
-  return `<div class="settings">
-    <div class="rows">${switchRow('Send to Darts S.A.M', share.on, `data-act="share-${share.on ? 'off' : 'on'}"`)}</div>
-    ${shareNote ? `<p class="warn">${esc(shareNote)}</p>` : ''}
-    <p class="muted small">${share.on ? 'This computer sends to Darts S.A.M, to help improve the camera scoring:'
-      : 'Off: everything stays on this computer. Switched on, this computer sends to Darts S.A.M, to help improve the camera scoring:'}</p>
-    <div class="muted small">${SHARED}</div>
-    <p class="muted small">No account, name or email address is asked for or sent.${share.paired
-      ? ' These cameras are paired with an online account, so problem reports go to that account.' : ''}</p>
-    <p class="muted small"><a href="privacy.html" target="_blank" rel="noopener">What is sent, and what is done with it</a></p>
-    <div class="setend">${shareDeleting ? `<p>This stops sharing and deletes from Darts S.A.M everything this computer has sent. Your games here are not touched.</p>
-    <div class="row"><button class="danger" data-act="share-delete-yes">Delete</button><button data-act="share-delete-no">Keep</button></div>`
-    : '<button class="ghost danger" data-act="share-delete">Delete what has been sent</button>'}</div></div>`;
-}
-document.addEventListener('click', e => {
-  const answer = e.target.closest('.shareask [data-share]')?.dataset.share;
-  if (answer) setShare(answer === 'yes');
-});
 async function accountDo(what) {
   acctNote = '';
   try {
@@ -3285,8 +3198,8 @@ $app.addEventListener('click', e => {
     case 'acct-delete-yes': return accountDo('delete');
     case 'share-on': return setShare(true);
     case 'share-off': return setShare(false);
-    case 'share-delete': shareDeleting = true; shareNote = ''; return renderSettings();
-    case 'share-delete-no': shareDeleting = false; return renderSettings();
+    case 'share-delete': sharing.deleting = true; sharing.note = ''; return renderSettings();
+    case 'share-delete-no': sharing.deleting = false; return renderSettings();
     case 'share-delete-yes': return deleteShared();
   }
 });
