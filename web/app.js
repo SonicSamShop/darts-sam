@@ -25,6 +25,9 @@ import {
 } from './screens/cameras.js';
 import { appleSignIn, landing, mailTo, renderLanding, sendCode, signIn } from './screens/landing.js';
 import { achTab, achievementView, achievementsPane } from './screens/achievements.js';
+import {
+  addDarts, addPlayer, changeDarts, newPlayerRow, playersPanel, removePlayer, renamePlayer, roster, saveDarts
+} from './screens/playerspanel.js';
 
 export const $app = document.getElementById('app');
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -81,17 +84,18 @@ const Pi = () => account.hosted ? 'The server' : 'The Pi';
 let match = store.get('match', null);
 // The people who play: [{id, name}]. The computer's players are kept apart, so that no list of
 // players has them in it: [{id, name, bot: its level}] (see "computer players" below).
-let players = [];
+export let players = [];
 let bots = [];
-function loadPlayers() {
+export function loadPlayers() {
   const all = store.get('players', []);
   players = all.filter(p => !p.bot);
   bots = all.filter(p => p.bot);
 }
 loadPlayers();
-let darts = store.get('darts', []);  // every player's sets of darts: [{id, player, name, grams, created, retired}]
+export let darts = store.get('darts', []);  // every player's sets of darts: [{id, player, name, grams, created, retired}]
+export const setDarts = v => { darts = v; };  // for screens/playerspanel.js
 // players: ids in throwing order. darts: {player id: the set of darts they are throwing}
-let setup = store.get('setup', { gameId: 'x01', players: [], opts: {} });
+export let setup = store.get('setup', { gameId: 'x01', players: [], opts: {} });
 // Sound starts off; once on, the visit's total is called, and each dart only if asked for.
 export let settings = store.get('settings', { voice: false });
 // A phone or a tablet (anything held upright, narrow or worked by touch), as style.css has it:
@@ -102,8 +106,6 @@ const SPLIT = matchMedia('(pointer: coarse) and (orientation: landscape) and (mi
 const listShown = () => STACKED.matches && (SPLIT.matches || !settingsOpen);  // is the settings' list on screen?
 const sectShown = id => settingsTab === id && (!STACKED.matches || SPLIT.matches || settingsOpen);  // and this section of them?
 let totals = store.get('totals', null);  // {darts, reports}: everything on the Pi, as it last said
-let formError = '';   // shown under the "new player" box
-let addingPlayer = false;  // home: the "new player" box is out of sight until asked for
 // home, on a phone: the step that is open ('game', 'options' or 'players'), or null for none.
 // Not chosen yet (undefined): none when somebody is down to play, so the menu opens as three
 // lines and Start, and otherwise the players.
@@ -111,7 +113,7 @@ let homeStep;
 let stepMoved = false;  // a step has just been opened: bring it into view
 export let screen = match ? 'game' : 'home';
 export const setScreen = v => { screen = v; };  // for screens/cameras.js, screens/landing.js
-const MAX_PLAYERS = 6;
+export const MAX_PLAYERS = 6;
 
 // ---------- themes ----------
 // Each theme is a block of rules in themes.css under a .t-<id> class on <html>.
@@ -213,16 +215,16 @@ function botThrow() {
 // Each player can keep several sets of darts and say which they are throwing,
 // the way a running app keeps a runner's shoes: every game remembers each
 // player's set, and the stats can be seen set by set (and how much each is used).
-const setsOf = (id, all = false) => darts.filter(d => d.player === id && (all || !d.retired));
+export const setsOf = (id, all = false) => darts.filter(d => d.player === id && (all || !d.retired));
 const dartsName = id => darts.find(d => d.id === id)?.name ?? '?';
 // The set a player is throwing: the one last chosen, or their first if that one is put away.
 function dartsFor(id) {
   const mine = setsOf(id), chosen = setup.darts?.[id];
   return mine.some(d => d.id === chosen) ? chosen : mine[0]?.id ?? null;
 }
-const grams = g => g == null ? '' : `${+g.toFixed(1)}g`;
+export const grams = g => g == null ? '' : `${+g.toFixed(1)}g`;
 
-function cleanSetup() {
+export function cleanSetup() {
   setup.players = (setup.players ?? []).filter(id => id === BOT || players.some(p => p.id === id));
   if (setup.first !== 'random' && setup.first !== 'bull') setup.first = null;  // (it was once a player)
 }
@@ -233,7 +235,7 @@ function randomOrder() {
   return [...ids.slice(at), ...ids.slice(0, at)];
 }
 export const data = createSync({ store, api, changed: synced });
-function saveSetup() { data.saveSetting('setup', setup); data.sync(); }
+export function saveSetup() { data.saveSetting('setup', setup); data.sync(); }
 function saveSettings() { data.saveSetting('settings', settings); data.sync(); }
 // Every change to a match is queued as a full copy of the match.
 function queueSync() {
@@ -890,9 +892,9 @@ function goBack() {
   if (depth) history.back(); else goHome();
 }
 addEventListener('popstate', e => {
-  removeArmed = addingPlayer = false;
-  formError = '';
-  dartsForm = dartsError = null;
+  roster.removeArmed = roster.adding = false;
+  roster.formError = '';
+  roster.dartsForm = roster.dartsError = null;
   closeFirst();
   closeQuit();
   dropBull();
@@ -971,7 +973,7 @@ function goTo(place) {
 }
 
 // ---------- home ----------
-function renderHome() {
+export function renderHome() {
   if (account.locked) return renderLanding();
   screen = 'home';
   // A game that is over has been looked at for the last time.
@@ -1028,12 +1030,12 @@ function renderHome() {
     ${step('players', `${players.length ? `<div class="row">${players.map(p => {
       const n = seats().indexOf(p.id);
       return `<button class="chip ${n >= 0 ? 'on' : ''}" data-pick="${p.id}">${n >= 0 ? `<i>${n + 1}</i>` : ''}${esc(p.name)}</button>`;
-    }).join('')}${game.bot ? botChip() : ''}${addingPlayer ? '' : '<button class="chip ghost" data-act="newplayer">+ New</button>'}</div>
+    }).join('')}${game.bot ? botChip() : ''}${roster.adding ? '' : '<button class="chip ghost" data-act="newplayer">+ New</button>'}</div>
     <p class="muted small">Tap who is playing, in throwing order. With two or more, Start asks who throws first: closest to the bull, or random.</p>
     ${averagesLine() ? `<p class="muted small averages">${averagesLine()}</p>` : ''}
     ${botRow()}${dartsRows()}`
       : '<p class="muted">Add a player to get started.</p>'}
-    ${addingPlayer || !players.length ? newPlayerRow() : ''}`)}
+    ${roster.adding || !players.length ? newPlayerRow() : ''}`)}
     ${howToPlay(game, 'how-phone')}
     <span class="spacer"></span>
     ${start}
@@ -1054,7 +1056,7 @@ function renderHome() {
   loadTotals();
   loadAverages();
   fit();
-  if (addingPlayer) document.getElementById('newplayer')?.focus();
+  if (roster.adding) document.getElementById('newplayer')?.focus();
 }
 // The option whose "?" is open: its line saying what the chosen setting means shows under it.
 let optHelp = null;
@@ -1362,33 +1364,6 @@ async function loadTotals() {
     showTotals();
   } catch { /* no Pi: the last figures stay */ }
 }
-function newPlayerRow() {
-  return `<div class="player-row"><input type="text" id="newplayer" placeholder="New player name" maxlength="16">
-    <button data-act="addplayer">Add</button></div>
-    ${formError && renameFailed == null ? `<p class="warn">${esc(formError)}</p>` : ''}`;
-}
-function addPlayer() {
-  const input = document.getElementById('newplayer');
-  renameFailed = null;
-  const name = input.value.trim();
-  if (!name) return input.focus();
-  try {
-    const p = data.addPlayer(name);
-    loadPlayers();
-    formError = '';
-    addingPlayer = false;
-    // Added on the menu, they are playing; added in the settings, they are only on the list
-    // and their card opens, ready for their darts.
-    if (screen === 'home' && setup.players.length < MAX_PLAYERS) { setup.players.push(p.id); saveSetup(); }
-    if (screen === 'settings') { openPlayer = p.id; dartsForm = null; }
-    data.sync();
-  } catch (e) {
-    formError = e.message;
-  }
-  if (screen === 'settings') return renderSettings();
-  renderHome();
-}
-
 // ---------- stats ----------
 // One player at a time, one tab at a time. Each game type has its own page of
 // stats, next to one for all games together. Any figure with a › can be tapped
@@ -1401,8 +1376,6 @@ export let statsData = null;
 let statsFailed = false;
 export let statsTab = 'stats';
 // (The list of players, to add to, rename and remove from, and their darts, is a tab of the settings: see playersPanel().)
-let removeArmed = false;  // the id of the player whose Remove has been tapped once
-let renameFailed = null;  // the id of the player whose new name was refused (formError says why)
 let statsGame = null;  // a game id, or null for all games together
 let statsDarts = null;  // one of the player's sets of darts, or null for all of them
 // Each game's own figures, in the order shown: [label, field in the Pi's reply, unit].
@@ -1727,97 +1700,6 @@ function drawNoPlayers() {
   </div>`;
   refreshStatus();
 }
-// The settings' Players tab: a card for each player, saying who they are and what they throw.
-// One card opens at a time, and everything about that player is in it: their name, their
-// sets of darts (to name, weigh, put away and bring back) and removing them. A new player
-// goes underneath.
-let openPlayer = null;  // the id of the player whose card is open
-let dartsForm = null;   // in that card: the id of the set being changed, 'new' for one being added, or null
-let dartsError = null;  // {at: a set's id or a player's id (adding), text}
-function playersPanel() {
-  if (!players.some(p => p.id === openPlayer)) openPlayer = dartsForm = null;
-  const said = d => `${esc(d.name)}${d.grams != null ? ` ${grams(d.grams)}` : ''}`;
-  // A set's name and weight, to fill in: a new set (d not given) or one being changed.
-  const form = (p, d) => `<div class="pform">
-      <div class="player-row"><input type="text" id="dname" value="${esc(d?.name ?? '')}" placeholder="Name, e.g. Red tungsten" maxlength="24" aria-label="Name of the darts">
-        <input type="number" inputmode="decimal" id="dgrams" value="${d?.grams ?? ''}" min="1" max="100" step="0.5" placeholder="Grams" aria-label="Weight in grams"></div>
-      ${dartsError?.at === (d?.id ?? p.id) ? `<p class="warn">${esc(dartsError.text)}</p>` : ''}
-      <div class="row"><button class="primary" data-act="${d ? 'savedarts' : 'adddarts'}" data-id="${d ? esc(d.id) : p.id}">${d ? 'Save' : 'Add'}</button>
-        ${d ? `<button data-act="retiredarts" data-id="${esc(d.id)}" data-retired="${d.retired ? 'no' : 'yes'}">${d.retired ? 'Bring back' : 'Put away'}</button>` : ''}
-        <button class="ghost" data-act="closedarts">Cancel</button></div>
-      ${d && !d.retired ? '<p class="muted small">Put away darts you no longer throw: they leave the Play screen, and their stats are kept.</p>' : ''}</div>`;
-  const body = p => {
-    const sets = setsOf(p.id, true).sort((a, b) => a.retired - b.retired);
-    return `<div class="who-body">
-      <h3>Name</h3>
-      <div class="player-row"><input type="text" id="pname" data-rename="${p.id}" value="${esc(p.name)}" maxlength="16" aria-label="Name of ${esc(p.name)}">
-        <button data-act="rename" data-id="${p.id}">Save</button></div>
-      ${formError && renameFailed === p.id ? `<p class="warn">${esc(formError)}</p>` : ''}
-      <h3>Darts</h3>
-      ${sets.length || dartsForm === 'new' ? '' : '<p class="muted small">Add the darts they throw to see stats for each set.</p>'}
-      ${sets.map(d => dartsForm === d.id ? form(p, d) : `<button class="pline ${d.retired ? 'away' : ''}" data-act="editdarts" data-id="${esc(d.id)}">
-        <span>${said(d)}${d.retired ? ' <small>· put away</small>' : ''}</span><u>Change</u></button>`).join('')}
-      ${dartsForm === 'new' ? form(p) : '<button class="chip ghost" data-act="newdarts">+ Add darts</button>'}
-      <div class="who-end"><button class="ghost danger" data-act="remove" data-id="${p.id}">${removeArmed === p.id ? 'Tap again to remove' : `Remove ${esc(p.name)}`}</button>
-        ${removeArmed === p.id ? '<p class="muted small">They leave the lists. Their throws are kept, and adding the same name again brings them back.</p>' : ''}</div>
-    </div>`;
-  };
-  return `<div class="editplayers">
-      ${players.map(p => {
-        const open = p.id === openPlayer;
-        return `<section class="who ${open ? 'open' : ''}">
-          <button class="who-head" data-act="openplayer" data-id="${p.id}" aria-expanded="${open}"><span><b>${esc(p.name)}</b>
-            <small>${setsOf(p.id).map(said).join(' · ') || 'No darts added'}</small></span><u>${open ? 'Done' : 'Edit'}</u></button>
-          ${open ? body(p) : ''}</section>`;
-      }).join('')}
-      ${addingPlayer || !players.length ? newPlayerRow() : '<button class="chip ghost" data-act="newplayer">+ Add a player</button>'}
-    </div>`;
-}
-function renamePlayer(id) {
-  const name = document.querySelector(`[data-rename="${id}"]`).value.trim();
-  if (!name || name === nameOf(id)) return;
-  try {
-    data.renamePlayer(id, name);
-    loadPlayers();
-    formError = '';
-    renameFailed = null;
-    data.sync();
-  } catch (e) {
-    formError = e.message;
-    renameFailed = id;
-  }
-  renderSettings();
-}
-function removePlayer(id) {
-  if (removeArmed !== id) { removeArmed = id; return renderSettings(); }
-  removeArmed = false;
-  data.removePlayer(id);
-  loadPlayers();
-  cleanSetup();
-  saveSetup();
-  formError = '';
-  renderSettings();
-}
-// A set of darts in the open card: added, changed, put away or brought back. Done, its form closes;
-// refused (a name already taken, a weight no dart has), the form stays and says why.
-const gramsIn = el => el?.value.trim() ? +el.value : null;
-function dartsDone(fn, at) {
-  try { fn(); darts = store.get('darts', []); dartsError = null; dartsForm = null; data.sync(); } catch (e) { dartsError = { at, text: e.message }; }
-  renderSettings();
-}
-const dartsTyped = () => ({ name: document.getElementById('dname').value.trim(), grams: gramsIn(document.getElementById('dgrams')) });
-function addDarts(player) {
-  const { name, grams } = dartsTyped();
-  if (!name) return document.getElementById('dname').focus();
-  dartsDone(() => {
-    const first = setsOf(player).length === 0, d = data.addDarts(player, name, grams);
-    // Their first set: what they are throwing from now on.
-    if (first) { setup.darts = { ...setup.darts, [player]: d.id }; saveSetup(); }
-  }, player);
-}
-const saveDarts = id => dartsDone(() => data.changeDarts(id, dartsTyped()), id);
-const changeDarts = (id, changes) => dartsDone(() => data.changeDarts(id, changes), id);
-
 // ---------- one game's scoresheet ----------
 // A game that is over, opened by its own address: by a link to it, or
 // by back, forward or a reload landing on a game that has since finished. It
@@ -2270,10 +2152,10 @@ $app.addEventListener('click', e => {
   if (!b) return;
   if (b.tagName === 'A') e.preventDefault();  // a link that does something on this page instead (see siteHead)
   const d = b.dataset;
-  if (d.act !== 'remove') removeArmed = false;
-  if (d.act !== 'addplayer' && d.act !== 'rename' && d.act !== 'remove') formError = '';
-  if (!/darts$/.test(d.act ?? '')) dartsError = null;
-  if (d.act !== 'addplayer') addingPlayer = d.act === 'newplayer';
+  if (d.act !== 'remove') roster.removeArmed = false;
+  if (d.act !== 'addplayer' && d.act !== 'rename' && d.act !== 'remove') roster.formError = '';
+  if (!/darts$/.test(d.act ?? '')) roster.dartsError = null;
+  if (d.act !== 'addplayer') roster.adding = d.act === 'newplayer';
   if (d.game) {
     // chosen: on to the next step, or to the players when nobody is down to play
     setup.gameId = d.game;
@@ -2366,21 +2248,21 @@ $app.addEventListener('click', e => {
     case 'addplayer': return addPlayer();
     case 'newplayer':
       if (screen !== 'settings') { homeStep = 'players'; return renderHome(); }
-      openPlayer = dartsForm = null;
+      roster.open = roster.dartsForm = null;
       renderSettings();
       return document.getElementById('newplayer')?.focus();
-    case 'openplayer': openPlayer = openPlayer === +d.id ? null : +d.id; dartsForm = null; return renderSettings();
-    case 'editdarts': dartsForm = d.id; dartsError = null; return renderSettings();
-    case 'newdarts': dartsForm = 'new'; dartsError = null; renderSettings(); return document.getElementById('dname')?.focus();
-    case 'closedarts': dartsForm = dartsError = null; return renderSettings();
+    case 'openplayer': roster.open = roster.open === +d.id ? null : +d.id; roster.dartsForm = null; return renderSettings();
+    case 'editdarts': roster.dartsForm = d.id; roster.dartsError = null; return renderSettings();
+    case 'newdarts': roster.dartsForm = 'new'; roster.dartsError = null; renderSettings(); return document.getElementById('dname')?.focus();
+    case 'closedarts': roster.dartsForm = roster.dartsError = null; return renderSettings();
     case 'rename': return renamePlayer(+d.id);
     case 'remove': return removePlayer(+d.id);
     // To the players' cards: with one player down to play theirs is open, and with nobody to list, the box for a name.
     case 'manageplayers':
       settingsTab = 'players';
-      openPlayer = setup.players.length === 1 ? setup.players[0] : null;
-      dartsForm = null;
-      addingPlayer = !players.length;
+      roster.open = setup.players.length === 1 ? setup.players[0] : null;
+      roster.dartsForm = null;
+      roster.adding = !players.length;
       renderSettings(true);
       return mark(true);
     case 'adddarts': return addDarts(+d.id);
