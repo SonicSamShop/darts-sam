@@ -22,7 +22,7 @@ import { appleSignIn, landing, mailTo, renderLanding, sendCode, signIn } from '.
 import {
   addDarts, addPlayer, changeDarts, removePlayer, renamePlayer, roster, saveDarts
 } from './screens/playerspanel.js';
-import { closeSection, listShown, openSection, renderSettings, sectShown, settingsView } from './screens/settings.js';
+import { closeSection, listShown, openSection, renderSettings, saveBoard, sectShown, settingsView } from './screens/settings.js';
 import { loadRelease } from './screens/release.js';
 import { deep, drawPlayers, renderPlayers, renderSheet, sheet, statsData, statsView } from './screens/stats.js';
 import { avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, renderHome } from './screens/home.js';
@@ -711,6 +711,7 @@ $app.addEventListener('click', e => {
     case 'mail-code': return signIn('email', { email: mailTo, code: document.getElementById('mail-code').value });
     case 'mail-back': landing.mailStep = 'ask'; landing.note = ''; renderLanding(); return document.getElementById('mail-addr').focus();
     case 'sback': return closeSection();
+    case 'saveboard': return saveBoard();
     case 'acct-signout': acct.signingOut = true; acct.note = ''; return renderSettings();
     case 'acct-signout-no': acct.signingOut = false; return renderSettings();
     case 'acct-signout-yes': return accountDo('signout');
@@ -753,6 +754,7 @@ $app.addEventListener('keydown', e => {
   if (e.target.id === 'newplayer') addPlayer();
   if (e.target.dataset.rename) renamePlayer(+e.target.dataset.rename);
   if (['dname', 'dgrams', 'dbrand', 'dnotes'].includes(e.target.id)) e.target.closest('.pform').querySelector('.primary').click();
+  if (['bbrand', 'bmodel', 'bnotes'].includes(e.target.id)) saveBoard();
   if (e.target.id === 'cam-address') addCamera();
   if (e.target.id === 'welcome-name') welcomeNamed();
   if (e.target.id === 'pair-code') pairCameras();

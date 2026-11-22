@@ -6,7 +6,7 @@
 // Offline-first saving (web/sync.js) against a pretend Pi that can be switched off.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanDetails, createSync } from '../web/sync.js';
+import { cleanBoard, cleanDetails, createSync } from '../web/sync.js';
 import { newMatch } from '../web/engine.js';
 
 function rig() {
@@ -214,6 +214,17 @@ test('a set\'s details are tidied, and refused when not one of the choices', () 
   assert.throws(() => cleanDetails({ tungsten: '95' }), /not one of the choices/);  // a number, as the server wants
   assert.throws(() => cleanDetails({ shape: 'Torpedo' }), /not one of the choices/);
   assert.throws(() => cleanDetails({ notes: 'x'.repeat(121) }), /at most 120/);
+});
+
+test('the board\'s details are tidied, and refused when they can\'t be right', () => {
+  assert.equal(cleanBoard(null), null);
+  assert.equal(cleanBoard({ brand: ' ', model: '', bought: null, notes: '' }), null);
+  assert.deepEqual(cleanBoard({ brand: ' Winmau ', model: 'Blade  6', bought: 2024, notes: 'turned in March' }, 2026),
+    { brand: 'Winmau', model: 'Blade 6', bought: 2024, notes: 'turned in March' });
+  assert.throws(() => cleanBoard({ bought: 2027 }, 2026), /year it was bought/);
+  assert.throws(() => cleanBoard({ bought: '2024' }, 2026), /year it was bought/);
+  assert.throws(() => cleanBoard({ colour: 'red' }), /no detail called colour/);
+  assert.throws(() => cleanBoard({ model: 'x'.repeat(41) }), /at most 40/);
 });
 
 test('a set\'s details are kept offline and go to the Pi with it', async () => {

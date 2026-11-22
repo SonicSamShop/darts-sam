@@ -12,11 +12,12 @@ import { renderLanding } from './landing.js';
 import { playersPanel } from './playerspanel.js';
 import {
   $app, THEMES, account, applyTheme, depth, esc, fit, icon, mark, pageFoot, pageHead, players, refreshStatus,
-  screen, setScreen, settings, store, voice
+  saveSettings, screen, setScreen, settings, store, voice
 } from '../app.js';
 import { BOT_HOLD_MAX, BOT_HOLD_USUAL, botHoldSecs, flashOn } from './game.js';
 import { achievementsOn, photosOn } from './earned.js';
 import { aboutPanel, appRelease } from './release.js';
+import { BOARD_MAX, cleanBoard } from '../sync.js';
 
 // A phone or a tablet (anything held upright, narrow or worked by touch), as style.css has it:
 // tabs along the bottom, and the settings as a list that opens a section at a time instead of tabs.
@@ -98,7 +99,8 @@ export function renderSettings(jump) {
   // [id, its name, its name on a tab, how it is set (the list says), the section]: in the list's groups
   const groups = [
     account.hosted && account.account ? [['acct', 'Account', 'Account', esc(account.account.nickname ?? ''), accountPanel()]] : [],
-    [['players', 'Players and darts', 'Players', esc(players.map(p => p.name).join(', ')) || 'Nobody yet', playersPanel()]],
+    [['players', 'Players and darts', 'Players', esc(players.map(p => p.name).join(', ')) || 'Nobody yet', playersPanel()],
+      ['board', 'Your board', 'Board', esc(boardName(settings.board)) || 'Not added', boardPanel()]],
     [['look', 'Theme', 'Theme', theme.name, look],
       ['game', 'In game', 'In game', `${settings.voice && !voice.none() ? `Sound on${settings.eachDart ? ', each dart' : ''}` : 'Sound off'} · ${hints ? 'checkout hints on' : 'checkout hints off'}`, game]],
     [...(!account.hosted && share ? [['share', 'Sharing', 'Sharing', share.on ? 'On' : 'Off', sharePanel()]] : []),
@@ -127,6 +129,37 @@ export function renderSettings(jump) {
   refreshStatus();
   fit();
 }
+// ---------- your board ----------
+// What the board the household plays on is: kept with the settings, for looking back on (when it
+// was bought, when it was turned). It changes nothing in the games or the stats.
+const boardForm = { note: '', warn: false };  // said beside Save: saved, or why not
+const boardName = b => [b?.brand, b?.model].filter(Boolean).join(' ');
+function boardPanel() {
+  const b = settings.board ?? {}, now = new Date().getFullYear();
+  const years = Array.from({ length: 16 }, (_, i) => now - i);
+  if (b.bought && !years.includes(b.bought)) years.push(b.bought);
+  return `<div class="settings boardform">
+    <p class="muted small">The board you play on, for you to look back on. It changes nothing in the games or the stats.</p>
+    <div class="player-row"><input type="text" id="bbrand" value="${esc(b.brand ?? '')}" placeholder="Brand" maxlength="${BOARD_MAX.brand}" aria-label="Brand">
+      <input type="text" id="bmodel" value="${esc(b.model ?? '')}" placeholder="Model" maxlength="${BOARD_MAX.model}" aria-label="Model"></div>
+    <div class="picks"><label class="pick"><select class="plain" id="bbought" aria-label="Year bought">${[['Year bought', ''], ...years.map(y => [`Bought in ${y}`, y])].map(([t, v]) =>
+      `<option value="${v}" ${v === (b.bought ?? '') ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>
+    <input type="text" id="bnotes" value="${esc(b.notes ?? '')}" placeholder="Notes, e.g. turned in March" maxlength="${BOARD_MAX.notes}" aria-label="Notes">
+    <div class="row"><button class="primary" data-act="saveboard">Save</button>${boardForm.note ? `<span class="${boardForm.warn ? 'warn' : 'muted'}">${esc(boardForm.note)}</span>` : ''}</div></div>`;
+}
+export function saveBoard() {
+  const typed = id => document.getElementById(id)?.value ?? '';
+  try {
+    const b = cleanBoard({ brand: typed('bbrand'), model: typed('bmodel'), notes: typed('bnotes'), bought: typed('bbought') ? +typed('bbought') : null });
+    if (b) settings.board = b; else delete settings.board;
+    saveSettings();
+    Object.assign(boardForm, { note: 'Saved.', warn: false });
+  } catch (e) {
+    Object.assign(boardForm, { note: e.message, warn: true });
+  }
+  renderSettings();
+}
+
 // A section opened from the list (on a phone, a step that Back undoes), and the way back to the list.
 export function openSection(id) {
   const step = STACKED.matches && !SPLIT.matches && !settingsView.open;

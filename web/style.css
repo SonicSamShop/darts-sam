@@ -150,6 +150,10 @@ button:disabled { opacity: .4; }
 .dmore .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); margin-top: 8px; }
 .dmore .picks .pick { min-width: 0; grid-area: auto; }  /* (.pick alone is a place on the menu's grid) */
 .pline .dline { display: block; margin-top: 2px; }
+.boardform .player-row input { flex: 1; min-width: 0; }
+.boardform > input { width: 100%; margin: 8px 0 10px; }
+.boardform .picks { margin-top: 0; }
+.boardform .row { align-items: center; gap: 12px; }
 .who-end { margin-top: 16px; }
 .who-end .danger { border-color: transparent; padding-left: 0; padding-right: 0; }
 .who-end p { margin: 0; }

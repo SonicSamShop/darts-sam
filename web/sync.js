@@ -39,6 +39,28 @@ export const DARTS_DETAILS = {
   flight: ['standard', 'slim', 'kite', 'pear', 'small', 'other'],
   notes: 120,
 };
+// The board the household plays on, kept in the settings (settings.board) for the
+// player to look back on: it changes nothing in the games or the stats.
+//   brand, model, notes   words typed in, at most BOARD_MAX[field] characters
+//   bought                the year it was bought (a number), not after `year`
+export const BOARD_MAX = { brand: 40, model: 40, notes: 120 };
+export function cleanBoard(board, year = new Date().getFullYear()) {
+  if (board == null) return null;
+  const out = {};
+  for (const [key, value] of Object.entries(board)) {
+    if (value == null || value === '') continue;
+    if (key === 'bought') {
+      if (!Number.isInteger(value) || value < 1900 || value > year) throw new Error('the year it was bought is not one there has been');
+      out.bought = value;
+    } else if (key in BOARD_MAX) {
+      const words = cleanName(value);
+      if (words.length > BOARD_MAX[key]) throw new Error(`the ${key} can be at most ${BOARD_MAX[key]} characters`);
+      if (words) out[key] = words;
+    } else throw new Error(`a board has no detail called ${key}`);
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 // A set's details checked and tidied: empty fields dropped, null if nothing is left.
 // Throws on a field that isn't one, or a choice a field doesn't have.
 export function cleanDetails(details) {

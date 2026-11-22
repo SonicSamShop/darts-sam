@@ -42,6 +42,9 @@ account has a database of its own instead.
   trebles hit. A figure says "not yet" until the set has enough darts behind
   it (300 for the average and trebles, 50 at a double for checkouts), and
   nothing picks a "best" set.
+- **Your board:** **Settings › Your board** keeps the board's brand, model,
+  the year it was bought and a note, for looking back on. It changes nothing in
+  the games or the stats.
 - **Achievements:** a first game of each kind, a first 180, a 170 finish and
   the like are shown and called as they happen, and listed for each player
   under **Stats › Achievements** with the game each was earned in. They are
