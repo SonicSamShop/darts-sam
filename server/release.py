@@ -11,7 +11,7 @@ build on the site when its number is new, and the site says which version it
 has for each kind of computer (GET /api/release on server/host.py).
 
 The built desktop app asks the site once, when it starts (app.py). With a newer
-version there, its page offers it (web/app.js): the changes since the one this
+version there, its page offers it (web/screens/release.js): the changes since the one this
 is, and Update. Update downloads the file into Downloads and then
   Mac:     opens the .dmg, to drag the app into Applications, and quits this one
   Windows: starts the new .exe and quits this one (both can't have the port)

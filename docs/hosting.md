@@ -3,7 +3,7 @@
 The hosted site is `python -m server.host`: one address where people sign in
 with Google, Apple or a code sent by email and have their own players, games and stats. It needs no cameras
 and no OpenCV (`requirements-host.txt`). Nobody plays there without signing in:
-a signed-out visitor gets the welcome page (`renderLanding()` in `web/app.js`),
+a signed-out visitor gets the welcome page (`renderLanding()` in `web/screens/landing.js`),
 and their first sign-in makes the account and a first player with their first
 name (someone signing in by email is asked for it). This page takes a new
 server from nothing to running.

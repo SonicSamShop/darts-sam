@@ -301,7 +301,7 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
 
   return {
     // The camera's picture as it is now, while it is scoring: for a picture of the board
-    // kept with an achievement (app.js). null when this phone's camera is not in use.
+    // kept with an achievement (screens/earned.js). null when this phone's camera is not in use.
     video: () => (cam?.watching() && video?.videoWidth ? video : null),
 
     // A dart was scored wrongly: report what the camera saw (app: about the game).

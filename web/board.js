@@ -256,7 +256,7 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
   }
 
   return {
-    // fly: show the last dart landing (a computer player's, see app.js): a dart
+    // fly: show the last dart landing (a computer player's, see screens/game.js): a dart
     // comes in from in front of the board and its mark appears where it sticks.
     // Not for anyone who has asked their device for less movement.
     showDarts(darts, r = 5, fly = false) {

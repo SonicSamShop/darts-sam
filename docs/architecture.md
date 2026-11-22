@@ -109,7 +109,7 @@ It must run without OpenCV installed (`requirements-host.txt`).
    each picture and where the lines cross; `board.score()` names the segment.
 4. The event goes to every open app over the WebSocket `/ws` and, if paired,
    up `link.py` to the site, whose `relay.py` passes it to that account's apps.
-5. `web/app.js` adds it to the match's log; `engine.js` replays the log; the
+5. `web/app.js` passes it to the game (`push()` in `web/screens/game.js`), which adds it to the match's log; `engine.js` replays the log; the
    screen is drawn again and `voice.js` calls it.
 6. `sync.js` saves the match on the device and sends it to the server, which
    keeps every dart in `db.py`.

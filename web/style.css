@@ -97,7 +97,7 @@ button:disabled { opacity: .4; }
   .nav.foot .short { display: inline; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 }
 /* The menu's Start button. On a computer it ends the right-hand column. On a phone or a tablet the
-   menu scrolls, so a second one (app.js draws both) sits in a bar of its own above the tabs, always in reach. */
+   menu scrolls, so a second one (screens/home.js draws both) sits in a bar of its own above the tabs, always in reach. */
 .startbar { display: none; }
 @media (orientation: portrait), (max-width: 800px), (pointer: coarse) {
   .home-body { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
@@ -122,7 +122,7 @@ button:disabled { opacity: .4; }
 .picks .pick span { position: absolute; left: 16px; top: 7px; font-size: 12px; color: var(--muted); pointer-events: none; }
 .noplayers { padding-top: 14px; }
 /* the settings' Players tab: a card a player, saying who they are and what they throw. One opens at a
-   time, with their name, their darts and removing them inside it (see playersPanel in app.js). */
+   time, with their name, their darts and removing them inside it (see playersPanel in screens/playerspanel.js). */
 .editplayers { max-width: 560px; padding-top: 14px; }
 .who { margin-bottom: 8px; }
 .who-head, .pline { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; text-align: left; }
@@ -165,7 +165,7 @@ select {
 }
 select option { background: var(--bg); color: var(--text); }
 select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label inside it */
-/* The settings (renderSettings in app.js draws all of it; what shows is decided here).
+/* The settings (renderSettings in screens/settings.js draws all of it; what shows is decided here).
    A computer: tabs, one section at a time. A phone: a list of the sections, each line saying how it is
    set, and a tap opens that section by itself with the way back above it. A tablet on its side: the
    list down the left, the section beside it. */
@@ -174,7 +174,7 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .settings { max-width: 560px; margin-top: 14px; }
 .settings p { margin: 6px 0 0; }
 /* the lines the settings are made of, each a whole line to tap: one that opens something, a switch
-   for on or off, one of several to choose (setRow, switchRow and pickRow in app.js) */
+   for on or off, one of several to choose (setRow, switchRow and pickRow in screens/settings.js) */
 .rows { display: grid; gap: 8px; margin-bottom: 20px; }
 .rows .picks, .rows p { margin: 0; }
 .srow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 14px; text-align: left; }
@@ -241,7 +241,7 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .game-card span { color: var(--muted); font-size: 14px; }
 .game-card.on b { color: var(--accent); }
 .blurb { margin: 10px 0 0; }
-/* "How to play" the chosen game, opened in place (howToPlay in app.js): under its blurb on a computer,
+/* "How to play" the chosen game, opened in place (howToPlay in screens/home.js): under its blurb on a computer,
    above Start on a phone. Open, it is headed with the game's name, and the way to shut it is beside that.
    Whatever the theme does to its lettering, the rules are sentences: no capitals, no spacing out. */
 .how { margin: 8px 0 0; }
@@ -260,7 +260,7 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .player-row { display: flex; gap: 10px; margin-bottom: 8px; }
 .opt { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 10px; }
 .opt > span { color: var(--muted); }
-/* An option's "?" (optLabelHelp in app.js): a ring with a question mark in it, the same in every theme
+/* An option's "?" (optLabelHelp in screens/home.js): a ring with a question mark in it, the same in every theme
    whatever the theme does to its buttons (.page outranks them), and filled in while its line is open.
    The ring is small beside the option's name; ::after gives a finger room round it (not below, where
    on a phone the choices are). */
@@ -292,7 +292,7 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .warn { color: var(--warn); margin: 4px 0; }
 .player-row button { white-space: nowrap; }
 /* stats: each figure is a line of a ledger, what it is on the left and the figure on the right,
-   two lines abreast where there is the room (tile() in app.js writes the figure first) */
+   two lines abreast where there is the room (tile() in screens/stats.js writes the figure first) */
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0 28px; }
 .tile { display: flex; flex-direction: row-reverse; align-items: baseline; justify-content: space-between; gap: 14px; padding: 8px 18px 8px 0; border-bottom: 1px solid var(--line); }
 .tile b { flex: none; font-family: var(--display); font-size: 22px; line-height: 1.2; font-variant-numeric: tabular-nums; }
@@ -384,7 +384,7 @@ svg.heat .b-num { fill: #d9dce3; }
   .tile { padding-top: 7px; padding-bottom: 7px; }
   .tile b { font-size: 20px; }
 }
-/* home: its steps (Game, Options, Players: see renderHome in app.js). On a computer each is open under
+/* home: its steps (Game, Options, Players: see renderHome in screens/home.js). On a computer each is open under
    its heading, as the menu always was. On a phone each is a numbered line saying what is chosen, and
    one at a time opens to change it: the games then have the room to say what they are. */
 .step-head, .step-next, .pick .game-card span { display: none; }
@@ -487,7 +487,7 @@ svg.heat .b-num { fill: #d9dce3; }
 .pad-keys { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 10px; }
 .pad-keys button { min-height: 0; padding: 0; font-size: clamp(18px, 4vh, 30px); }
 .pad-keys button.wide { grid-column: 1 / -1; font-size: inherit; }
-/* TV view: the board gets the screen, the scores go in one scoreboard along the bottom (tvHtml() in app.js) */
+/* TV view: the board gets the screen, the scores go in one scoreboard along the bottom (tvHtml() in screens/game.js) */
 .game.tv { grid-template-rows: minmax(0, 1fr) auto; }
 .tvbar { grid-column: 1 / -1; min-width: 0; overflow: hidden; }
 table.tv { width: 100%; border-collapse: separate; border-spacing: 0 3px; font-variant-numeric: tabular-nums; }
@@ -561,7 +561,7 @@ table.cricket tr.dead { opacity: .35; }
 /* ---------- calibration ---------- */
 
 /* ---------- the site's pages ---------- */
-/* The welcome page (the hosted site with nobody signed in: renderLanding in app.js) and the plain
+/* The welcome page (the hosted site with nobody signed in: renderLanding in screens/landing.js) and the plain
    pages beside it: faq, download, releases, opensource and privacy .html. Unlike the app these are
    reading matter: a page of writing with pictures of the app in it. It scrolls, its words can be
    selected and copied, and it wears the app's theme but not its capitals. Nothing here is a card:
@@ -625,7 +625,7 @@ table.cricket tr.dead { opacity: .35; }
 [data-front] .install { display: none; }
 /* a button and, beside it, another way to go */
 .acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 18px; }
-/* the two ways to play, where they differ (WAYS in app.js) */
+/* the two ways to play, where they differ (WAYS in screens/landing.js) */
 .ways { width: 100%; max-width: 46em; border-collapse: collapse; font-size: 17px; line-height: 1.4; }
 .ways th, .ways td { padding: 10px 16px 10px 0; text-align: left; vertical-align: top; border-top: 1px solid var(--line); }
 .ways thead :is(th, td) { border-top: 0; color: var(--muted); font-weight: 400; }
@@ -781,7 +781,7 @@ body:has(.game) .install { display: none; }  /* never cover the scoreboard mid-g
   .install { position: static; transform: none; flex: none; align-self: center; margin: 8px 0; }
 }
 
-/* a problem report: lies over the game and, unlike the rest of the app, scrolls (reportProblem() in app.js) */
+/* a problem report: lies over the game and, unlike the rest of the app, scrolls (reportProblem() in screens/report.js) */
 .report { position: fixed; inset: 0; z-index: 50; overflow: auto; -webkit-overflow-scrolling: touch; background: var(--bg); padding: 16px; }
 .report-in { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
 .report h1, .report h3, .report p { margin: 0; }
@@ -793,7 +793,7 @@ body:has(.game) .install { display: none; }  /* never cover the scoreboard mid-g
 .report figure { margin: 0; }
 .report img { display: block; width: 100%; border-radius: 8px; }
 .report figcaption { margin-top: 4px; color: var(--muted); font-size: 14px; }
-/* the question asked once on the server at home: may what it records be sent? (askShare() in app.js) */
+/* the question asked once on the server at home: may what it records be sent? (askShare() in screens/sharing.js) */
 .shareask .report-in { max-width: 640px; padding-top: 6vh; line-height: 1.45; }
 .shareask ul, .settings ul { margin: 0; padding-left: 20px; }
 .shareask li, .settings li { margin: 4px 0; }
@@ -802,5 +802,5 @@ body:has(.game) .install { display: none; }  /* never cover the scoreboard mid-g
 input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
-/* Throwing for the bull (renderBull in app.js): how far out each dart was */
+/* Throwing for the bull (renderBull in screens/start.js): how far out each dart was */
 .bullup .pcard .big small { font-size: .4em; font-weight: 600; color: var(--muted); }
