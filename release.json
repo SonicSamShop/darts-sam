@@ -46,7 +46,7 @@
     "1.5": [
       "The cameras now line themselves up each time you open the app: every camera that has been lined up before finds the board again by itself, so a camera that got nudged no longer needs Find the board again pressed on each one. Switch it off on the Cameras screen (Auto-calibrate on start).",
       "Every game now has its rules written out: on the Play screen, tap How to play under the game you have chosen to read how it works and what each option changes, without leaving the game menu.",
-      "Score with your phone's camera (Beta): on the site, open Cameras and press Use this phone's camera. Stand the phone beside the board and it scores each dart by itself, with no computer, and asks which bed when it isn't sure.",
+      "Score with your phone's camera (Beta): on the site, open Cameras and press Use this Device Camera. Stand the phone beside the board and it scores each dart by itself, with no computer, and asks which bed when it isn't sure.",
       "Killer has two new options: become a killer with a treble instead of a double, and take lives by hitting any part of a player's number (single, double or treble) instead of only their double.",
       "Every option of every game now has a ? beside it: tap it to see what the setting you have chosen means. On a computer, hold the pointer over a choice to see what it would mean before you pick it.",
       "Killer now needs two or more players, as its rules say. Started with one, it used to end on the first dart.",

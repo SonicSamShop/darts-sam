@@ -21,6 +21,8 @@
 /* "Beta": a feature still being tried out. Plain words in a box, nothing more. */
 .beta { display: inline-block; font: 600 13px/1 var(--font); letter-spacing: .04em; text-transform: uppercase;
   color: var(--accent); border: 1px solid currentColor; border-radius: 4px; padding: 3px 5px; vertical-align: middle; }
+/* "Or use this Device Camera" on the Cameras screen: centred like the rest of it, its button under the words. */
+.phoneoffer .row { justify-content: center; margin-top: 16px; }
 
 /* "Which bed?" when the phone camera isn't sure (web/ask.js), over the game. */
 .askpanel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: var(--panel); color: var(--text);

@@ -80,8 +80,8 @@ account has a database of its own instead.
 ## Scoring with your phone's camera (Beta)
 
 On the hosted site a phone can score by itself with its own camera, with no
-computer and nothing to install. Open **Cameras** and press **Use this phone's
-camera**, stand the phone to one side of the board (about level with it, with
+computer and nothing to install. Open **Cameras** and press **Use this Device
+Camera**, stand the phone to one side of the board (about level with it, with
 the whole board in the picture), take the darts out, press **Find the board**
 and tap the 20. The first time it downloads about 27 MB; after that it starts
 in a few seconds, even with no network.

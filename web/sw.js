@@ -7,7 +7,7 @@
 // It still tries the Pi first, so editing files on the Pi updates the app; if
 // the Pi doesn't answer quickly the saved copy is used instead.
 // Browsers only run this over https or on localhost (see docs/setup.md).
-const CACHE = 'dartssam-v23';
+const CACHE = 'dartssam-v24';
 // Python for the browser, for the phone's camera (Beta): 27 MB that never
 // change for a given version (tools/fetch_pyodide.py's VERSION), so they are
 // kept apart, not thrown away with each new version of the app, and only

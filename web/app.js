@@ -441,7 +441,7 @@ function botHoldPicker() {
   const now = botHoldSecs();
   return `<div class="picks"><label class="pick"><span>Bot waits before it throws</span><select data-bothold>
       ${Array.from({ length: BOT_HOLD_MAX + 1 }, (_, n) =>
-    `<option value="${n}" ${n === now ? 'selected' : ''}>${n ? `${n} second${n > 1 ? 's' : ''}` : 'No wait'}${n === BOT_HOLD_USUAL ? ' (usual)' : ''}</option>`).join('')}</select></label></div>
+    `<option value="${n}" ${n === now ? 'selected' : ''}>${n ? `${n} second${n > 1 ? 's' : ''}` : 'No wait'}${n === BOT_HOLD_USUAL ? ' Default' : ''}</option>`).join('')}</select></label></div>
     <p class="muted small">Against the computer, the time you have after your visit to undo a wrongly scored dart before it throws.</p>`;
 }
 // Voices can be listed a moment after the page loads: show them once they are.
@@ -2748,10 +2748,10 @@ function hostedCameras() {
 // This phone's own camera instead of a computer's (phoneui.js), where it can be used.
 function phoneOffer() {
   if (!phone.offeredNow()) return '';
-  return `<div class="camwizard phoneoffer"><b class="camlead">Or use this phone's camera <span class="beta">Beta</span></b>
+  return `<div class="camwizard phoneoffer"><b class="camlead">Or use this Device Camera <span class="beta">Beta</span></b>
     <p class="dim">${phone.on() ? esc(phone.statusText())
-      : 'No computer needed: stand this phone beside the board and it scores by itself. It is new, so it gets some darts wrong, and asks when it isn\'t sure.'}</p>
-    <div class="row"><button data-act="phonecam">${phone.on() ? 'Open the phone camera' : 'Use this phone\'s camera'}</button></div></div>`;
+      : 'No computer needed: stand this device beside the board and it scores by itself. It is new, so it gets some darts wrong, and asks when it isn\'t sure.'}</p>
+    <div class="row"><button class="primary" data-act="phonecam">${phone.on() ? 'Open the Device Camera' : 'Use this Device Camera'}</button></div></div>`;
 }
 function unpairButton() {
   if (!account.hosted || !account.helper) return '';
