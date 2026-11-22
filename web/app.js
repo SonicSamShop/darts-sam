@@ -5,7 +5,7 @@
 import { GAMES } from './games/index.js';
 import { gameById, canStart, needsMore, newMatch, compute, elapsed, clock, timeSpent, previousVisit } from './engine.js';
 import { buildBoard, label, spoken, value, bullUp, bullMm } from './board.js';
-import { createSync } from './sync.js';
+import { createSync, matchSheet } from './sync.js';
 import { createUpdater } from './update.js';
 import { request } from './api.js';
 import { createAccount } from './account.js';
@@ -14,6 +14,7 @@ import { createVoice } from './voice.js';
 import { LEVELS, botLevel, levelFor, throwAt } from './bot.js';
 import { createPhoneUi } from './phoneui.js';
 import { X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith } from './stats.js';
+import { ACHIEVEMENTS, GROUPS, byId, held, newly, chief, add, tally as gameTally, totalOf, timeline, visitOf, standing, earnedBy } from './achievements.js';
 
 const $app = document.getElementById('app');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -477,9 +478,12 @@ document.fonts?.addEventListener('loadingdone', fit);  // a theme's lettering ar
 function push(ev) {
   const before = compute(match);
   if (before.winner != null) return;
+  const sheetBefore = achievementsOn() && bases?.id === match.id ? matchSheet(match) : null;
   if (ev.t === 'dart') tracker.entered(match.id, ev); else tracker.moved();
   match.log.push({ ...ev, ts: Date.now() });
   const after = compute(match);
+  const earned = sheetBefore ? achieved(before, sheetBefore, after) : [];  // said after the score: "Sam, Maximum"
+  if (after.winner != null) endedHere();
   store.set('match', match);
   queueSync();
   // What the next thrower has left, once they are on a finish (X01, 170 or
@@ -523,7 +527,7 @@ function push(ev) {
   const changed = aimAt(after) !== aimAt(before);
   const aim = began || changed ? aimAt(after) : '';
   const next = name ? (aim ? `${name}, ${aim}` : name) : aim && `${changed ? 'Next,' : 'Aim for'} ${aim}`;
-  const said = [dart, call, ...rest, next].filter(x => x !== '');
+  const said = [dart, call, ...rest, ...earned, next].filter(x => x !== '');
   if (said.length) say(said.join('. '));
   renderGame();
 }
@@ -533,9 +537,115 @@ function undo() {
   while (match.log.at(-1)?.src === 'bot') match.log.pop();
   const gone = match.log.pop();
   tracker.undone(match.id, gone?.t === 'dart' ? gone : undefined);  // a camera dart undone may be about to be put right
+  // Whatever those darts earned goes with them: it is worked out again from the darts that are left.
+  slips = slips.filter(s => s.at <= match.log.length);
+  forgetEnded(match.id);
   store.set('match', match);
   queueSync();
   renderGame();
+}
+
+// ---------- achievements (achievements.js) ----------
+// None is stored: what a player holds is worked out from their games. For the game in progress the
+// app keeps each person's total as it stood when the game began, and after every dart asks what
+// the game has added to it. Whatever is new is shown on a slip, and called.
+let bases = null;   // {id: the match's, of: [a total per seat: null for the computer, and while there is no history to go on]}
+let slips = [];     // earned and not yet shown: [{seat, top, also, at: the log's length when it was earned, since}]
+let slipTimer = 0;
+const SLIP_MS = 6000;
+const endedGames = [];  // games ended on this device since it was opened, as [{sheet, ids}]: the kept stats may not have them yet
+const achievementsOn = () => settings.achievements !== false;
+const people = m => m.playerIds.filter((_, i) => m.bots?.[i] == null).length;
+// Where in a game's visits the one still being thrown is, or -1 between visits: a visit's total is judged when it is over.
+const openVisit = (s, sheet) => s.winner == null && s.turn.length && !s.turnOver ? sheet.visits.length - 1 : -1;
+function forgetEnded(id) {
+  const i = endedGames.findIndex(g => g.sheet.id === id);
+  if (i >= 0) endedGames.splice(i, 1);
+}
+function endedHere() {
+  forgetEnded(match.id);
+  endedGames.push({ sheet: matchSheet(match), ids: match.playerIds });
+  if (endedGames.length > 20) endedGames.shift();
+}
+// A player's games that are on this device and may not be in their history yet, as [{sheet, me}].
+function gamesHere(id) {
+  const seen = new Set();
+  return [...data.waitingSheets(), ...endedGames]
+    .filter(g => g.ids?.includes(id) && !seen.has(g.sheet.id) && seen.add(g.sheet.id))
+    .map(g => ({ sheet: g.sheet, me: g.ids.indexOf(id) }));
+}
+// Each person's total before this game, from the stats kept on this device (asked for again if the
+// Pi answers quickly). Until it is here, and for anyone with nothing to go on, nothing is shown:
+// better no slip than a "first" for something they already hold.
+async function loadBases() {
+  if (!match || bases?.id === match.id) return;
+  const m = match, mine = bases = { id: m.id, of: m.playerIds.map(() => null) };
+  slips = [];
+  await Promise.all(m.playerIds.map(async (id, i) => {
+    if (m.bots?.[i] != null) return;
+    let history = [];  // a player made offline has no games anywhere but here
+    if (id > 0) try { history = (await loadStats(statsPath(id), 2500)).matches ?? null; } catch { history = null; }
+    if (bases === mine) mine.of[i] = standing(history, gamesHere(id), m.id);
+  }));
+}
+// What the dart just entered earned everyone playing (a game that ends is a game finished for all
+// of them). Each gets one slip, however many it was; the caller's words for them are returned.
+function achieved(before, sheetBefore, after) {
+  const sheet = matchSheet(match), said = [];
+  const openBefore = openVisit(before, sheetBefore), openAfter = openVisit(after, sheet);
+  match.playerIds.forEach((id, i) => {
+    const fresh = earnedBy(bases.of[i], sheetBefore, openBefore, sheet, openAfter, i);
+    if (!fresh.length) return;
+    const top = chief(fresh);
+    slips.push({ seat: i, top, also: fresh.filter(a => a !== top), at: match.log.length });
+    said.push(people(match) > 1 ? `${after.players[i]}, ${top.name}` : top.name);
+  });
+  return said;
+}
+// An achievement's badge: a round pin with its mark lettered on it, as a league's 180 badge is.
+// Not held: the outline only. blank: one kept as a surprise.
+function badge(a, size = 44, has = true, blank = false) {
+  const m = blank ? '?' : a.mark, fs = m.length >= 4 ? 13 : m.length === 3 ? 16 : 20;
+  return `<svg class="pin${has ? '' : ' not'}" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true">
+    <circle cx="24" cy="24" r="21"/><circle class="in" cx="24" cy="24" r="17"/>
+    <text x="24" y="24.5" text-anchor="middle" dominant-baseline="central" font-size="${fs}">${esc(m)}</text></svg>`;
+}
+// The slip on show, in the game's own column where a bust is shown, so it covers nothing.
+// It goes by itself; a tap sends it sooner.
+function slipHtml() {
+  const s = achievementsOn() ? slips[0] : null;
+  if (!s) return '';
+  const fresh = !s.since;
+  if (fresh) {
+    s.since = Date.now();
+    clearTimeout(slipTimer);
+    slipTimer = setTimeout(() => { slips.shift(); if (screen === 'game' && match) renderGame(); }, SLIP_MS);
+  }
+  return `<div class="banner slip${fresh ? ' new' : ''}" role="status" data-slip>${badge(s.top, 48)}
+    <span><b>${people(match) > 1 ? `${esc(match.players[s.seat])} · ` : ''}${esc(s.top.name)}</b><small>${esc(s.top.how)}</small>
+    ${s.also.length ? `<small>Also: ${s.also.map(a => esc(a.name)).join(', ')}</small>` : ''}</span></div>`;
+}
+// During a game a tap only closes it. Once the game is over it opens that player's achievements.
+function slipTapped() {
+  const s = slips.shift();
+  clearTimeout(slipTimer);
+  if (s && compute(match).winner != null && players.some(p => p.id === match.playerIds[s.seat])) {
+    statsGame = statsDarts = null;
+    statsTab = 'achievements';
+    drill = [];
+    renderPlayers(match.playerIds[s.seat]);
+    return mark(true);
+  }
+  renderGame();
+}
+// Under the result: everything earned in this game, for whoever was at the oche when a slip showed.
+function earnedLine() {
+  if (!achievementsOn() || bases?.id !== match.id) return '';
+  const sheet = matchSheet(match), named = people(match) > 1;
+  const lines = match.playerIds.flatMap((id, i) => !bases.of[i] ? []
+    : newly(held(bases.of[i]), held(add(bases.of[i], gameTally(sheet, i))))
+      .map(a => `${named ? `${esc(match.players[i])}, ` : ''}<b>${esc(a.name)}</b>`));
+  return lines.length ? `<div class="earned">Achievements this game: ${lines.join(' · ')}</div>` : '';
 }
 
 // Quit the game in progress, once the player has said they are sure. Its results
@@ -1391,7 +1501,7 @@ function addPlayer() {
 // to see what it was counted from (see "opening up the stats" below).
 // A big screen has room for the stats and the board side by side (see .panes in style.css).
 const BIG = matchMedia('(min-width: 1100px) and (min-height: 750px)');
-const STAT_TABS = [['stats', 'Stats'], ['games', 'Games'], ['board', 'Board']];
+const STAT_TABS = [['stats', 'Stats'], ['games', 'Games'], ['board', 'Board'], ['achievements', 'Achievements']];
 let statsFor = null, statsData = null, statsFailed = false, statsTab = 'stats';
 // (The list of players, to add to, rename and remove from, and their darts, is a tab of the settings: see playersPanel().)
 let removeArmed = false;  // the id of the player whose Remove has been tapped once
@@ -1423,6 +1533,7 @@ async function renderPlayers(id = statsFor) {
   if (account.locked) return renderLanding();
   screen = 'players';
   statsFor = players.some(p => p.id === id) ? id : players[0]?.id ?? null;
+  achAll = null;  // (asked for again if the Achievements tab needs it)
   if (!setsOf(statsFor, true).some(d => d.id === statsDarts)) statsDarts = null;
   if (statsData?.player.id !== statsFor || statsData.game !== statsGame || (statsData.set ?? null) !== statsDarts) statsData = null;
   statsFailed = false;
@@ -1609,8 +1720,85 @@ function drillView(st, top) {
   if (top.v === 'number') return some(top.seg === 25 ? 'Visits with a bull or 25' : top.seg ? `Visits with a ${top.seg}` : 'Visits with a miss',
     'throws', visitsWith(d.mine, top.seg));
   if (top.v === 'matches') return some(`${esc(top.name)} games`, 'matches', d.matches.filter(m => m.name === top.name && m.winner != null));
+  if (top.v === 'achievement') return achievementView(top.id, d);
   const m = top.v === 'match' && d.matches.find(m => m.id === top.id);
   return m ? { title: matchTitle(m), html: () => matchHtml(m, top) } : null;
+}
+
+// ---------- the Achievements tab ----------
+// Worked out from every game the player has on record, whatever game or set of darts the page is
+// showing: so when the page's own stats are only part of that, the whole is asked for as well.
+const ACH_SINCE = Date.UTC(2026, 10, 22);  // games from before achievements existed earn them too: the tab says so
+let achAll = null;      // {id, st}: a player's stats for all games and darts (st: null if they can't be had)
+let achLoading = null;  // the player they are being fetched for
+const ACH = new WeakMap();  // what is worked out from a reply, kept while that reply is
+function achStats() {
+  if (statsFor != null && statsFor <= 0) {  // made offline: no games anywhere but here
+    if (achAll?.id !== statsFor) achAll = { id: statsFor, st: { player: { id: statsFor }, matches: [] } };
+    return achAll.st;
+  }
+  if (statsData && !statsData.game && !statsData.set && statsData.player.id === statsFor) return statsData;
+  return achAll?.id === statsFor ? achAll.st : undefined;  // undefined: not asked for yet
+}
+async function loadAchAll() {
+  const id = statsFor;
+  if (id == null || achLoading === id) return;
+  achLoading = id;
+  let st = null;
+  try { st = await loadStats(statsPath(id), connected ? 10000 : 2500); } catch { /* shown as unavailable */ }
+  achLoading = null;
+  achAll = { id, st };
+  if (screen === 'players' && statsFor === id && statsTab === 'achievements') drawPlayers();
+}
+// {entries, got, total}: the player's games oldest first, and what they earn (timeline() in achievements.js).
+function achievementsOf(st) {
+  const here = gamesHere(st.player.id), key = here.map(g => `${g.sheet.id}:${g.sheet.visits.length}:${g.sheet.winner}`).join();
+  if (ACH.get(st)?.key !== key) {
+    const ids = new Set(here.map(g => g.sheet.id));
+    const entries = [...(st.matches ?? []).filter(m => !ids.has(m.id)).map(m => ({ sheet: m, me: m.me })), ...here];
+    ACH.set(st, { key, entries, ...timeline(entries) });
+  }
+  return ACH.get(st);
+}
+const dayOf = ts => new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+function achievementsPane(game) {
+  const st = achStats();
+  if (st === undefined) { loadAchAll(); return '<div class="p-achievements"><p class="muted">Loading…</p></div>'; }
+  if (!st) return `<div class="p-achievements"><p class="muted">Achievements are worked out from every game on record, and those
+    aren't on this device yet. They will be here once ${pi()} has been reached.</p></div>`;
+  const { got, total } = achievementsOf(st);
+  const list = ACHIEVEMENTS.filter(a => !game || a.game === game.id);
+  const line = a => {
+    const g = got.get(a.id), steps = a.steps && ACHIEVEMENTS.filter(b => b.base === a.base);
+    if (!g && steps && a !== steps.find(b => !got.has(b.id))) return '';  // of the steps not reached, only the next one
+    const hidden = a.secret && !g;
+    const far = !g && a.need > 1 ? ` · ${a.value(total).toLocaleString()} of ${a.need.toLocaleString()}` : '';
+    return `<li class="${g ? 'held' : 'not'}"${g ? opens({ v: 'achievement', id: a.id }) : ''}>${badge(a, 44, !!g, hidden)}
+      <span><b>${hidden ? 'A surprise' : esc(a.name)}</b><small>${hidden ? 'You will know it when you throw it' : esc(a.how) + far}</small></span>
+      ${g ? `<time>${dayOf(g.at)}</time>` : ''}</li>`;
+  };
+  const groups = GROUPS.map(name => {
+    const rows = list.filter(a => a.group === name).sort((a, b) => got.has(b.id) - got.has(a.id)).map(line).join('');
+    return rows ? `<h2>${name}</h2><ul class="alist">${rows}</ul>` : '';
+  }).join('');
+  const old = [...got.values()].some(g => g.at < ACH_SINCE);
+  return `<div class="p-achievements">
+    <h2 class="count">${game ? `${game.name} achievements` : 'Achievements'} · ${list.filter(a => got.has(a.id)).length} of ${list.length}</h2>
+    ${old ? '<p class="muted small">These come from every game on record, so some are from before achievements existed.</p>' : ''}
+    ${groups || '<p class="muted">This game has none of its own.</p>'}</div>`;
+}
+// One achievement that is held: its badge, when it was earned, and the way to the game it was earned in.
+function achievementView(id, d) {
+  const a = byId(id), st = achStats();
+  const all = a && st ? achievementsOf(st) : null, g = all?.got.get(id);
+  if (!g) return null;
+  return { title: esc(a.name), html: () => {
+    const at = all.entries.findIndex(e => e.sheet.id === g.match), e = all.entries[at];
+    const visit = visitOf(a, totalOf(all.entries.slice(0, at)), e.sheet, e.me);
+    const there = d.matches.some(m => m.id === g.match);  // (a game not sent yet has no scoresheet here)
+    return `<div class="achievement">${badge(a, 120)}<p>${esc(a.how)}</p><p class="muted">${esc(nameOf(statsFor))} · ${dayOf(g.at)}</p>
+      ${there ? `<button${opens({ v: 'match', id: g.match, ...(visit != null && { at: visit }) })}>Open the game</button>` : ''}</div>`;
+  } };
 }
 const matchTitle = m => `${esc(m.name)}${m.game === 'x01' ? ` ${m.opts.start ?? 501}` : ''}`;
 function drawDrill(st, old) {
@@ -1624,7 +1812,7 @@ function drawDrill(st, old) {
     <div class="row under"><button class="ghost" data-act="up">‹ Back</button><h1 class="sub">${views.at(-1).title}</h1></div>
     <p class="muted small crumbs">${[esc(nameOf(statsFor)), game ? game.name : 'All games',
       ...(statsDarts ? [esc(dartsName(statsDarts))] : []), ...views.slice(0, -1).map(v => v.title)].join(' › ')}
-      ${drill.at(-1).v === 'match' ? '' : ' · tap a line for more, a heading to sort'}</p>
+      ${['match', 'achievement'].includes(drill.at(-1).v) ? '' : ' · tap a line for more, a heading to sort'}</p>
     ${old}<div class="fill drill">${views.at(-1).html()}</div>
     ${pageFoot('players')}
   </div>`;
@@ -1642,7 +1830,7 @@ function drawPlayers() {
       Stats are worked out on ${pi()} and kept here once it has been reached.</p>`
     : !st ? '<p class="muted">Loading…</p>' : '';
   const none = wait || (st.darts || st.detail || x ? '' : `<p class="muted">No throws recorded yet${game ? ` in ${game.name}` : ''}.</p>`);
-  const message = tab === 'games' ? wait : none;
+  const message = tab === 'games' || tab === 'achievements' ? wait : none;
   const owed = data.waitingGames();
   const old = st?.saved ? `<p class="muted small stale">${Pi()} can't be reached: these are the stats
     from ${new Date(st.saved).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}${
@@ -1668,7 +1856,8 @@ function drawPlayers() {
       st.recent.length === 1 ? '1 dart' : `${st.recent.length < 5000 ? '' : 'last '}${st.recent.length} darts`}</h2>
     <div class="statboard"><svg id="statboard"></svg></div>
     <div class="heatkey"><span>Fewer darts</span><i></i><span>More</span></div>`
-      : `<p class="muted">No dart positions recorded yet${game ? ` in ${game.name}` : ''}.</p>`}</div>`;
+      : `<p class="muted">No dart positions recorded yet${game ? ` in ${game.name}` : ''}.</p>`}</div>
+    ${tab === 'achievements' ? achievementsPane(game) : ''}`;
   const lit = id => id === tab || (id === 'stats' && tab === 'board' && BIG.matches);
   if (statsFailed) drill = [];
   if (drill.length && st && drawDrill(st, old)) return;  // (still loading: the opened-up figure is drawn once the stats are here)
@@ -1936,6 +2125,7 @@ function renderGame() {
   }
   const game = gameById(match.gameId);
   const s = compute(match);
+  loadBases();  // (once a game: what everyone held before it)
   const pad = usingPad(game);
   // The TV view: the player cards give way to one scoreboard along the bottom.
   const tv = usingTv(game, s);
@@ -2113,6 +2303,7 @@ function renderSettings(jump) {
     ${settings.voice ? `${switchRow('Call each dart', !!settings.eachDart, `data-eachdart="${settings.eachDart ? 'off' : 'on'}"`, 'Say every dart as it lands too, not just the total. Cricket, Killer and the practice games call each dart anyway.')}
     ${voicePicker()}` : ''}
     ${switchRow('Checkout hints', hints, `data-checkouts="${hints ? 'off' : 'on'}"`, 'Switch off to practise working out your finishes yourself.')}
+    ${switchRow('Show achievements as they are earned', achievementsOn(), `data-achievements="${achievementsOn() ? 'off' : 'on'}"`, 'A first 180, a big finish and the like are shown, and called, as they happen. Off, they are still kept on the Stats page.')}
     ${switchRow('Show the bot\'s darts landing', settings.flight !== false, `data-flight="${settings.flight !== false ? 'off' : 'on'}"`, 'Against the computer, each of its darts flies in to where it lands on the board.')}
     </div></div>`;
   // [id, its name, its name on a tab, how it is set (the list says), the section]: in the list's groups
@@ -2791,7 +2982,7 @@ async function resetDetection() {
 $app.addEventListener('click', e => {
   const camview = e.target.closest('.camview');
   if (camview && e.target.tagName === 'IMG') return calibTap(+camview.dataset.cam, e.target, e);
-  const b = e.target.closest('button, a[data-act], [data-drill], [data-sort], [data-sheet], [data-gear]');  // tiles and lines can be tapped too
+  const b = e.target.closest('button, a[data-act], [data-drill], [data-sort], [data-sheet], [data-gear], [data-slip]');  // tiles and lines can be tapped too
   if (!b) return;
   if (b.tagName === 'A') e.preventDefault();  // a link that does something on this page instead (see siteHead)
   const d = b.dataset;
@@ -2835,6 +3026,7 @@ $app.addEventListener('click', e => {
   // screen shows only updates the entry it has.
   if (d.sheet) { renderSheet(d.sheet); return mark(true); }
   if (d.tab) { statsTab = d.tab; drawPlayers(); return mark(); }
+  if (d.slip !== undefined) return slipTapped();
   if (d.drill) { drill.push(JSON.parse(d.drill)); drawPlayers(); return mark(true); }
   if (d.sort) {
     const top = drill.at(-1);
@@ -2855,6 +3047,7 @@ $app.addEventListener('click', e => {
   if (d.fin) return padCommit(padAsk.total, +d.fin);
   if (d.theme) { settings.theme = d.theme; saveSettings(); applyTheme(); renderSettings(); return mark(); }
   if (d.checkouts) { settings.checkouts = d.checkouts === 'on'; saveSettings(); return renderSettings(); }
+  if (d.achievements) { settings.achievements = d.achievements === 'on'; saveSettings(); return renderSettings(); }
   if (d.flight) { settings.flight = d.flight === 'on'; saveSettings(); return renderSettings(); }
   if (d.autostart) { settings.autoCal = d.autostart === 'on'; saveSettings(); return drawCameras(camStatus); }
   if (d.botlevel) { setup.bot = botLevel(botAt().level + +d.botlevel).level; setup.botAuto = false; saveSetup(); return renderHome(); }

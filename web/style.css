@@ -114,6 +114,7 @@ button:disabled { opacity: .4; }
 }
 .tabs { margin-top: 14px; flex-wrap: nowrap; }
 .tabs button { flex: 1; min-width: 0; padding-left: 6px; padding-right: 6px; }
+.tabs button[data-tab="achievements"] { flex: 1.6; }  /* the long one */
 .chips { margin-top: 14px; }
 /* stats: who, which game and (once they have some) which darts, as drop-downs side by side */
 .picks { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
@@ -327,7 +328,23 @@ tr[data-drill], [data-sheet] { cursor: pointer; }
 }
 /* players & stats: one tab's pane at a time */
 .panes > div { display: none; height: 100%; }
-.panes.tab-stats > .p-stats, .panes.tab-games > .p-games { display: block; }
+.panes.tab-stats > .p-stats, .panes.tab-games > .p-games, .panes.tab-achievements > .p-achievements { display: block; }
+/* the Achievements tab: ruled lines, like the figures */
+.p-achievements { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.p-achievements > h2:first-child { margin-top: 14px; }
+.alist { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0 28px; }
+.alist li { display: flex; align-items: center; gap: 12px; padding: 8px 4px 8px 0; border-bottom: 1px solid var(--line); }
+.alist li span { flex: 1; min-width: 0; }
+.alist li b { display: block; font-weight: 600; line-height: 1.25; }
+.alist li small { display: block; color: var(--muted); font-size: 14px; line-height: 1.3; }
+.alist li time { flex: none; color: var(--muted); font-size: 14px; }
+.alist li.not b { color: var(--muted); }
+.alist li.held { cursor: pointer; }
+.alist li.held:active { filter: brightness(1.3); }
+.achievement { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 0; text-align: center; }
+.achievement p { margin: 0; }
+.achievement button { margin-top: 12px; }
+.achievement img { width: min(640px, 100%); margin-top: 12px; border: 1px solid var(--line); border-radius: var(--round); }
 .panes.tab-board > .p-board { display: flex; flex-direction: column; }
 @media (min-width: 1100px) and (min-height: 750px) {
   /* a big screen has room for the stats and the board side by side */
@@ -433,6 +450,24 @@ svg.heat .b-num { fill: #d9dce3; }
 .banner { background: var(--panel); border: 1px solid var(--line); border-radius: var(--round); padding: 12px; text-align: center; font-size: 18px; }
 .banner.bust { border-color: var(--warn); color: var(--warn); font-weight: 800; }
 .banner.win { border-color: var(--gold); color: var(--gold); font-size: 24px; font-weight: 800; }
+/* An achievement: its badge is a round pin with a mark lettered on it. Not held: the outline only. */
+.pin { flex: none; display: block; }
+.pin circle { fill: var(--panel); stroke: var(--gold); stroke-width: 3; }
+.pin circle.in { fill: none; stroke-width: 1; }
+.pin text { fill: var(--gold); font-family: var(--display); font-weight: 700; }
+.pin.not circle { fill: none; stroke: var(--line); stroke-width: 2; stroke-dasharray: 3 4; }
+.pin.not circle.in { display: none; }
+.pin.not text { fill: var(--muted); }
+/* the slip that says one was earned: a banner, where a bust is shown */
+.slip { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-color: var(--gold); text-align: left; cursor: pointer; }
+.slip span { flex: 1; min-width: 0; }
+.slip b { display: block; color: var(--gold); font-size: 19px; line-height: 1.25; }
+.slip small { display: block; color: var(--muted); font-size: 14px; line-height: 1.3; }
+.slip.new { animation: slip-in .3s ease-out; }
+@keyframes slip-in { from { opacity: 0; transform: translateY(-8px); } }
+@media (prefers-reduced-motion: reduce) { .slip.new { animation: none; } }
+.earned { color: var(--muted); font-size: 15px; line-height: 1.4; text-align: center; text-wrap: balance; }
+.earned b { color: var(--text); font-weight: 600; }
 .actions { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 8px; margin-top: auto; }
 .actions button { min-height: 72px; font-size: 20px; font-weight: 700; }
 .boardwrap { position: relative; display: flex; align-items: center; justify-content: center; min-height: 0; min-width: 0; }

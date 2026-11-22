@@ -147,6 +147,10 @@ export function createSync({ store, api, changed = () => {} }) {
   const waiting = () => get('ops', []).length + get('dartsq', []).length + Object.keys(get('dirty', {})).length
     + Object.keys(get('pending', {})).length;
   const waitingGames = () => Object.values(get('pending', {})).filter(i => !i.quit).length;
+  // Those games as history entries, each with its players' ids: what the Pi's history hasn't got
+  // yet, for working out achievements (achievements.js).
+  const waitingSheets = () => Object.values(get('pending', {})).filter(i => i.m)
+    .map(i => ({ sheet: matchSheet(i.m), ids: i.m.playerIds }));
 
   // Finished games, newest first: the ones still waiting here, then the Pi's list.
   function recent(limit = 8) {
@@ -320,5 +324,5 @@ export function createSync({ store, api, changed = () => {} }) {
     return running;
   }
 
-  return { addPlayer, renamePlayer, removePlayer, addDarts, changeDarts, saveSetting, saveMatch, quitMatch, waiting, waitingGames, recent, sheet, sync };
+  return { addPlayer, renamePlayer, removePlayer, addDarts, changeDarts, saveSetting, saveMatch, quitMatch, waiting, waitingGames, waitingSheets, recent, sheet, sync };
 }
