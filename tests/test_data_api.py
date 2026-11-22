@@ -52,6 +52,16 @@ def main():
         assert put({"details": {"grip": "sticky"}}).status_code == 400
         assert put({"details": None}).json()["details"] is None
         assert c.get("/api/darts", headers=B).json() == []
+        # boards: one is made for every place; a new one goes up, games are moved to it, a used one stays
+        [first] = c.get("/api/boards", headers=A).json()
+        assert c.put("/api/boards/new", json={"brand": "Unicorn", "up": 1, "down": None}, headers=A).json()["brand"] == "Unicorn"
+        assert c.put("/api/boards/bad", json={"bought": 1800}, headers=A).status_code == 400
+        assert c.post("/api/boards/new/games", json={"start": None, "end": None, "only": [first["id"], None]}, headers=A).json() == {"moved": 1}
+        assert c.get("/api/matches/m1", headers=A).status_code == 200
+        assert c.delete("/api/boards/new", headers=A).status_code == 400
+        assert c.delete(f"/api/boards/{first['id']}", headers=A).status_code == 204
+        assert c.post("/api/boards/nonesuch/games", json={}, headers=A).status_code == 404
+        assert len(c.get("/api/boards", headers=B).json()) == 1
         assert c.delete("/api/matches/m1", headers=B).json()["deleted"] is False
         assert c.delete("/api/matches/m1", headers=A).json()["deleted"] is True
     print("OK")

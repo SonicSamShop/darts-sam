@@ -2,7 +2,7 @@
 # AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
 # SPDX-License-Identifier: AGPL-3.0-only
 
-"""The saved-data addresses: players, their darts, settings, matches and stats (see db.py).
+"""The saved-data addresses: players, their darts, boards, settings, matches and stats (see db.py).
 
 Shared by the server at home (app.py), which keeps everything in one file, and
 the hosted version (host.py), where each account has a file of its own.
@@ -30,6 +30,24 @@ class DartsIn(BaseModel):
     details: dict | None = None  # brand, barrel and so on: see db.DARTS_DETAILS
 
 
+class BoardIn(BaseModel):
+    brand: str | None = None
+    model: str | None = None
+    bought: int | None = None  # the year
+    notes: str | None = None
+    up: int | None = None  # ms: when it went up
+    down: int | None = None  # ms: when it came down; None while it is on the wall
+    created: int | None = None
+
+
+class MoveIn(BaseModel):
+    """Games started from `start` up to `end` (ms; None: open) were on a board. With
+    `only`, just those on one of these boards (None: on no board)."""
+    start: int | None = None
+    end: int | None = None
+    only: list[str | None] | None = None
+
+
 class Setting(BaseModel):
     value: Any
 
@@ -55,6 +73,7 @@ class MatchIn(BaseModel):
     started: float
     players: list[int]
     darts: list[str | None] | None = None  # the set each player threw with, in the same order
+    board: str | None = None  # the board it was played on (left out: the one on the wall)
     winner: int | None = None
     duration: float | None = None  # ms from start to the winning dart
     throws: list[ThrowIn]
@@ -112,6 +131,26 @@ def make_router(db_file: Callable[[Request], Path | None], reports: Callable[[],
         with db.at(db_file(request)):
             # (details left out, not sent as nothing: an older app keeps a set's details as they are)
             return _db(db.save_darts, darts_id, body.model_dump(exclude={"details"} if "details" not in body.model_fields_set else None))
+
+    @router.get("/api/boards")
+    def boards(request: Request):
+        with db.at(db_file(request)):
+            return db.list_boards()
+
+    @router.put("/api/boards/{board_id}")
+    def save_board(request: Request, board_id: str, body: BoardIn):
+        with db.at(db_file(request)):
+            return _db(db.save_board, board_id, body.model_dump())
+
+    @router.delete("/api/boards/{board_id}", status_code=204)
+    def delete_board(request: Request, board_id: str):
+        with db.at(db_file(request)):
+            _db(db.delete_board, board_id)
+
+    @router.post("/api/boards/{board_id}/games")
+    def move_games(request: Request, board_id: str, body: MoveIn):
+        with db.at(db_file(request)):
+            return {"moved": _db(db.move_games, board_id, body.start, body.end, body.only)}
 
     @router.get("/api/settings")
     def get_settings(request: Request):

@@ -14,6 +14,7 @@ All times are milliseconds since 1970 (what JavaScript's Date.now() gives).
 """
 import json
 import re
+import secrets
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -56,6 +57,15 @@ CREATE TABLE IF NOT EXISTS dart_sets (     -- a player's darts, like a runner's 
   created   INTEGER NOT NULL,
   retired   INTEGER NOT NULL DEFAULT 0,    -- put away: off the menu, kept in the stats
   details   TEXT                           -- JSON: brand, barrel and so on (see DARTS_DETAILS); NULL if none given
+);
+CREATE TABLE IF NOT EXISTS boards (        -- the household's boards; the one with no "down" is on the wall
+  id        TEXT PRIMARY KEY,              -- made up by the app
+  brand     TEXT, model TEXT,              -- as typed, if given
+  bought    INTEGER,                       -- the year it was bought
+  notes     TEXT,
+  up        INTEGER,                       -- ms: when it went up on the wall
+  down      INTEGER,                       -- ms: when it came down; NULL while it is up
+  created   INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS match_players (
   match_id  TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
@@ -171,6 +181,11 @@ def prepare(path: Path):
         # From before a set of darts could say more than its name and weight.
         if "details" not in [c["name"] for c in db.execute("PRAGMA table_info(dart_sets)")]:
             db.execute("ALTER TABLE dart_sets ADD COLUMN details TEXT")
+        # From before there could be several boards: each game is on one.
+        if "board" not in [c["name"] for c in db.execute("PRAGMA table_info(matches)")]:
+            db.execute("ALTER TABLE matches ADD COLUMN board TEXT")
+        if not db.execute("SELECT 1 FROM boards").fetchone():
+            _first_board(db)
 
 
 # ---------- players ----------
@@ -335,6 +350,129 @@ def save_darts(darts_id: str, d: dict) -> dict:
         return _dart_set(db.execute("SELECT * FROM dart_sets WHERE id = ?", (darts_id,)).fetchone())
 
 
+# ---------- boards ----------
+# The household's boards (not a player's: everyone throws at the same one). One is on the
+# wall at a time, and each game is on the board that was up when it started (matches.board),
+# so the stats can be seen board by board. The same checks are in web/sync.js (cleanBoard).
+BOARD_MAX = {"brand": 40, "model": 40, "notes": 120}
+
+
+def clean_board(b: dict | None, year: int | None = None) -> dict | None:
+    """A board's details checked and tidied: empty ones dropped, None if nothing is left."""
+    year = year or time.localtime().tm_year
+    out = {}
+    for key, value in (b or {}).items():
+        if value is None or value == "":
+            continue
+        if key == "bought":
+            if not isinstance(value, int) or isinstance(value, bool) or not 1900 <= value <= year:
+                raise Invalid("the year it was bought is not one there has been")
+            out[key] = value
+        elif key in BOARD_MAX:
+            words = " ".join(str(value).split())
+            if len(words) > BOARD_MAX[key]:
+                raise Invalid(f"the {key} can be at most {BOARD_MAX[key]} characters")
+            if words:
+                out[key] = words
+        else:
+            raise Invalid(f"a board has no detail called {key}")
+    return out or None
+
+
+def _board(row) -> dict:
+    return {k: row[k] for k in ("id", "brand", "model", "bought", "notes", "up", "down", "created")}
+
+
+def _first_board(db):
+    """A database from before boards (or a new one): its first board, on the wall since its
+    first game, made from the one board the settings used to hold. Every game is on it."""
+    row = db.execute("SELECT value FROM settings WHERE key = 'settings'").fetchone()
+    settings = json.loads(row["value"]) if row else None
+    old = settings.pop("board", None) if isinstance(settings, dict) else None
+    try:
+        details = clean_board(old) or {}
+    except Invalid:
+        details = {}
+    first = db.execute("SELECT MIN(started) FROM matches").fetchone()[0]
+    board_id = "b" + secrets.token_hex(6)
+    db.execute("INSERT INTO boards (id, brand, model, bought, notes, up, down, created) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)",
+               (board_id, details.get("brand"), details.get("model"), details.get("bought"), details.get("notes"),
+                int(first) if first is not None else now_ms(), now_ms()))
+    db.execute("UPDATE matches SET board = ? WHERE board IS NULL", (board_id,))
+    if old is not None:
+        db.execute("UPDATE settings SET value = ? WHERE key = 'settings'", (json.dumps(settings),))
+
+
+def list_boards() -> list[dict]:
+    """Every board, taken down ones too, oldest first."""
+    with connect() as db:
+        return [_board(r) for r in db.execute("SELECT * FROM boards ORDER BY created, id")]
+
+
+def _int_or_none(v):
+    return None if v is None else int(v)
+
+
+def save_board(board_id: str, b: dict) -> dict:
+    """Add a board or change one: b has brand, model, bought, notes (see clean_board), up and
+    down (ms, down None while it is on the wall) and created. Saved on the wall, it takes down
+    the one that was, at the time this one went up."""
+    if not _ID.match(board_id):
+        raise Invalid("a board needs an id of letters, numbers, - and _")
+    details = clean_board({k: b.get(k) for k in ("brand", "model", "bought", "notes") if k in b}) or {}
+    for key in b:
+        if key not in ("brand", "model", "bought", "notes", "up", "down", "created", "id"):
+            raise Invalid(f"a board has no detail called {key}")
+    up, down = _int_or_none(b.get("up")), _int_or_none(b.get("down"))
+    with connect() as db:
+        if down is None:
+            db.execute("UPDATE boards SET down = ? WHERE down IS NULL AND id <> ?", (up if up is not None else now_ms(), board_id))
+        db.execute(
+            "INSERT INTO boards (id, brand, model, bought, notes, up, down, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET brand = excluded.brand, model = excluded.model, bought = excluded.bought, "
+            "notes = excluded.notes, up = excluded.up, down = excluded.down",
+            (board_id, details.get("brand"), details.get("model"), details.get("bought"), details.get("notes"),
+             up, down, int(b.get("created") or now_ms())))
+        return _board(db.execute("SELECT * FROM boards WHERE id = ?", (board_id,)).fetchone())
+
+
+def delete_board(board_id: str):
+    """Remove a board added by mistake. One that a game was played on, or the one on the wall,
+    stays (it can be taken down instead)."""
+    with connect() as db:
+        b = db.execute("SELECT * FROM boards WHERE id = ?", (board_id,)).fetchone()
+        if b is None:
+            raise NotFound("no such board")
+        if b["down"] is None:
+            raise Invalid("the board on the wall can't be removed: put another one up first")
+        if db.execute("SELECT 1 FROM matches WHERE board = ?", (board_id,)).fetchone():
+            raise Invalid("games were played on this board: it can be taken down, not removed")
+        db.execute("DELETE FROM boards WHERE id = ?", (board_id,))
+
+
+def move_games(board_id: str, start: int | None, end: int | None, only: list | None) -> int:
+    """Say that the games started from `start` (ms) up to `end` were on this board (either
+    end open when None). With `only`, just the games on one of those boards (None in it: on
+    no board) are moved. Returns how many were moved."""
+    where, args = ["board IS NOT ?"], [board_id]
+    if start is not None:
+        where.append("started >= ?")
+        args.append(int(start))
+    if end is not None:
+        where.append("started < ?")
+        args.append(int(end))
+    if only is not None:
+        named = [o for o in only if o is not None]
+        some = [f"board IN ({','.join('?' * len(named))})"] if named else []
+        some += ["board IS NULL"] if None in only else []
+        where.append("(" + (" OR ".join(some) or "0") + ")")
+        args += named
+    with connect() as db:
+        if not db.execute("SELECT 1 FROM boards WHERE id = ?", (board_id,)).fetchone():
+            raise NotFound("no such board")
+        return db.execute(f"UPDATE matches SET board = ? WHERE {' AND '.join(where)}", (board_id, *args)).rowcount
+
+
 # ---------- settings ----------
 def get_settings() -> dict:
     with connect() as db:
@@ -353,7 +491,8 @@ def save_match(match_id: str, m: dict) -> bool:
 
     m: seq, game_id, game_name, opts, log, started, players (ids in throwing
     order), darts (optional: the dart set each player threw with, in the same
-    order; None, or a set that is not that player's, is stored as not known), winner (index into players, or None), duration (ms the game took,
+    order; None, or a set that is not that player's, is stored as not known), board (optional: the
+    board it was played on; left out or unknown, the one on the wall), winner (index into players, or None), duration (ms the game took,
     kept only once it is won), throws (list of dicts with player index, round,
     seg, mult, x, y, src, bust, ts).
     Returns False if a newer copy is already stored.
@@ -380,12 +519,13 @@ def save_match(match_id: str, m: dict) -> bool:
                 duration = max(0, int(m["duration"]))
             finished = (old and old["finished"]) or now_ms()
         db.execute(
-            "INSERT INTO matches (id, seq, game_id, game_name, opts, log, started, finished, winner_id, duration) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "INSERT INTO matches (id, seq, game_id, game_name, opts, log, started, finished, winner_id, duration, board) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(id) DO UPDATE SET seq = excluded.seq, opts = excluded.opts, log = excluded.log, "
-            "finished = excluded.finished, winner_id = excluded.winner_id, duration = excluded.duration",
+            "finished = excluded.finished, winner_id = excluded.winner_id, duration = excluded.duration, "
+            "board = COALESCE(matches.board, excluded.board)",  # (kept: the games may have been moved since)
             (match_id, m["seq"], m["game_id"], m["game_name"], json.dumps(m["opts"]),
-             json.dumps(m["log"]), int(m["started"]), finished, winner_id, duration))
+             json.dumps(m["log"]), int(m["started"]), finished, winner_id, duration, _board_for(db, m.get("board"))))
         given = list(m.get("darts") or [])[:len(ids)]
         given += [None] * (len(ids) - len(given))
         theirs = {(r["id"], r["player_id"]) for r in db.execute(
@@ -401,6 +541,15 @@ def save_match(match_id: str, m: dict) -> bool:
             [(match_id, ids[t["player"]], t["round"], t["seg"], t["mult"], t.get("x"), t.get("y"),
               t.get("src"), int(bool(t.get("bust"))), t.get("ts")) for t in m["throws"]])
     return True
+
+
+def _board_for(db, board_id) -> str | None:
+    """The board a game is saved on: the one it says, if there is one, and otherwise (an app
+    from before boards, or a board this place doesn't have) the one on the wall."""
+    if board_id and db.execute("SELECT 1 FROM boards WHERE id = ?", (board_id,)).fetchone():
+        return board_id
+    row = db.execute("SELECT id FROM boards WHERE down IS NULL ORDER BY up DESC LIMIT 1").fetchone()
+    return row["id"] if row else None
 
 
 def has_match(match_id: str) -> bool:
@@ -428,7 +577,7 @@ def export_match(match_id: str) -> dict | None:
         return {
             "seq": m["seq"], "game_id": m["game_id"], "game_name": m["game_name"], "opts": json.loads(m["opts"]),
             "log": json.loads(m["log"]), "started": m["started"], "players": ids,
-            "darts": [r["darts"] for r in seats],
+            "darts": [r["darts"] for r in seats], "board": m["board"],
             "winner": ids.index(m["winner_id"]) if m["winner_id"] in ids else None, "duration": m["duration"],
             "throws": [{"player": ids.index(t["player_id"]), "round": t["round"], "seg": t["seg"], "mult": t["mult"],
                         "x": t["x"], "y": t["y"], "src": t["src"], "bust": bool(t["bust"]), "ts": t["ts"]}
