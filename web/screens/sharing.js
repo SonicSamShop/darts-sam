@@ -5,7 +5,8 @@
 // Sharing without an account: the server at home only (see server/share.py).
 // The question asked the first time the app is opened, and Settings → Sharing.
 
-import { api, appVersion, esc, onAccountTab, pi, renderSettings, screen, store, switchRow, tracker } from '../app.js';
+import { api, appVersion, esc, pi, screen, store, tracker } from '../app.js';
+import { onAccountTab, renderSettings, switchRow } from './settings.js';
 
 // The server at home only: has its owner agreed to send what it records to Darts
 // Sam, with no account? {asked, on, paired, site}, or null until it has said

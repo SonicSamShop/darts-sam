@@ -5,7 +5,8 @@
 // Settings → Account (the hosted version only, see account.js): signing out,
 // deleting the account, and the feedback box.
 
-import { account, appVersion, call, cameraCount, data, esc, onAccountTab, renderSettings } from '../app.js';
+import { account, appVersion, call, cameraCount, data, esc } from '../app.js';
+import { onAccountTab, renderSettings } from './settings.js';
 
 // ---------- account (the hosted version only, see account.js) ----------
 export const acct = {

@@ -7,8 +7,9 @@
 
 import {
   $app, account, api, call, cameraCount, data, esc, fit, helperLinked, pageFoot, pageHead, phone, refreshStatus,
-  screen, setCameraCount, setScreen, settings, switchRow, tracker
+  screen, setCameraCount, setScreen, settings, tracker
 } from '../app.js';
+import { switchRow } from './settings.js';
 import { renderLanding } from './landing.js';
 
 // ---------- cameras & calibration ----------

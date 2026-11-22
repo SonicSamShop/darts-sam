@@ -28,6 +28,7 @@ import { achTab, achievementView, achievementsPane } from './screens/achievement
 import {
   addDarts, addPlayer, changeDarts, newPlayerRow, playersPanel, removePlayer, renamePlayer, roster, saveDarts
 } from './screens/playerspanel.js';
+import { closeSection, listShown, openSection, renderSettings, sectShown, settingsView } from './screens/settings.js';
 
 export const $app = document.getElementById('app');
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -98,13 +99,6 @@ export const setDarts = v => { darts = v; };  // for screens/playerspanel.js
 export let setup = store.get('setup', { gameId: 'x01', players: [], opts: {} });
 // Sound starts off; once on, the visit's total is called, and each dart only if asked for.
 export let settings = store.get('settings', { voice: false });
-// A phone or a tablet (anything held upright, narrow or worked by touch), as style.css has it:
-// tabs along the bottom, and the settings as a list that opens a section at a time instead of tabs.
-const STACKED = matchMedia('(orientation: portrait), (max-width: 800px), (pointer: coarse)');
-// A tablet on its side has the room for both: the list down the left, the section beside it.
-const SPLIT = matchMedia('(pointer: coarse) and (orientation: landscape) and (min-width: 900px)');
-const listShown = () => STACKED.matches && (SPLIT.matches || !settingsOpen);  // is the settings' list on screen?
-const sectShown = id => settingsTab === id && (!STACKED.matches || SPLIT.matches || settingsOpen);  // and this section of them?
 let totals = store.get('totals', null);  // {darts, reports}: everything on the Pi, as it last said
 // home, on a phone: the step that is open ('game', 'options' or 'players'), or null for none.
 // Not chosen yet (undefined): none when somebody is down to play, so the menu opens as three
@@ -112,7 +106,7 @@ let totals = store.get('totals', null);  // {darts, reports}: everything on the 
 let homeStep;
 let stepMoved = false;  // a step has just been opened: bring it into view
 export let screen = match ? 'game' : 'home';
-export const setScreen = v => { screen = v; };  // for screens/cameras.js, screens/landing.js
+export const setScreen = v => { screen = v; };  // for screens/cameras.js, screens/landing.js, screens/settings.js
 export const MAX_PLAYERS = 6;
 
 // ---------- themes ----------
@@ -125,7 +119,7 @@ export const THEMES = [
   { id: 'sheet', name: 'League Scoresheet', blurb: 'A printed league-night scoresheet. Light.', bar: '#eadfc4' },
   { id: 'classic', name: 'Classic', blurb: 'Plain and dark, in the board\'s own colours.', bar: '#111111' },
 ];
-function applyTheme() {
+export function applyTheme() {
   const theme = THEMES.find(t => t.id === settings.theme) ?? THEMES[0];
   document.documentElement.className = 't-' + theme.id;
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', theme.bar);
@@ -167,9 +161,9 @@ const botUp = (s = compute(match)) => s.winner == null ? match.bots?.[s.current]
 // changed. At 0 there is no wait and no countdown: it throws as it does after its own dart.
 const BOT_WAIT = 2200;
 const BOT_PACE = 1200;
-const BOT_HOLD_MAX = 30;  // seconds
-const BOT_HOLD_USUAL = 8;
-function botHoldSecs() {
+export const BOT_HOLD_MAX = 30;  // seconds
+export const BOT_HOLD_USUAL = 8;
+export function botHoldSecs() {
   const n = Math.round(Number(settings.botHold ?? BOT_HOLD_USUAL));
   return Number.isFinite(n) ? Math.min(BOT_HOLD_MAX, Math.max(0, n)) : BOT_HOLD_USUAL;
 }
@@ -353,8 +347,8 @@ async function loadRelease(tries = 0) {
 // Where anybody using the app can get its source (the AGPL asks for this).
 export const SOURCE = 'https://github.com/SonicSamShop/darts-sam';
 // Settings → About: "Darts S.A.M version 1.2 (build 61, a140399)", and where the source is.
-const appRelease = () => appBuild?.release ?? release?.version ?? '';
-function aboutPanel() {
+export const appRelease = () => appBuild?.release ?? release?.version ?? '';
+export function aboutPanel() {
   const v = appRelease();
   const extra = [appBuild?.build != null && `build ${appBuild.build}`, appBuild?.commit].filter(Boolean).join(', ');
   return `<div class="settings">
@@ -451,34 +445,11 @@ export function refreshStatus() {
 // The device's own voice, or the app's built-in one where it has none (voice.js).
 // Which of the device's voices to use is kept on this device, not with the
 // other settings: another device won't have the same voices.
-const voice = createVoice({ chosen: store.get('voiceName', '') });
-// How long the computer waits after a person's visit before it throws: a drop-down of seconds.
-function botHoldPicker() {
-  const now = botHoldSecs();
-  return `<div class="picks"><label class="pick"><span>Bot waits before it throws</span><select data-bothold>
-      ${Array.from({ length: BOT_HOLD_MAX + 1 }, (_, n) =>
-    `<option value="${n}" ${n === now ? 'selected' : ''}>${n ? `${n} second${n > 1 ? 's' : ''}` : 'No wait'}${n === BOT_HOLD_USUAL ? ' Default' : ''}</option>`).join('')}</select></label></div>
-    <p class="muted small">Against the computer, the time you have after your visit to undo a wrongly scored dart before it throws.</p>`;
-}
-// Voices can be listed a moment after the page loads: show them once they are.
-globalThis.speechSynthesis?.addEventListener?.('voiceschanged', () => { if (screen === 'settings') renderSettings(); });
+export const voice = createVoice({ chosen: store.get('voiceName', '') });
 function say(text) {
   if (settings.voice) voice.say(text);
 }
 addEventListener('click', () => voice.unlock(), { capture: true, once: true });
-
-// Which voice calls the scores: the device's voices to choose from, or a word
-// on why it is quiet where the device has none.
-function voicePicker() {
-  if (voice.none()) return `<p class="muted small">This device has no voices of its own, so scores are not called aloud. Voices can be added in your device's speech settings.</p>`;
-  const names = voice.voices();
-  if (!names.length) return '';
-  const chosen = store.get('voiceName', '');
-  return `<div class="picks"><label class="pick"><span>Voice</span><select data-voicename>
-      <option value="" ${chosen ? '' : 'selected'}>Best available (${esc(names[0])})</option>
-      ${names.map(n => `<option value="${esc(n)}" ${n === chosen ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
-    <p class="muted small">Missing a voice? Natural-sounding ones can be added in your device's speech settings.</p>`;
-}
 
 // ---------- one screen, no scrolling ----------
 // Every view is laid out to fill the window. If one still doesn't fit (a small
@@ -586,7 +557,7 @@ let slips = [];     // earned and not yet shown: [{seat, top, also, at: the log'
 let slipTimer = 0;
 const SLIP_MS = 6000;
 const endedGames = [];  // games ended on this device since it was opened, as [{sheet, ids}]: the kept stats may not have them yet
-const achievementsOn = () => settings.achievements !== false;
+export const achievementsOn = () => settings.achievements !== false;
 const people = m => m.playerIds.filter((_, i) => m.bots?.[i] == null).length;
 // Where in a game's visits the one still being thrown is, or -1 between visits: a visit's total is judged when it is over.
 const openVisit = (s, sheet) => s.winner == null && s.turn.length && !s.turnOver ? sheet.visits.length - 1 : -1;
@@ -650,7 +621,7 @@ function achieved(before, sheetBefore, after, byCamera) {
 // first, once: until then photosOn() is null and none is taken.
 const PHOTO_WIDE = 1280, PHOTO_MOST = 400000, PHOTO_WAIT = 2000;
 export const photoUrl = (id, visit) => `/api/matches/${id}/photos/${visit}`;
-const photosOn = () => settings.photos ?? (account.hosted || phone.scoring() ? null : true);
+export const photosOn = () => settings.photos ?? (account.hosted || phone.scoring() ? null : true);
 const taken = new Map();  // pictures kept in this game: its address -> the log's length when it was taken
 let photoAsk = false;     // a picture would have been kept, had they been asked
 let photoBox = null;      // the question, while it is on screen
@@ -823,7 +794,7 @@ function quitGame(save) {
 // The detail of a screen (whose stats, how far a figure is opened up) is not
 // in the address. It rides along in the browser's history entry instead (see
 // place()), which is what back, forward and reload bring back.
-let depth = 0;  // how many history entries this screen is above the menu
+export let depth = 0;  // how many history entries this screen is above the menu
 const word = /^[\w-]+$/;
 const routeName = (gameId, opts) => gameId === 'x01' ? String(opts?.start ?? 501) : gameId;
 const gameUrl = (gameId, opts, id) => `#/${routeName(gameId, opts)}/${id}`;
@@ -842,12 +813,12 @@ function place() {
     const top = drill.at(-1), m = top?.v === 'match' && statsData && deep(statsData).matches.find(m => m.id === top.id);
     url = m ? gameUrl(m.game, m.opts, m.id) : '#/stats';
   }
-  if (screen === 'settings') { Object.assign(at, { settingsTab: settingsTab, settingsOpen: settingsOpen, fromList: fromList }); url = '#/settings'; }
+  if (screen === 'settings') { Object.assign(at, { settingsTab: settingsView.tab, settingsOpen: settingsView.open, fromList: settingsView.fromList }); url = '#/settings'; }
   if (screen === 'cameras') url = '#/cameras';
   return [at, '', url];
 }
 // Note where the app is now: as a new history entry (push), or in place of the current one.
-function mark(push) {
+export function mark(push) {
   if (screen === 'landing') return;  // the welcome page has no address: the one asked for is kept for after signing in
   if (screen === 'welcome') return;  // nor has the desktop app's first screen: opened again, it asks again
   if (push) depth++;
@@ -871,7 +842,7 @@ function show(at) {
   if (at.screen === 'game') return match?.id === at.id ? renderGame() : renderSheet(at.id, at.name);
   if (at.screen === 'players') {
     // (adding and editing players was once part of the stats: an entry from then finds them in the settings)
-    if (at.editing || at.statsTab === 'edit') { settingsTab = 'players'; return renderSettings(true); }
+    if (at.editing || at.statsTab === 'edit') { settingsView.tab = 'players'; return renderSettings(true); }
     if ('statsFor' in at) { statsFor = at.statsFor; statsGame = at.statsGame; statsTab = at.statsTab; }
     statsDarts = at.statsDarts ?? null;
     drill = (at.drill ?? []).map(level => ({ ...level }));
@@ -879,7 +850,7 @@ function show(at) {
   }
   // (the cameras were once a tab of the settings: a history entry from then still finds them)
   if (at.screen === 'cameras' || (at.screen === 'settings' && at.settingsTab === 'cams')) return renderCameras();
-  if (at.screen === 'settings') { settingsTab = at.settingsTab ?? settingsTab; settingsOpen = !!at.settingsOpen; fromList = !!at.fromList; return renderSettings(); }
+  if (at.screen === 'settings') { settingsView.tab = at.settingsTab ?? settingsView.tab; settingsView.open = !!at.settingsOpen; settingsView.fromList = !!at.fromList; return renderSettings(); }
   return renderHome();
 }
 // The app's own Menu and Back buttons take the same steps as the browser's.
@@ -940,7 +911,7 @@ function open(want) {
   mark(true);
 }
 
-function icon(d) {
+export function icon(d) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 }
 // ---------- getting about ----------
@@ -968,7 +939,7 @@ function goTo(place) {
   const deep = screen === 'home' || screen === 'sheet' || (screen === 'players' && drill.length > 0);
   if (place === 'players') { drill = []; renderPlayers(); }
   if (place === 'cameras') { camScreen.adding = false; camScreen.step = camScreen.note = ''; renderCameras(); }
-  if (place === 'settings') { settingsOpen = fromList = false; renderSettings(); }
+  if (place === 'settings') { settingsView.open = settingsView.fromList = false; renderSettings(); }
   mark(deep);
 }
 
@@ -1974,97 +1945,6 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.closest('.report input')) saveReport(); });
 
-// ---------- settings ----------
-// The settings are a handful of sections (SECTIONS below), all drawn every time;
-// style.css shows what belongs (as with the app's four places, see nav()):
-//  - on a computer, a row of tabs with one section on screen at a time;
-//  - on a phone, a list of the sections, each line saying how it is set. A tap
-//    opens that section by itself, with a way back to the list above it;
-//  - on a tablet on its side, the list down the left and the section beside it.
-// Every section is made of the same few parts: a line that opens something
-// (setRow), a switch for on or off (switchRow) and one of several to choose
-// (pickRow), each a whole line to tap.
-let settingsTab = '';      // the section on screen; '' until opened, then the first
-let settingsOpen = false;  // on a phone: a section is open, not the list
-let fromList = false;      // and it was opened from the list, which is the history entry under this one
-const chevron = icon('<path d="M9 5l7 7-7 7"/>'), tickMark = icon('<path d="M5 12.5l4.5 4.5L19 7.5"/>');
-const setRow = (id, name, value) => `<button class="srow ${settingsTab === id ? 'cur' : ''}" data-sopen="${id}">
-    <span><b>${name}</b>${value ? `<small>${value}</small>` : ''}</span><u>${chevron}</u></button>`;
-// attr: what a tap does (the data- attribute read by the click handler), written for the way it is not now.
-export const switchRow = (name, on, attr, hint = '') => `<button class="srow switchrow" role="switch" aria-checked="${on}" ${attr}>
-    <span><b>${name}</b>${hint ? `<small>${hint}</small>` : ''}</span><i class="switch"></i></button>`;
-const pickRow = (name, on, attr, hint = '') => `<button class="srow pickrow ${on ? 'on' : ''}" role="radio" aria-checked="${on}" ${attr}>
-    <span><b>${name}</b>${hint ? `<small>${hint}</small>` : ''}</span><u>${on ? tickMark : ''}</u></button>`;
-const canFeedBack = () => account.hosted ? !!account.account : !!share?.on;
-// jump: open the section asked for, for someone sent to it from elsewhere.
-export function renderSettings(jump) {
-  if (account.locked) return renderLanding();
-  if (jump) { settingsOpen = true; fromList = false; }
-  const was = screen === 'settings' ? document.querySelector('.setbody') : null;
-  screen = 'settings';
-  const theme = applyTheme();
-  const look = `<div class="settings"><div class="rows" role="radiogroup" aria-label="Theme">${THEMES.map(t =>
-    pickRow(t.name, t.id === theme.id, `data-theme="${t.id}"`, t.blurb)).join('')}</div></div>`;
-  const hints = settings.checkouts !== false;
-  const game = `<div class="settings"><div class="rows">
-    ${switchRow('Sound', settings.voice, `data-voice="${settings.voice ? 'off' : 'on'}"`, 'Calls each visit\'s total, busts, what you require and game shot.')}
-    ${settings.voice ? `${switchRow('Call each dart', !!settings.eachDart, `data-eachdart="${settings.eachDart ? 'off' : 'on'}"`, 'Say every dart as it lands too, not just the total. Cricket, Killer and the practice games call each dart anyway.')}
-    ${voicePicker()}` : ''}
-    ${switchRow('Checkout hints', hints, `data-checkouts="${hints ? 'off' : 'on'}"`, 'Switch off to practise working out your finishes yourself.')}
-    ${switchRow('Show achievements as they are earned', achievementsOn(), `data-achievements="${achievementsOn() ? 'off' : 'on'}"`, 'A first 180, a big finish and the like are shown, and called, as they happen. Off, they are still kept on the Stats page.')}
-    ${switchRow('Keep a picture of the board with an achievement', photosOn() === true, `data-photos="${photosOn() === true ? 'off' : 'on'}"`, 'When a camera scores the dart that earns one. Kept with your games and nowhere else, and deleted with the game.')}
-    ${switchRow('Show the bot\'s darts landing', settings.flight !== false, `data-flight="${settings.flight !== false ? 'off' : 'on'}"`, 'Against the computer, each of its darts flies in to where it lands on the board.')}
-    ${botHoldPicker()}
-    </div></div>`;
-  // [id, its name, its name on a tab, how it is set (the list says), the section]: in the list's groups
-  const groups = [
-    account.hosted && account.account ? [['acct', 'Account', 'Account', esc(account.account.nickname ?? ''), accountPanel()]] : [],
-    [['players', 'Players and darts', 'Players', esc(players.map(p => p.name).join(', ')) || 'Nobody yet', playersPanel()]],
-    [['look', 'Theme', 'Theme', theme.name, look],
-      ['game', 'In game', 'In game', `${settings.voice && !voice.none() ? `Sound on${settings.eachDart ? ', each dart' : ''}` : 'Sound off'} · ${hints ? 'checkout hints on' : 'checkout hints off'}`, game]],
-    [...(!account.hosted && share ? [['share', 'Sharing', 'Sharing', share.on ? 'On' : 'Off', sharePanel()]] : []),
-      ...(canFeedBack() ? [['feedback', 'Send feedback', 'Feedback', '', `<div class="settings">${feedbackBox()}</div>`]] : []),
-      ['about', 'About', 'About', appRelease() && `Version ${esc(appRelease())}`, aboutPanel()]],
-  ].filter(g => g.length);
-  const tabs = groups.flat();
-  if (settingsTab === 'darts') settingsTab = 'players';  // once a tab of their own
-  if (settingsTab === 'sound' || settingsTab === 'play') settingsTab = 'game';  // and these two, one each
-  if (!tabs.some(t => t[0] === settingsTab)) { settingsTab = tabs[0][0]; settingsOpen = false; }
-  const view = settingsOpen ? settingsTab : '';
-  $app.innerHTML = `<div class="page setpage ${settingsOpen ? 'insect' : 'atlist'}">
-    ${pageHead('settings')}
-    <div class="row tabs stabs">${tabs.map(([id, , name]) =>
-      `<button class="${settingsTab === id ? 'on' : ''}" data-stab="${id}">${name}</button>`).join('')}</div>
-    <div class="sethead"><button class="ghost sback" data-act="sback">${icon('<path d="M15 5l-7 7 7 7"/>')}Settings</button></div>
-    <div class="fill setbody" data-view="${view}">
-      <nav class="setlist" aria-label="Settings">${groups.map(g =>
-        `<div class="rows">${g.map(([id, name, , value]) => setRow(id, name, value)).join('')}</div>`).join('')}</nav>
-      <div class="setsects">${tabs.map(([id, name, , , html]) =>
-        `<section class="sect ${settingsTab === id ? 'on' : ''}"><h2>${name}</h2>${html}</section>`).join('')}</div>
-    </div>
-    ${pageFoot('settings')}
-  </div>`;
-  if (was?.dataset.view === view) document.querySelector('.setbody').scrollTop = was.scrollTop;  // a tap redraws: stay where it was
-  refreshStatus();
-  fit();
-}
-// A section opened from the list (on a phone, a step that Back undoes), and the way back to the list.
-function openSection(id) {
-  const step = STACKED.matches && !SPLIT.matches && !settingsOpen;
-  settingsTab = id;
-  settingsOpen = true;
-  if (step) fromList = true;
-  renderSettings();
-  mark(step);
-  if (step) document.querySelector('.sback')?.focus();
-}
-function closeSection() {
-  if (fromList && depth) return history.back();
-  settingsOpen = false;
-  renderSettings();
-  mark();
-}
-
 // ---------- the first time the desktop app is opened ----------
 // After the question about sharing (askShare(), which lies over this until it
 // is answered), one question to a screen: their name, which makes the first
@@ -2142,7 +2022,6 @@ function finishWelcome(camera) {
   open({ screen: camera ? 'cameras' : 'home' });
 }
 
-export const onAccountTab = () => screen === 'settings' && (sectShown('acct') || sectShown('share') || sectShown('feedback') || listShown());
 
 // ---------- events ----------
 $app.addEventListener('click', e => {
@@ -2202,7 +2081,7 @@ $app.addEventListener('click', e => {
     return mark();
   }
   if (d.nav) return goTo(d.nav);
-  if (d.stab) { settingsTab = d.stab; renderSettings(); return mark(); }
+  if (d.stab) { settingsView.tab = d.stab; renderSettings(); return mark(); }
   if (d.sopen) return openSection(d.sopen);
   if (d.camremove) return changeCameras('/cameras/remove', { name: d.camremove });
   if (d.camoff) return changeCameras('/cameras/enabled', { name: d.camoff, on: false });
@@ -2259,7 +2138,7 @@ $app.addEventListener('click', e => {
     case 'remove': return removePlayer(+d.id);
     // To the players' cards: with one player down to play theirs is open, and with nobody to list, the box for a name.
     case 'manageplayers':
-      settingsTab = 'players';
+      settingsView.tab = 'players';
       roster.open = setup.players.length === 1 ? setup.players[0] : null;
       roster.dartsForm = null;
       roster.adding = !players.length;
@@ -2286,7 +2165,7 @@ $app.addEventListener('click', e => {
     case 'resume': renderGame(); return mark(true);
     case 'quit': return askQuit();
     case 'home': return goHome();
-    case 'settings': settingsOpen = fromList = false; renderSettings(); return mark(true);
+    case 'settings': settingsView.open = settingsView.fromList = false; renderSettings(); return mark(true);
     case 'cameras': camScreen.adding = false; camScreen.step = camScreen.note = ''; renderCameras(); return mark(true);
     case 'camadd': camScreen.adding = true; camScreen.first = false; camScreen.step = camScreen.note = ''; return renderCameras();
     case 'camadd-done': camScreen.adding = false; camScreen.step = camScreen.note = ''; return renderCameras();
