@@ -10,10 +10,10 @@ the hosted version (host.py), where each account has a file of its own.
 from pathlib import Path
 from typing import Any, Callable
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
-from . import db
+from . import db, photos
 
 
 class Name(BaseModel):
@@ -130,7 +130,10 @@ def make_router(db_file: Callable[[Request], Path | None], reports: Callable[[],
     @router.delete("/api/matches/{match_id}")
     def delete_match(request: Request, match_id: str):
         with db.at(db_file(request)):
-            return {"ok": True, "deleted": db.delete_match(match_id)}
+            deleted = db.delete_match(match_id)
+            if deleted:
+                photos.drop(db.file(), match_id)  # its pictures go with it
+            return {"ok": True, "deleted": deleted}
 
     @router.get("/api/matches")
     def matches(request: Request, limit: int = 20):
@@ -148,5 +151,36 @@ def make_router(db_file: Callable[[Request], Path | None], reports: Callable[[],
         """One match, visit by visit: what the app shows at a match's own address."""
         with db.at(db_file(request)):
             return _db(db.match, match_id)
+
+    # A picture of the board, taken when a dart the cameras scored earned an achievement
+    # (photos.py). Only ever beside a game that is in this database: on the hosted site,
+    # the signed-in account's own.
+    def _photo(fn, *args):
+        try:
+            return fn(db.file(), *args)
+        except photos.Refused as e:
+            raise HTTPException(400, str(e))
+
+    @router.put("/api/matches/{match_id}/photos/{visit}")
+    async def put_photo(request: Request, match_id: str, visit: str):
+        body = await request.body()
+        with db.at(db_file(request)):
+            if not db.has_match(match_id):
+                raise HTTPException(404, "no such match")
+            _photo(photos.save, match_id, visit, body)
+            return {"ok": True}
+
+    @router.get("/api/matches/{match_id}/photos/{visit}")
+    def get_photo(request: Request, match_id: str, visit: str):
+        with db.at(db_file(request)):
+            body = _photo(photos.read, match_id, visit)
+        if body is None:
+            raise HTTPException(404, "no picture")
+        return Response(body, media_type="image/jpeg", headers={"Cache-Control": "private, no-cache"})
+
+    @router.delete("/api/matches/{match_id}/photos/{visit}")
+    def delete_photo(request: Request, match_id: str, visit: str):
+        with db.at(db_file(request)):
+            return {"ok": True, "deleted": _photo(photos.drop, match_id, visit)}
 
     return router

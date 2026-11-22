@@ -108,6 +108,11 @@ def at(path: Path | None):
         _file.reset(token)
 
 
+def file() -> Path:
+    """The database every function here is working on now."""
+    return _file.get() or DB_PATH
+
+
 @contextmanager
 def connect():
     db = sqlite3.connect(_file.get() or DB_PATH, timeout=10)
@@ -345,6 +350,11 @@ def save_match(match_id: str, m: dict) -> bool:
             [(match_id, ids[t["player"]], t["round"], t["seg"], t["mult"], t.get("x"), t.get("y"),
               t.get("src"), int(bool(t.get("bust"))), t.get("ts")) for t in m["throws"]])
     return True
+
+
+def has_match(match_id: str) -> bool:
+    with connect() as db:
+        return db.execute("SELECT 1 FROM matches WHERE id = ?", (match_id,)).fetchone() is not None
 
 
 def match_seqs() -> dict[str, int]:
