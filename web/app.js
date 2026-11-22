@@ -235,8 +235,8 @@ export function redraw(draw) {
 // Stats are worked out on the Pi. Each answer is kept on this device, so the
 // last known stats can still be shown when the Pi can't be reached.
 export const shelf = () => window.caches ? caches.open('dartssam-data') : Promise.reject();
-export const statsPath = (id, game, set) => `/players/${id}/stats${
-  game || set ? `?${new URLSearchParams({ ...(game && { game }), ...(set && { darts: set }) })}` : ''}`;
+export const statsPath = (id, game, set, board) => `/players/${id}/stats${
+  game || set || board ? `?${new URLSearchParams({ ...(game && { game }), ...(set && { darts: set }), ...(board && { board }) })}` : ''}`;
 async function freshStats(path, timeout) {
   const fresh = await api(path, 'GET', undefined, timeout);
   shelf().then(c => c.put('/api' + path, new Response(JSON.stringify({ ...fresh, saved: Date.now() })))).catch(() => {});
@@ -394,7 +394,7 @@ function place() {
     url = sheet.m ? gameUrl(sheet.m.game, sheet.m.opts, sheet.id) : `#/${sheet.name}/${sheet.id}`;
   }
   if (screen === 'players') {
-    Object.assign(at, { statsFor: statsView.player, statsGame: statsView.game, statsDarts: statsView.darts, statsTab: statsView.tab, drill: statsView.drill });
+    Object.assign(at, { statsFor: statsView.player, statsGame: statsView.game, statsDarts: statsView.darts, statsBoard: statsView.board, statsTab: statsView.tab, drill: statsView.drill });
     // A scoresheet reached through the stats has the game's own address too.
     const top = statsView.drill.at(-1), m = top?.v === 'match' && statsData && deep(statsData).matches.find(m => m.id === top.id);
     url = m ? gameUrl(m.game, m.opts, m.id) : '#/stats';
@@ -431,6 +431,7 @@ function show(at) {
     if (at.editing || at.statsTab === 'edit') { settingsView.tab = 'players'; return renderSettings(true); }
     if ('statsFor' in at) { statsView.player = at.statsFor; statsView.game = at.statsGame; statsView.tab = at.statsTab; }
     statsView.darts = at.statsDarts ?? null;
+    statsView.board = at.statsBoard ?? null;
     statsView.drill = (at.drill ?? []).map(level => ({ ...level }));
     return renderPlayers();
   }
@@ -533,7 +534,7 @@ function goTo(place) {
 $app.addEventListener('click', e => {
   const camview = e.target.closest('.camview');
   if (camview && e.target.tagName === 'IMG') return calibTap(+camview.dataset.cam, e.target, e);
-  const b = e.target.closest('button, a[data-act], [data-drill], [data-sort], [data-sheet], [data-gear], [data-slip]');  // tiles and lines can be tapped too
+  const b = e.target.closest('button, a[data-act], [data-drill], [data-sort], [data-sheet], [data-gear], [data-onboard], [data-slip]');  // tiles and lines can be tapped too
   if (!b) return;
   if (b.tagName === 'A') e.preventDefault();  // a link that does something on this page instead (see siteHead)
   const d = b.dataset;
@@ -566,6 +567,7 @@ $app.addEventListener('click', e => {
   if (d.opt) { setup.opts[d.opt] = JSON.parse(d.val); saveSetup(); return renderHome(); }
   if (d.usedarts) { setup.darts = { ...setup.darts, [d.usedarts]: d.set }; saveSetup(); return renderHome(); }
   if (d.gear !== undefined) { statsView.darts = d.gear || null; statsView.drill = []; statsView.tab = 'stats'; renderPlayers(); return mark(); }
+  if (d.onboard !== undefined) { statsView.board = d.onboard || null; statsView.drill = []; statsView.tab = 'stats'; renderPlayers(); return mark(); }
   if (d.pick) {
     const id = +d.pick, at = setup.players.indexOf(id);
     if (at >= 0) setup.players.splice(at, 1);
@@ -751,6 +753,7 @@ $app.addEventListener('change', e => {
   statsView.drill = [];
   if (choose === 'game') statsView.game = e.target.value || null;
   if (choose === 'darts') statsView.darts = e.target.value || null;
+  if (choose === 'board') statsView.board = e.target.value || null;
   if (choose === 'player') statsView.darts = null;  // sets belong to one player
   renderPlayers(choose === 'player' ? +e.target.value : statsView.player);
   mark();

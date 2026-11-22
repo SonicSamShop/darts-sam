@@ -7,7 +7,7 @@
 // out from the history the Pi sends.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith, setsSideBySide } from '../web/stats.js';
+import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith, setsSideBySide, boardsSideBySide } from '../web/stats.js';
 
 const T20 = 203, S20 = 201, D20 = 202, D16 = 162, S1 = 11, MISS = 0;
 const match = (id, visits, more = {}) => ({
@@ -135,4 +135,12 @@ test('sets of darts side by side: each set\'s figures, once there are enough dar
   assert.equal(r.trebles, 8 / 12 * 100);
   assert.deepEqual(r.need, { average: 0, checkout: 0, trebles: 0 });
   assert.deepEqual(setsSideBySide([]), new Map());
+});
+
+test('boards side by side: the same figures, grouped by the board each game was on', () => {
+  const side = boardsSideBySide([{ ...quick, board: 'old', darts: 'red' }, { ...lost, board: 'new', darts: 'red' }]);
+  assert.deepEqual([...side.keys()], ['old', 'new']);
+  assert.equal(side.get('old').x01Darts, 12);
+  assert.equal(side.get('new').x01Darts, 6);
+  assert.equal(side.get('old').average, null);  // not enough yet, as for sets
 });

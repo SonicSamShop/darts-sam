@@ -43,7 +43,7 @@ function askDate(b) {
     <label class="dateask"><span>${putup ? 'It went up on' : 'Played on it until'}</span>
       <input type="date" id="bdate" value="${today()}" max="${today()}"></label>
     <p class="muted small">${putup
-      ? `Games from that day on${was ? ` that were on ${esc(was)}` : ''} move to ${esc(boardName(b, boards))}. Today, and nothing moves but today's games.`
+      ? `Games from that day on${was ? ` that were on ${esc(was)}` : ''} move to ${esc(boardName(b, boards))}.`
       : `Every game from before that day moves to ${esc(boardName(b, boards))}, whichever board it was on.`}</p>
     <div class="row"><button class="primary" data-act="${putup ? 'putup' : 'playedbefore'}" data-id="${esc(b.id)}">${putup ? 'Put it up' : 'Move those games'}</button>
       <button class="ghost" data-act="closeask">Cancel</button></div></div>`;

@@ -138,10 +138,13 @@ export const ENOUGH = { average: 300, checkout: 50, trebles: 300 };
 //   need                  for each of average, checkout and trebles: how many more
 //                         darts until it can be shown (0: it can)
 // The average, checkout rate (%) and trebles (%) are null until there are ENOUGH.
-export function setsSideBySide(matches) {
+// boardsSideBySide is the same, by the board each game was played on (m.board).
+export const setsSideBySide = matches => sideBySide(matches, m => m.darts);
+export const boardsSideBySide = matches => sideBySide(matches, m => m.board);
+function sideBySide(matches, keyOf) {
   const groups = new Map();
   for (const m of matches) {
-    const key = m.darts ?? null;
+    const key = keyOf(m) ?? null;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(m);
   }

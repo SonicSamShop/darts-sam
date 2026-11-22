@@ -42,7 +42,7 @@ button.ghost { background: none; }
 button.on { border-color: var(--accent); color: var(--accent); }
 button.danger { color: var(--warn); }
 button:disabled { opacity: .4; }
-:is(input[type=text], input[type=number]) {
+:is(input[type=text], input[type=number], input[type=date]) {
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--round);
   padding: 12px 14px; min-height: 48px; width: 100%; -webkit-user-select: text; user-select: text;
 }
@@ -384,7 +384,7 @@ svg.heat .b-num { fill: #d9dce3; }
 @media (max-width: 600px), (max-height: 600px) {
   .page { padding: 12px; }
   h2 { margin: 12px 0 6px; }
-  button, :is(input[type=text], input[type=number]) { min-height: 42px; padding-top: 8px; padding-bottom: 8px; }
+  button, :is(input[type=text], input[type=number], input[type=date]) { min-height: 42px; padding-top: 8px; padding-bottom: 8px; }
   .pick .games { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; }
   .pick .game-card { padding: 8px 10px; }
   .page .pick .game-card b { font-size: 17px; }  /* .page: outranks the themes' bigger lettering */
@@ -824,3 +824,9 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 
 /* Throwing for the bull (renderBull in screens/start.js): how far out each dart was */
 .bullup .pcard .big small { font-size: .4em; font-weight: 600; color: var(--muted); }
+/* Settings › Boards: the day a board went up, or was last played on */
+.dateask { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.dateask input { flex: 0 1 200px; min-width: 0; }
+input[type=date] { color-scheme: dark; }
+.t-sheet input[type=date] { color-scheme: light; }
+.boards { padding-top: 22px; }

@@ -44,7 +44,7 @@
 .t-stage button, .t-stage select { border-width: 2px; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .t-stage button.primary { background: var(--text); border-color: var(--text); }
 .t-stage button.on { border-color: var(--accent); }
-.t-stage :is(input[type=text], input[type=number]), .t-stage .tile, .t-stage .banner, .t-stage table.cricket { border-radius: 0; }
+.t-stage :is(input[type=text], input[type=number], input[type=date]), .t-stage .tile, .t-stage .banner, .t-stage table.cricket { border-radius: 0; }
 .t-stage .chip i { border-radius: 0; }
 .t-stage .camstate, .t-stage .camoff { border-radius: 0; }
 .t-stage .game-card b { font-family: var(--display); font-weight: 400; font-size: 26px; }
@@ -201,8 +201,8 @@
 .t-chalk button.ghost { background: none; text-decoration: underline; text-underline-offset: 4px; }
 .t-chalk .tabs button { white-space: nowrap; }
 /* somewhere to write: a ruled line on the board, gold while it is being written on */
-.t-chalk :is(input[type=text], input[type=number]) { background: none; border: 0; border-bottom: 2px solid var(--line); border-radius: 0; padding-left: 4px; padding-right: 4px; }
-.t-chalk :is(input[type=text], input[type=number]):focus { border-bottom-color: var(--accent); outline: none; }
+.t-chalk :is(input[type=text], input[type=number], input[type=date]) { background: none; border: 0; border-bottom: 2px solid var(--line); border-radius: 0; padding-left: 4px; padding-right: 4px; }
+.t-chalk :is(input[type=text], input[type=number], input[type=date]):focus { border-bottom-color: var(--accent); outline: none; }
 .t-chalk .opt > span { color: var(--text); }
 .t-chalk .tile { border-bottom-color: var(--hair); }
 .t-chalk .camstate, .t-chalk .camoff { background: var(--sunk); border: 0; border-radius: var(--wobble); }  /* cut in: their buttons stand proud */
@@ -279,7 +279,7 @@
 .t-arcade button.primary { background: #e3271f; border-color: #7d0f0a; color: #fff; font-weight: 400; }
 .t-arcade button.on { border-color: var(--accent); box-shadow: 0 4px 0 #000, 0 0 12px rgba(56, 242, 107, .4); }
 .t-arcade button.ghost { background: var(--panel2); }
-.t-arcade :is(input[type=text], input[type=number]) {
+.t-arcade :is(input[type=text], input[type=number], input[type=date]) {
   background: #050505; border: 3px solid var(--line); border-radius: 8px; box-shadow: var(--led);
   font: 26px/1 var(--display); color: var(--gold); text-transform: none;
 }
@@ -355,7 +355,7 @@
 .t-sheet .game-card.on b { color: var(--bg); }
 .t-sheet .game-card.on span { color: #d8ccb0; }
 .t-sheet .chip i { background: var(--bg); color: var(--text); border-radius: 0; line-height: 24px; }
-.t-sheet :is(input[type=text], input[type=number]) { background: none; border: 2px solid var(--text); border-radius: 0; font-family: var(--type); font-weight: 400; }
+.t-sheet :is(input[type=text], input[type=number], input[type=date]) { background: none; border: 2px solid var(--text); border-radius: 0; font-family: var(--type); font-weight: 400; }
 .t-sheet .banner { border: 2px solid var(--text); }
 .t-sheet .tile { border-bottom: 1px solid var(--text); }
 .t-sheet .tile b { font-weight: 800; }
