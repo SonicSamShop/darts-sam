@@ -82,7 +82,8 @@ It must run without OpenCV installed (`requirements-host.txt`).
 
 | File | What it does |
 |---|---|
-| `app.js` | Every screen, and the events between them. The biggest file by far. |
+| `app.js` | The screens not yet moved out (the menu, a game, stats, settings), the events between all of them, and what they share. Still the biggest file by far. |
+| `screens/*.js` | Screens moved out of `app.js`, one module each: `cameras.js` (the Cameras screen, calibrating, pairing), `landing.js` (the welcome page, signing in), `achievements.js` (the Achievements tab), `accountpanel.js` and `sharing.js` (two sections of Settings). Each imports what it needs from `app.js`. What `app.js`'s click handler changes in one of them is a property of an object it exports (`camScreen.note`, `pairing.code`), since a module can't assign to an imported variable; the two `app.js` values a screen sets (the screen shown, how many cameras score) go through `setScreen` and `setCameraCount`. A screen module uses `app.js`'s values only once the app is running, never while it is first loaded: it is loaded before `app.js`'s own code runs. |
 | `engine.js` | A match is `{gameId, players, opts, log}`; the state is always worked out by replaying the log, which makes Undo "drop the last entry". |
 | `games/*.js` | One small module per game, match games (X01, Cricket, Killer) and training games alike; `games/index.js` lists them. |
 | `board.js` | The board's geometry again, and the board you tap. |
