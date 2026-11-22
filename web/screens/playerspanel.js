@@ -6,8 +6,8 @@
 // of darts, removing them), and the box for a new player, which the menu has too.
 
 import {
-  MAX_PLAYERS, cleanSetup, darts, data, esc, grams, loadPlayers, nameOf, players, saveSetup, screen, setDarts,
-  setsOf, setup, store
+  MAX_PLAYERS, cleanSetup, data, esc, grams, loadPlayers, nameOf, players, saveSetup, screen, setDarts, setsOf,
+  setup, store
 } from '../app.js';
 import { renderHome } from './home.js';
 import { renderSettings } from './settings.js';

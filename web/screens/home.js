@@ -18,14 +18,14 @@ import {
   setup, statsPath, store, totals, updater
 } from '../app.js';
 
-// home, on a phone: the step that is open ('game', 'options' or 'players'), or null for none.
-// Not chosen yet (undefined): none when somebody is down to play, so the menu opens as three
-// lines and Start, and otherwise the players.
+// What is open on the menu. step: on a phone, the step that is open ('game', 'options' or
+// 'players'), or null for none. Not chosen yet (undefined): none when somebody is down to
+// play, so the menu opens as three lines and Start, and otherwise the players.
 export const menu = {
   step: undefined,
   stepMoved: false,  // a step has just been opened: bring it into view
-  optHelp: null,
-  rulesOpen: false,
+  optHelp: null,  // the option whose "?" is open: its line saying what the chosen setting means shows under it
+  rulesOpen: false,  // How to play (see loadRules)
   rules: null,  // rules: {gameId: section html} once read, {} if it couldn't be
   rulesMoved: false,  // they have just been opened, or have just arrived: bring them into view
 };
@@ -116,7 +116,6 @@ export function renderHome() {
   fit();
   if (roster.adding) document.getElementById('newplayer')?.focus();
 }
-// The option whose "?" is open: its line saying what the chosen setting means shows under it.
 // "How to play" the chosen game, opened on the menu like an option's "?". The rules are
 // web/rules.html's section for the game (its id), read once and kept, so the page and the
 // menu say the same thing and it works offline (sw.js keeps the page).

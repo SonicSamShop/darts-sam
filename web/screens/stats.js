@@ -99,8 +99,8 @@ function x01Tiles(s, only) {
 // ---------- opening up the stats ----------
 // Tapping a figure shows what it was counted from, and tapping a line of that
 // goes further: 140+ -> every visit of 140 or more and when it was thrown ->
-// the scoresheet of the leg it was thrown in. `drill` is how far down the
-// screen is: one entry per level, the last one being what is shown.
+// the scoresheet of the leg it was thrown in. `statsView.drill` is how far
+// down the screen is: one entry per level, the last one being what is shown.
 //   {v: 'tile', key}       an X01 tile's visits, legs or doubles
 //   {v: 'double', aim}     the visits with a dart at one double
 //   {v: 'numbers'}         how often each number was hit

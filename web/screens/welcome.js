@@ -7,9 +7,7 @@
 
 import { shareAsk } from './sharing.js';
 import { camScreen } from './cameras.js';
-import {
-  $app, account, begin, data, esc, fit, loadPlayers, open, saveSetup, screen, setScreen, setup, store
-} from '../app.js';
+import { $app, account, begin, data, esc, fit, loadPlayers, open, saveSetup, setScreen, setup, store } from '../app.js';
 
 // ---------- the first time the desktop app is opened ----------
 // After the question about sharing (askShare(), which lies over this until it

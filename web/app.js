@@ -3,44 +3,32 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { GAMES } from './games/index.js';
-import { gameById, canStart, needsMore, newMatch, compute, elapsed, clock, timeSpent, previousVisit } from './engine.js';
-import { buildBoard, label, spoken, value, bullUp, bullMm } from './board.js';
-import { createSync, matchSheet } from './sync.js';
+import { gameById, compute } from './engine.js';
+import { createSync } from './sync.js';
 import { createUpdater } from './update.js';
 import { request } from './api.js';
 import { createAccount } from './account.js';
 import { createTracker } from './track.js';
 import { createVoice } from './voice.js';
-import { LEVELS, botLevel, levelFor, throwAt } from './bot.js';
+import { botLevel } from './bot.js';
 import { createPhoneUi } from './phoneui.js';
-import { X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith } from './stats.js';
-import { ACHIEVEMENTS, GROUPS, byId, held, newly, chief, add, tally as gameTally, totalOf, timeline, visitOf, standing, earnedBy } from './achievements.js';
-import {
-  deleteShared, loadShare, openDetail, setShare, share, shareAsk, sharePanel, sharing
-} from './screens/sharing.js';
-import { accountDo, accountPanel, acct, feedbackBox, sendFeedback } from './screens/accountpanel.js';
+import { deleteShared, loadShare, openDetail, setShare, share, sharing } from './screens/sharing.js';
+import { accountDo, acct, sendFeedback } from './screens/accountpanel.js';
 import {
   addCamera, autoCalibrate, calibTap, calibrateOnStart, camScreen, camStatus, changeCameras, drawCameras, linkDo,
   pairCameras, pairing, refreshCameras, renderCameras, resetDetection, unpairCameras, usbChosen
 } from './screens/cameras.js';
 import { appleSignIn, landing, mailTo, renderLanding, sendCode, signIn } from './screens/landing.js';
-import { achTab, achievementView, achievementsPane } from './screens/achievements.js';
 import {
-  addDarts, addPlayer, changeDarts, newPlayerRow, playersPanel, removePlayer, renamePlayer, roster, saveDarts
+  addDarts, addPlayer, changeDarts, removePlayer, renamePlayer, roster, saveDarts
 } from './screens/playerspanel.js';
 import { closeSection, listShown, openSection, renderSettings, sectShown, settingsView } from './screens/settings.js';
 import { loadRelease } from './screens/release.js';
-import { deep, drawPlayers, pct, renderPlayers, renderSheet, sheet, statsData, statsView } from './screens/stats.js';
+import { deep, drawPlayers, renderPlayers, renderSheet, sheet, statsData, statsView } from './screens/stats.js';
+import { avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, renderHome } from './screens/home.js';
+import { slipTapped } from './screens/earned.js';
 import {
-  avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, renderHome, startOpts
-} from './screens/home.js';
-import {
-  achieved, achievementsOn, askPhotos, bases, dropPictures, dropSlips, earnedLine, endedHere, forgetEnded,
-  loadBases, photoAsk, photosOn, slipHtml, slipTapped
-} from './screens/earned.js';
-import {
-  BOT_WAIT, askQuit, botThrow, botTimer, botUp, closeQuit, gameBoard, numPad, padCommit, padKey, push,
-  renderGame, undo
+  askQuit, botThrow, botTimer, botUp, closeQuit, numPad, padCommit, padKey, push, renderGame, undo
 } from './screens/game.js';
 import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, renderBull, startMatch
@@ -112,7 +100,7 @@ export function loadPlayers() {
   bots = all.filter(p => p.bot);
 }
 loadPlayers();
-export let darts = store.get('darts', []);  // every player's sets of darts: [{id, player, name, grams, created, retired}]
+let darts = store.get('darts', []);  // every player's sets of darts: [{id, player, name, grams, created, retired}]
 export const setDarts = v => { darts = v; };  // for screens/playerspanel.js
 // players: ids in throwing order. darts: {player id: the set of darts they are throwing}
 export let setup = store.get('setup', { gameId: 'x01', players: [], opts: {} });
@@ -121,7 +109,7 @@ export let settings = store.get('settings', { voice: false });
 export let totals = store.get('totals', null);  // {darts, reports}: everything on the Pi, as it last said
 export const setTotals = v => { totals = v; };  // for screens/home.js
 export let screen = match ? 'game' : 'home';
-export const setScreen = v => { screen = v; };  // for screens/cameras.js, screens/landing.js, screens/settings.js, screens/stats.js, screens/home.js, screens/game.js, screens/start.js, screens/welcome.js
+export const setScreen = v => { screen = v; };  // for screens/*.js: each sets its own
 export const MAX_PLAYERS = 6;
 
 // ---------- themes ----------
@@ -293,6 +281,7 @@ if (location.host) fetch('version.json').then(r => r.ok ? r.json() : null)
 
 // Where anybody using the app can get its source (the AGPL asks for this).
 export const SOURCE = 'https://github.com/SonicSamShop/darts-sam';
+
 // ---------- link to the Pi ----------
 export let liveLine = null;
 function connect() {
