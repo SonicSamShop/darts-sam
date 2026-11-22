@@ -46,6 +46,7 @@ import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, renderBull, startMatch
 } from './screens/start.js';
 import { reportProblem } from './screens/report.js';
+import { finishWelcome, nameDue, renderWelcome, welcomeDue, welcomeForm, welcomeNamed } from './screens/welcome.js';
 
 export const $app = document.getElementById('app');
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -120,7 +121,7 @@ export let settings = store.get('settings', { voice: false });
 export let totals = store.get('totals', null);  // {darts, reports}: everything on the Pi, as it last said
 export const setTotals = v => { totals = v; };  // for screens/home.js
 export let screen = match ? 'game' : 'home';
-export const setScreen = v => { screen = v; };  // for screens/cameras.js, screens/landing.js, screens/settings.js, screens/stats.js, screens/home.js, screens/game.js, screens/start.js
+export const setScreen = v => { screen = v; };  // for screens/cameras.js, screens/landing.js, screens/settings.js, screens/stats.js, screens/home.js, screens/game.js, screens/start.js, screens/welcome.js
 export const MAX_PLAYERS = 6;
 
 // ---------- themes ----------
@@ -471,7 +472,7 @@ addEventListener('popstate', e => {
 // The first time, that program's owner is asked who they are and whether they
 // have a camera (see "the first time the desktop app is opened"). Someone who
 // has just signed up on the hosted site is asked about the camera too.
-function begin() {
+export function begin() {
   if (account.locked) return renderLanding();
   if (welcomeDue() || nameDue()) return renderWelcome();
   if (history.state?.screen) { depth = history.state.depth ?? 0; return show(history.state); }
@@ -490,7 +491,7 @@ async function beginDesktop() {
 }
 const camerasReady = () => account.hosted ? Promise.resolve(true)
   : api('/status', 'GET', undefined, 3000).then(s => s.cameras.some(c => c.points), () => true);
-function open(want) {
+export function open(want) {
   if (account.locked) return renderLanding();
   if (want.screen === 'home' && match) want = { screen: 'game', id: match.id };
   screen = 'home';
@@ -531,84 +532,6 @@ function goTo(place) {
   if (place === 'settings') { settingsView.open = settingsView.fromList = false; renderSettings(); }
   mark(deep);
 }
-
-// ---------- the first time the desktop app is opened ----------
-// After the question about sharing (askShare(), which lies over this until it
-// is answered), one question to a screen: their name, which makes the first
-// player, then whether they have a camera. With one they go on to choose which
-// kind (the cameras' own first step); without, to the menu.
-// The hosted site asks the second question only, of someone who has just signed
-// up (signing up gave their name and made their player): with a camera they go
-// on to connect the computer it is plugged into (hostedCameras()), and from
-// there to the same choice of which kind. Until it is answered it is asked
-// again each time the app is opened on this device. Signing up by email gives
-// no name: then their name is asked first (nameDue), and the account and its
-// player take it.
-const welcomeDue = () => account.hosted && !!account.account && store.get('newcomer', null) === account.account.id;
-const nameDue = () => account.hosted && !!account.account && store.get('unnamed', null) === account.account.id;
-let welcomeName = '';  // their name, once given
-let welcomeNote = '';  // why it was refused
-let welcomeStep = '';  // '' their name, then 'camera'
-export function renderWelcome() {
-  screen = 'welcome';
-  const hosted = welcomeDue();
-  const step = !nameDue() && (hosted || welcomeStep === 'camera') ? `<b class="camlead">${hosted ? 'Welcome to Darts S.A.M' : 'Will you use a camera?'}</b>
-    ${hosted ? '<p>Will you use a camera?</p>' : ''}
-    <p class="dim">Darts S.A.M scores by itself with a camera pointed at the board.</p>
-    ${welcomeNote ? `<p class="warn">${esc(welcomeNote)}</p>` : ''}
-    <div class="camkinds">
-      <button class="game-card" data-act="welcome-cam"><b>Yes, set one up</b></button>
-      <button class="game-card" data-act="welcome-nocam"><b>No, I'll tap the board</b></button>
-    </div>`
-    : `<b class="camlead">Welcome to Darts S.A.M</b>
-    <p class="dim"><label for="welcome-name">What's your name?</label></p>
-    <div class="row camadd"><input type="text" id="welcome-name" maxlength="16" autocomplete="off" value="${esc(welcomeName)}">
-      <button class="primary" data-act="welcome-name">Continue</button></div>
-    ${welcomeNote ? `<p class="warn">${esc(welcomeNote)}</p>` : ''}`;
-  $app.innerHTML = `<div class="page"><div class="camsetup fill">
-    ${welcomeStep && !hosted ? '<div class="row"><button class="ghost" data-act="welcome-back">‹ Back</button></div>' : ''}
-    <div class="camwizard">${step}</div></div></div>`;
-  fit();
-  if (!shareAsk) document.getElementById('welcome-name')?.focus();
-}
-function welcomeNamed() {
-  welcomeName = document.getElementById('welcome-name').value.trim();
-  welcomeNote = welcomeName ? '' : 'Type your name first.';
-  if (welcomeName && nameDue()) return nameAccount();
-  if (welcomeName) welcomeStep = 'camera';
-  renderWelcome();
-}
-// Hosted, signed up by email: the account and its player take the name given.
-async function nameAccount() {
-  document.querySelector('[data-act="welcome-name"]').disabled = true;
-  try {
-    await account.rename(welcomeName, true);
-  } catch (e) {
-    welcomeNote = e.status ? e.message : 'Could not reach the site. Try again.';
-    return renderWelcome();
-  }
-  store.set('unnamed', null);
-  welcomeName = '';
-  data.sync(true);  // their player's new name comes down
-  begin();          // the camera question, or the cameras when they came by their link
-}
-function finishWelcome(camera) {
-  if (welcomeDue()) store.set('newcomer', null);  // answered; their player came with the account (see synced())
-  else try {
-    const p = data.addPlayer(welcomeName);
-    loadPlayers();
-    setup.players = [p.id];  // ready to throw
-    saveSetup();
-  } catch (e) {
-    welcomeNote = e.message;
-    return renderWelcome();
-  }
-  if (!account.hosted) store.set('welcomed', { camera });
-  // Which kind of camera is asked first, even when one (a laptop's own, say) has been found already.
-  camScreen.adding = camScreen.first = camera; camScreen.step = camScreen.note = '';
-  open({ screen: camera ? 'cameras' : 'home' });
-}
-
 
 // ---------- events ----------
 $app.addEventListener('click', e => {
@@ -759,7 +682,7 @@ $app.addEventListener('click', e => {
     case 'cam-step': camScreen.step = camScreen.note = ''; return renderCameras();
     case 'cam-usb': return usbChosen();
     case 'welcome-name': return welcomeNamed();
-    case 'welcome-back': welcomeStep = welcomeNote = ''; return renderWelcome();
+    case 'welcome-back': welcomeForm.step = welcomeForm.note = ''; return renderWelcome();
     case 'welcome-cam': return finishWelcome(true);
     case 'welcome-nocam': return finishWelcome(false);
     case 'cam-phone': camScreen.step = 'phone'; camScreen.note = ''; renderCameras().then(() => document.getElementById('cam-address')?.focus()); return;

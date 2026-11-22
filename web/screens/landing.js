@@ -7,9 +7,8 @@
 
 import { GAMES } from '../games/index.js';
 import { camScreen, pairing } from './cameras.js';
-import {
-  $app, SOURCE, THEMES, account, data, esc, liveLine, renderWelcome, screen, setScreen, store, tracker
-} from '../app.js';
+import { $app, SOURCE, THEMES, account, data, esc, liveLine, screen, setScreen, store, tracker } from '../app.js';
+import { renderWelcome } from './welcome.js';
 
 // ---------- the welcome page ----------
 // The hosted version with nobody signed in (account.locked): what the app is,
