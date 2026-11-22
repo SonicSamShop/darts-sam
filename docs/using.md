@@ -37,6 +37,12 @@ account has a database of its own instead.
   darts**, pick which you
   are throwing on the Play screen, and see how much each set has been thrown
   and its stats on their own.
+- **Achievements:** a first game of each kind, a first 180, a 170 finish and
+  the like are shown and called as they happen, and listed for each player
+  under **Stats › Achievements** with the game each was earned in. They are
+  worked out from the games on record, never stored: a game that is thrown
+  away takes what was earned in it with it. **Settings › In a game** turns
+  the showing off.
 - **Stats:** **Stats** has a page for all games together and one for
   each game type, with that game's own averages (X01 and Count Up: 3-dart
   average; Cricket: marks per round; Around the Clock: hit rate and darts to

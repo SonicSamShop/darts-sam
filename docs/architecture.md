@@ -87,6 +87,7 @@ It must run without OpenCV installed (`requirements-host.txt`).
 | `board.js` | The board's geometry again, and the board you tap. |
 | `sync.js` | Saved data, offline first: written to the device at once, queued, and sent when the server can be reached. |
 | `stats.js` | The deep stats, counted on the device from the history the server sends. |
+| `achievements.js` | Achievements (a first 180, a 170 finish): none is stored, each is worked out from that same history, and from the game in progress after every dart. |
 | `account.js`, `track.js` | The hosted version: who is signed in, and its notes on how the app is used. |
 | `voice.js` | Calling the scores in the device's own voice. |
 | `phoneui.js`, `phonecam.js`, `vision-worker.js`, `ask.js` | A phone scoring with its own camera (Beta): its screen; the camera and the frames; Python (Pyodide, from `vision/pyodide/`, put there by `tools/fetch_pyodide.py`) running `server/`'s vision files in the browser, served at `/vision/py/`; and asking **Which bed?** when it isn't sure. Nothing leaves the phone. |
