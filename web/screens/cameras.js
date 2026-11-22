@@ -7,8 +7,9 @@
 
 import {
   $app, account, api, call, cameraCount, data, esc, fit, helperLinked, pageFoot, pageHead, phone, refreshStatus,
-  renderLanding, screen, setCameraCount, setScreen, settings, switchRow, tracker
+  screen, setCameraCount, setScreen, settings, switchRow, tracker
 } from '../app.js';
+import { renderLanding } from './landing.js';
 
 // ---------- cameras & calibration ----------
 // A screen of its own. One camera is shown at a time: its picture, and beside
