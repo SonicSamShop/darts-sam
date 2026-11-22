@@ -33,8 +33,8 @@ account has a database of its own instead.
   scored, so your darts can come out. Undo takes back your last dart, along
   with anything the bot has thrown since. Each level's games are kept like a
   player's, but bots are not listed with the players.
-- **Darts:** add each set you own to your card under **Settings › Players and
-  darts**, pick which you
+- **Darts:** add each set you own to your card under **Settings › Players,
+  darts and boards**, pick which you
   are throwing on the Play screen, and see how much each set has been thrown
   and its stats on their own. **More details** on a set keeps its brand,
   tungsten, barrel shape, grip, shaft, flight and a note. Under **Stats ›
@@ -42,9 +42,15 @@ account has a database of its own instead.
   trebles hit. A figure says "not yet" until the set has enough darts behind
   it (300 for the average and trebles, 50 at a double for checkouts), and
   nothing picks a "best" set.
-- **Your board:** **Settings › Your board** keeps the board's brand, model,
-  the year it was bought and a note, for looking back on. It changes nothing in
-  the games or the stats.
+- **Boards:** **Settings › Players, darts and boards** lists your boards under
+  the players, each with its brand, model, the year it was bought and a note.
+  One is **on the wall**, and every game started is played on it. When you swap
+  boards, add the new one and **Put on the wall**: say the day it went up, and
+  the games since then move to it. **Played on it before a date** moves every
+  game from before that day to an older board. With two boards or more,
+  **Stats** has a **Board** picker beside **Darts** (both can be picked), and
+  **Stats › Games** puts the boards side by side the way it does the sets,
+  with the same "not yet" until a board has enough darts.
 - **Achievements:** a first game of each kind, a first 180, a 170 finish and
   the like are shown and called as they happen, and listed for each player
   under **Stats › Achievements** with the game each was earned in. They are

@@ -26,7 +26,8 @@ def main():
         db.prepare(f)
         n = insight.numbers(f, corrected=0)
         assert n == {"games": 0, "finished": 0, "darts": 0, "kept": 0, "corrected": 0, "missed": 0, "accuracy": None,
-                     "days_played": 0, "last_played": None, "played_ms": 0, "by_game": {}, "sets": 0, "comparing": 0}
+                     "days_played": 0, "last_played": None, "played_ms": 0, "by_game": {}, "sets": 0, "comparing": 0,
+                     "boards": 1, "comparing_boards": 0}
 
         with db.at(f):
             pid = db.add_player("Ann")["id"]
@@ -76,6 +77,15 @@ def main():
         with db.at(f):
             db.save_match("sb", {**m(13 * DAY, [throw(1, 20, 1, "tap")] * enough), "darts": ["b"], "seq": 2})
         assert insight.numbers(f, corrected=0)["comparing"] == 1
+        # comparing boards: the same, for two boards (every game so far is on the first board)
+        with db.at(f):
+            db.save_board("second", {"up": 14 * DAY, "down": None})
+            db.save_match("on2", {**m(14 * DAY, [throw(1, 20, 1, "tap")] * (enough - 1)), "board": "second"})
+        n = insight.numbers(f, corrected=0)
+        assert (n["boards"], n["comparing_boards"]) == (2, 0)
+        with db.at(f):
+            db.save_match("on2", {**m(14 * DAY, [throw(1, 20, 1, "tap")] * enough), "board": "second", "seq": 2})
+        assert insight.numbers(f, corrected=0)["comparing_boards"] == 1
 
     acc = {"id": "a"}
     none = {"kept": 0, "days_played": 0}

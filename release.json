@@ -1,6 +1,8 @@
 {
   "version": "1.6",
-  "unreleased": [],
+  "unreleased": [
+    "Keep more than one board, and see your stats on each one side by side: Settings › Players, darts and boards lists your boards with the one on the wall, and Stats has a Board picker beside Darts."
+  ],
   "notes": {
     "1.0": [
       "First release."

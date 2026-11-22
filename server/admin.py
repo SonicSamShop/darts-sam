@@ -92,6 +92,7 @@ COLUMNS = [
     ("accuracy", "Accuracy", True, lambda p: p["n"]["accuracy"]),
     ("days", "Days played", True, lambda p: p["n"]["days_played"]),
     ("sets", "Sets of darts", True, lambda p: (p["n"]["comparing"], p["n"]["sets"])),
+    ("boards", "Boards", True, lambda p: (p["n"]["comparing_boards"], p["n"]["boards"])),
     ("time", "Time played", True, lambda p: p["n"]["played_ms"]),
     ("reports", "Reports", True, lambda p: p["reports"]),
     ("joined", "Joined", False, lambda p: p["created"]),
@@ -192,6 +193,8 @@ def make_router(store, relay, account) -> APIRouter:
         tiles += f'<div class="tile"><b>{sum(p["signins"] for p in rows)}</b>Sign-ins</div>'
         tiles += (f'<div class="tile"><b>{sum(p["n"]["comparing"] for p in rows)}</b>Players with 2+ sets to compare,'
                   f' {sum(p["n"]["sets"] for p in rows)} sets</div>')
+        tiles += (f'<div class="tile"><b>{sum(p["n"]["comparing_boards"] for p in rows)}</b>Players with 2+ boards to compare,'
+                  f' {sum(1 for p in rows if p["n"]["boards"] > 1)} accounts with 2+ boards</div>')
         by_cams = {}
         for p in rows:
             if p["helper"] and p["helper"]["cameras"] is not None:
@@ -208,11 +211,12 @@ def make_router(store, relay, account) -> APIRouter:
             steps = "".join(f'<span class="{"on" if on else ""}" title="{e(name)}"></span>' for on, name in zip(p["steps"], insight.STEPS))
             games = ", ".join(f"{e(g)} {c}" for g, c in n["by_game"].items())
             comparing = f' ({n["comparing"]} comparing)' if n["comparing"] else ""
+            on_boards = f' ({n["comparing_boards"]} comparing)' if n["comparing_boards"] else ""
             return (f'<tr><td><b>{e(p["nickname"])}</b>{" (admin)" if p["admin"] else ""}</td><td class=steps>{steps}</td>'
                     f'<td>{setup}</td><td class=n title="{games}">{n["games"]}</td><td class=n>{n["darts"]}</td>'
                     f'<td class=n>{n["kept"]}</td><td class=n>{n["corrected"]}</td><td class=n>{n["missed"]}</td>'
                     f'<td class=n><b>{pct(n["accuracy"])}</b></td><td class=n>{n["days_played"]}</td>'
-                    f'<td class=n>{n["sets"]}{comparing}</td>'
+                    f'<td class=n>{n["sets"]}{comparing}</td><td class=n>{n["boards"]}{on_boards}</td>'
                     f'<td class=n>{n["played_ms"] // 3600000}h {n["played_ms"] // 60000 % 60:02d}m</td>'
                     f'<td class=n><a href="/admin/reports?who={e(p["id"])}">{p["reports"]}</a></td>'
                     f'<td>{when(p["created"])}</td><td class=n>{p["signins"]}</td><td>{when(p["last_seen"])}</td></tr>')

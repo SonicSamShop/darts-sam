@@ -24,6 +24,11 @@ suggesting darts to people: see docs/superpowers/specs/2026-11-22-my-darts-desig
   sets       sets of darts the account's players have added
   comparing  players with two or more sets that each have ENOUGH_DARTS single
              darts thrown: enough for the Stats page to put them side by side
+
+And boards, the same way (every account starts with one):
+
+  boards            boards the account has added
+  comparing_boards  players who have ENOUGH_DARTS single darts on each of two or more boards
 """
 from pathlib import Path
 
@@ -59,6 +64,13 @@ def numbers(db_file: Path, corrected: int) -> dict:
                   JOIN match_players mp ON mp.match_id = t.match_id AND mp.player_id = t.player_id
                   WHERE mp.darts IS NOT NULL AND COALESCE(t.src, '') <> 'visit'
                   GROUP BY mp.player_id, mp.darts HAVING COUNT(*) >= ?)
+                GROUP BY player_id HAVING COUNT(*) >= 2)""", (ENOUGH_DARTS,)).fetchone()[0],
+            "boards": one("SELECT COUNT(*) FROM boards"),
+            "comparing_boards": c.execute("""
+                SELECT COUNT(*) FROM (SELECT player_id FROM (
+                  SELECT t.player_id FROM throws t JOIN matches m ON m.id = t.match_id
+                  WHERE m.board IS NOT NULL AND COALESCE(t.src, '') NOT IN ('visit', 'bot')
+                  GROUP BY t.player_id, m.board HAVING COUNT(*) >= ?)
                 GROUP BY player_id HAVING COUNT(*) >= 2)""", (ENOUGH_DARTS,)).fetchone()[0],
         }
 
