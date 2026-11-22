@@ -11,10 +11,10 @@ import { accountPanel, feedbackBox } from './accountpanel.js';
 import { renderLanding } from './landing.js';
 import { playersPanel } from './playerspanel.js';
 import {
-  $app, BOT_HOLD_MAX, BOT_HOLD_USUAL, THEMES, aboutPanel, account, achievementsOn, appRelease, applyTheme,
-  botHoldSecs, depth, esc, fit, icon, mark, pageFoot, pageHead, photosOn, players, refreshStatus, screen,
-  setScreen, settings, store, voice
+  $app, BOT_HOLD_MAX, BOT_HOLD_USUAL, THEMES, account, achievementsOn, applyTheme, botHoldSecs, depth, esc, fit,
+  icon, mark, pageFoot, pageHead, photosOn, players, refreshStatus, screen, setScreen, settings, store, voice
 } from '../app.js';
+import { aboutPanel, appRelease } from './release.js';
 
 // A phone or a tablet (anything held upright, narrow or worked by touch), as style.css has it:
 // tabs along the bottom, and the settings as a list that opens a section at a time instead of tabs.
