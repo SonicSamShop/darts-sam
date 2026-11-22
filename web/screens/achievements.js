@@ -6,10 +6,8 @@
 // next, worked out by achievements.js from their games.
 
 import { ACHIEVEMENTS, GROUPS, byId, timeline, totalOf, visitOf } from '../achievements.js';
-import {
-  badge, connected, drawPlayers, esc, gamesHere, loadStats, nameOf, opens, photoUrl, pi, screen, statsData,
-  statsFor, statsPath, statsTab
-} from '../app.js';
+import { badge, connected, esc, gamesHere, loadStats, nameOf, photoUrl, pi, screen, statsPath } from '../app.js';
+import { drawPlayers, opens, statsData, statsView } from './stats.js';
 
 // ---------- the Achievements tab ----------
 // Worked out from every game the player has on record, whatever game or set of darts the page is
@@ -21,22 +19,22 @@ export const achTab = {
 let achLoading = null;  // the player they are being fetched for
 const ACH = new WeakMap();  // what is worked out from a reply, kept while that reply is
 function achStats() {
-  if (statsFor != null && statsFor <= 0) {  // made offline: no games anywhere but here
-    if (achTab.all?.id !== statsFor) achTab.all = { id: statsFor, st: { player: { id: statsFor }, matches: [] } };
+  if (statsView.player != null && statsView.player <= 0) {  // made offline: no games anywhere but here
+    if (achTab.all?.id !== statsView.player) achTab.all = { id: statsView.player, st: { player: { id: statsView.player }, matches: [] } };
     return achTab.all.st;
   }
-  if (statsData && !statsData.game && !statsData.set && statsData.player.id === statsFor) return statsData;
-  return achTab.all?.id === statsFor ? achTab.all.st : undefined;  // undefined: not asked for yet
+  if (statsData && !statsData.game && !statsData.set && statsData.player.id === statsView.player) return statsData;
+  return achTab.all?.id === statsView.player ? achTab.all.st : undefined;  // undefined: not asked for yet
 }
 async function loadAchAll() {
-  const id = statsFor;
+  const id = statsView.player;
   if (id == null || achLoading === id) return;
   achLoading = id;
   let st = null;
   try { st = await loadStats(statsPath(id), connected ? 10000 : 2500); } catch { /* shown as unavailable */ }
   achLoading = null;
   achTab.all = { id, st };
-  if (screen === 'players' && statsFor === id && statsTab === 'achievements') drawPlayers();
+  if (screen === 'players' && statsView.player === id && statsView.tab === 'achievements') drawPlayers();
 }
 // {entries, got, total}: the player's games oldest first, and what they earn (timeline() in achievements.js).
 function achievementsOf(st) {
@@ -84,7 +82,7 @@ export function achievementView(id, d) {
     const at = all.entries.findIndex(e => e.sheet.id === g.match), e = all.entries[at];
     const visit = visitOf(a, totalOf(all.entries.slice(0, at)), e.sheet, e.me);
     const there = d.matches.some(m => m.id === g.match);  // (a game not sent yet has no scoresheet here)
-    return `<div class="achievement">${badge(a, 120)}<p>${esc(a.how)}</p><p class="muted">${esc(nameOf(statsFor))} · ${dayOf(g.at)}</p>
+    return `<div class="achievement">${badge(a, 120)}<p>${esc(a.how)}</p><p class="muted">${esc(nameOf(statsView.player))} · ${dayOf(g.at)}</p>
       ${visit != null ? `<img class="shot" src="${photoUrl(g.match, visit)}" alt="The board when it was earned">` : ''}
       ${there ? `<button${opens({ v: 'match', id: g.match, ...(visit != null && { at: visit }) })}>Open the game</button>` : ''}</div>`;
   } };

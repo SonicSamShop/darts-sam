@@ -30,6 +30,7 @@ import {
 } from './screens/playerspanel.js';
 import { closeSection, listShown, openSection, renderSettings, sectShown, settingsView } from './screens/settings.js';
 import { loadRelease } from './screens/release.js';
+import { deep, drawPlayers, pct, renderPlayers, renderSheet, sheet, statsData, statsView } from './screens/stats.js';
 
 export const $app = document.getElementById('app');
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -81,7 +82,7 @@ export const tracker = createTracker({
 setInterval(() => tracker.flush(), 60000);
 // What the app calls the machine it talks to: at home a Raspberry Pi, hosted just "the server".
 export const pi = () => account.hosted ? 'the server' : 'the Pi';
-const Pi = () => account.hosted ? 'The server' : 'The Pi';
+export const Pi = () => account.hosted ? 'The server' : 'The Pi';
 
 export let match = store.get('match', null);
 // The people who play: [{id, name}]. The computer's players are kept apart, so that no list of
@@ -107,7 +108,7 @@ let totals = store.get('totals', null);  // {darts, reports}: everything on the 
 let homeStep;
 let stepMoved = false;  // a step has just been opened: bring it into view
 export let screen = match ? 'game' : 'home';
-export const setScreen = v => { screen = v; };  // for screens/cameras.js, screens/landing.js, screens/settings.js
+export const setScreen = v => { screen = v; };  // for screens/cameras.js, screens/landing.js, screens/settings.js, screens/stats.js
 export const MAX_PLAYERS = 6;
 
 // ---------- themes ----------
@@ -211,7 +212,7 @@ function botThrow() {
 // the way a running app keeps a runner's shoes: every game remembers each
 // player's set, and the stats can be seen set by set (and how much each is used).
 export const setsOf = (id, all = false) => darts.filter(d => d.player === id && (all || !d.retired));
-const dartsName = id => darts.find(d => d.id === id)?.name ?? '?';
+export const dartsName = id => darts.find(d => d.id === id)?.name ?? '?';
 // The set a player is throwing: the one last chosen, or their first if that one is put away.
 function dartsFor(id) {
   const mine = setsOf(id), chosen = setup.darts?.[id];
@@ -252,7 +253,7 @@ function synced({ remapped, pulled, sent }) {
   setup = store.get('setup', setup);
   settings = store.get('settings', settings);
   match = store.get('match', null);
-  for (const [old, id] of remapped) if (statsFor === old) statsFor = id;
+  for (const [old, id] of remapped) if (statsView.player === old) statsView.player = id;
   cleanSetup();
   // Someone who has just signed up has one player, themselves: ready to throw.
   if (landing.newcomer && pulled && players.length === 1) {
@@ -280,7 +281,7 @@ function redraw(draw) {
 
 // Stats are worked out on the Pi. Each answer is kept on this device, so the
 // last known stats can still be shown when the Pi can't be reached.
-const shelf = () => window.caches ? caches.open('dartssam-data') : Promise.reject();
+export const shelf = () => window.caches ? caches.open('dartssam-data') : Promise.reject();
 export const statsPath = (id, game, set) => `/players/${id}/stats${
   game || set ? `?${new URLSearchParams({ ...(game && { game }), ...(set && { darts: set }) })}` : ''}`;
 async function freshStats(path, timeout) {
@@ -661,9 +662,9 @@ function slipTapped() {
   const s = slips.shift();
   clearTimeout(slipTimer);
   if (s && compute(match).winner != null && players.some(p => p.id === match.playerIds[s.seat])) {
-    statsGame = statsDarts = null;
-    statsTab = 'achievements';
-    drill = [];
+    statsView.game = statsView.darts = null;
+    statsView.tab = 'achievements';
+    statsView.drill = [];
     renderPlayers(match.playerIds[s.seat]);
     return mark(true);
   }
@@ -744,9 +745,9 @@ function place() {
     url = sheet.m ? gameUrl(sheet.m.game, sheet.m.opts, sheet.id) : `#/${sheet.name}/${sheet.id}`;
   }
   if (screen === 'players') {
-    Object.assign(at, { statsFor: statsFor, statsGame: statsGame, statsDarts: statsDarts, statsTab: statsTab, drill: drill });
+    Object.assign(at, { statsFor: statsView.player, statsGame: statsView.game, statsDarts: statsView.darts, statsTab: statsView.tab, drill: statsView.drill });
     // A scoresheet reached through the stats has the game's own address too.
-    const top = drill.at(-1), m = top?.v === 'match' && statsData && deep(statsData).matches.find(m => m.id === top.id);
+    const top = statsView.drill.at(-1), m = top?.v === 'match' && statsData && deep(statsData).matches.find(m => m.id === top.id);
     url = m ? gameUrl(m.game, m.opts, m.id) : '#/stats';
   }
   if (screen === 'settings') { Object.assign(at, { settingsTab: settingsView.tab, settingsOpen: settingsView.open, fromList: settingsView.fromList }); url = '#/settings'; }
@@ -779,9 +780,9 @@ function show(at) {
   if (at.screen === 'players') {
     // (adding and editing players was once part of the stats: an entry from then finds them in the settings)
     if (at.editing || at.statsTab === 'edit') { settingsView.tab = 'players'; return renderSettings(true); }
-    if ('statsFor' in at) { statsFor = at.statsFor; statsGame = at.statsGame; statsTab = at.statsTab; }
-    statsDarts = at.statsDarts ?? null;
-    drill = (at.drill ?? []).map(level => ({ ...level }));
+    if ('statsFor' in at) { statsView.player = at.statsFor; statsView.game = at.statsGame; statsView.tab = at.statsTab; }
+    statsView.darts = at.statsDarts ?? null;
+    statsView.drill = (at.drill ?? []).map(level => ({ ...level }));
     return renderPlayers();
   }
   // (the cameras were once a tab of the settings: a history entry from then still finds them)
@@ -872,8 +873,8 @@ export const pageFoot = on => nav(on, 'foot');
 function goTo(place) {
   if (place === 'home') return goHome();
   rulesOpen = false;  // back on the menu later, the games are there, not the rules last read
-  const deep = screen === 'home' || screen === 'sheet' || (screen === 'players' && drill.length > 0);
-  if (place === 'players') { drill = []; renderPlayers(); }
+  const deep = screen === 'home' || screen === 'sheet' || (screen === 'players' && statsView.drill.length > 0);
+  if (place === 'players') { statsView.drill = []; renderPlayers(); }
   if (place === 'cameras') { camScreen.adding = false; camScreen.step = camScreen.note = ''; renderCameras(); }
   if (place === 'settings') { settingsView.open = settingsView.fromList = false; renderSettings(); }
   mark(deep);
@@ -1271,391 +1272,6 @@ async function loadTotals() {
     showTotals();
   } catch { /* no Pi: the last figures stay */ }
 }
-// ---------- stats ----------
-// One player at a time, one tab at a time. Each game type has its own page of
-// stats, next to one for all games together. Any figure with a › can be tapped
-// to see what it was counted from (see "opening up the stats" below).
-// A big screen has room for the stats and the board side by side (see .panes in style.css).
-const BIG = matchMedia('(min-width: 1100px) and (min-height: 750px)');
-const STAT_TABS = [['stats', 'Stats'], ['games', 'Games'], ['board', 'Board'], ['achievements', 'Achievements']];
-export let statsFor = null;
-export let statsData = null;
-let statsFailed = false;
-export let statsTab = 'stats';
-// (The list of players, to add to, rename and remove from, and their darts, is a tab of the settings: see playersPanel().)
-let statsGame = null;  // a game id, or null for all games together
-let statsDarts = null;  // one of the player's sets of darts, or null for all of them
-// Each game's own figures, in the order shown: [label, field in the Pi's reply, unit].
-// (X01's are worked out here instead, from the history the Pi sends: see stats.js.)
-const GAME_TILES = {
-  cricket: [['Marks per round', 'mpr'], ['Best round (marks)', 'best_round'], ['Rounds of 5+ marks', 'big_rounds'],
-    ['Marks scored', 'marks']],
-  clock: [['Hit rate', 'hit_rate', '%'], ['Average darts to finish', 'avg_finish'], ['Fewest darts to finish', 'best_finish'],
-    ['Best run of hits', 'best_run']],
-  countup: [['3-dart average', 'average'], ['Highest visit', 'highest'], ['Visits of 100+', 't100'],
-    ['Average game total', 'avg_total'], ['Best game total', 'best_total']],
-  bobs27: [['Average score', 'avg_score'], ['Best score', 'best_score'], ['Doubles hit', 'double_rate', '%'],
-    ['Games above zero', 'above_zero']],
-  shanghai: [['Average total', 'avg_total'], ['Best total', 'best_total'], ['Shanghais', 'shanghais'],
-    ['Hit rate on the number', 'hit_rate', '%']],
-  bermuda: [['Average total', 'avg_total'], ['Best total', 'best_total'], ['Rounds halved per game', 'avg_halved'],
-    ['Hit rate', 'hit_rate', '%']],
-  segment: [['Hit rate', 'hit_rate', '%'], ['Points per dart', 'points_per_dart'], ['Best session', 'best_points']],
-  gotcha: [['Games won', 'won'], ['3-dart average', 'average']],
-  rcheckout: [['Checkout rate', 'rate', '%'], ['Checkouts hit', 'made'], ['Average darts per checkout', 'avg_darts']],
-  c121: [['Checkout rate', 'rate', '%'], ['Checkouts hit', 'made'], ['Highest checkout', 'highest'],
-    ['Average darts per checkout', 'avg_darts']],
-};
-async function renderPlayers(id = statsFor) {
-  if (account.locked) return renderLanding();
-  screen = 'players';
-  statsFor = players.some(p => p.id === id) ? id : players[0]?.id ?? null;
-  achTab.all = null;  // (asked for again if the Achievements tab needs it)
-  if (!setsOf(statsFor, true).some(d => d.id === statsDarts)) statsDarts = null;
-  if (statsData?.player.id !== statsFor || statsData.game !== statsGame || (statsData.set ?? null) !== statsDarts) statsData = null;
-  statsFailed = false;
-  drawPlayers();
-  if (statsFor == null) return;
-  const wanted = statsFor, game = statsGame, set = statsDarts;
-  let data = null;
-  // A player made offline has no stats on the Pi yet. With no link to the Pi, don't wait long for it.
-  if (wanted > 0) try {
-    data = await loadStats(statsPath(wanted, game, set), connected ? 10000 : 2500);
-  } catch { /* shown as unavailable */ }
-  if (screen !== 'players' || statsFor !== wanted || statsGame !== game || statsDarts !== set) return;
-  statsData = data;
-  statsFailed = !data;
-  drawPlayers();
-  if (data) mark();  // a scoresheet's address can be told now (and never before the caller's own mark)
-}
-const pct = (n, of) => of ? (n / of * 100).toFixed(1) + '%' : '–';
-// A tile with somewhere to go (`to`, a level of `drill`) can be tapped.
-export const opens = to => to ? ` data-drill="${esc(JSON.stringify(to))}"` : '';
-const tile = (label, value, to) =>
-  `<div class="tile ${to ? 'tap' : ''}"${opens(to)}><b>${value ?? '–'}</b><span>${label}</span></div>`;
-const gameTiles = (id, d, to) => (GAME_TILES[id] ?? []).map(([name, key, unit = '']) =>
-  tile(name, d[key] == null ? null : d[key] + unit, to)).join('');
-// The X01 tiles: all of them under their headings, or just the ones named.
-const X01_HEADLINES = ['average', 'first9', 'checkout', 'bestCheckout', 't180', 't140', 'won', 'bestLeg'];
-function x01Tiles(s, only) {
-  const draw = t => {
-    const rows = t.rows(s);
-    const note = t.note?.(s).trim();  // "(20 of 41 darts)": kept in one piece, so a narrow line breaks before it
-    return tile(t.label + (note ? ` <span class="nb">${note}</span>` : ''), t.value ? t.value(s, rows) : rows.length,
-      rows.length ? { v: 'tile', key: t.key, ...t.sort } : null);
-  };
-  if (only) return only.map(key => draw(x01Tile(key))).join('');
-  return X01_TILES.map(g => `<h2>X01 ${g.group}</h2><div class="tiles">${g.tiles.map(draw).join('')}</div>`).join('');
-}
-
-// ---------- opening up the stats ----------
-// Tapping a figure shows what it was counted from, and tapping a line of that
-// goes further: 140+ -> every visit of 140 or more and when it was thrown ->
-// the scoresheet of the leg it was thrown in. `drill` is how far down the
-// screen is: one entry per level, the last one being what is shown.
-//   {v: 'tile', key}       an X01 tile's visits, legs or doubles
-//   {v: 'double', aim}     the visits with a dart at one double
-//   {v: 'numbers'}         how often each number was hit
-//   {v: 'number', seg}     the visits with a dart in one number
-//   {v: 'matches', name}   the finished games of one game type
-//   {v: 'match', id, at}   one game's scoresheet (at: the visit to point out)
-// A list's entry also holds how it is sorted: {by: a column, desc}.
-let drill = [];
-const DEEP = new WeakMap();  // what is worked out from a reply of the Pi's, kept while that reply is
-function deep(st) {
-  if (!DEEP.has(st)) {
-    const matches = st.matches ?? [];  // stats saved by an older version have no history
-    DEEP.set(st, { matches, x01: x01Stats(matches), mine: matches.flatMap(m => visitsOf(m).filter(v => v.p === m.me)) });
-  }
-  return DEEP.get(st);
-}
-// When something happened: "19 Nov 26, 00:44". Where there is no room for it on one line (a list on a
-// phone) it breaks after the day, never in the middle of it.
-const when = ts => {
-  const d = new Date(ts), nb = t => `<span class="nb">${t}</span>`;
-  return `${nb(d.toLocaleDateString([], { day: 'numeric', month: 'short', year: '2-digit' }))}, ${
-    nb(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}`;
-};
-const num = n => n == null ? '–' : n.toFixed(1);
-const dartsText = v => v.darts ? v.darts.map(label).join(' ') : '<span class="muted">typed</span>';
-const others = m => m.players.filter((_, i) => i !== m.me).map(esc).join(', ');
-const against = m => m.players.length > 1 ? `v ${others(m)}` : 'solo';
-const scoredText = (v, n) => v.bust ? '<span class="warn">Bust</span>' : `<b>${n}</b>`;
-const toMatch = v => ({ v: 'match', id: v.m.id, at: v.i });
-const myDarts = m => visitsOf(m).reduce((n, v) => n + (v.p === m.me ? v.n : 0), 0);
-// What each kind of list shows: [column, heading, cell, value to sort by (if it can be), class].
-// Columns marked 'wide' are left out on a narrow screen.
-const LISTS = {
-  visits: { open: toMatch, cols: [
-    ['when', 'When', v => when(v.ts), v => v.ts],
-    ['score', 'Scored', v => scoredText(v, v.score), v => v.score],
-    ['darts', 'Darts', dartsText],
-    ['left', 'Left', v => `${v.before} → ${v.after}`, v => v.before],
-    ['leg', 'Leg', v => `${v.m.opts.start ?? 501} ${against(v.m)}`, null, 'wide'],
-  ] },
-  legs: { open: l => ({ v: 'match', id: l.m.id, leg: l.n }), cols: [
-    ['when', 'When', l => when(l.when), l => l.when],
-    ['game', 'Game', l => `${l.start} ${l.dbl ? 'double' : 'straight'} out${l.of > 1 ? ` · leg ${l.n} of ${l.of}` : ''}`, null, 'wide'],
-    ['vs', 'Against', l => l.solo ? 'Solo' : others(l.m)],
-    ['result', 'Result', l => !l.finished ? '<span class="muted">Not finished</span>' : l.won ? '<b>Won</b>' : 'Lost'],
-    ['darts', 'Darts', l => l.darts, l => l.darts],
-    ['avg', 'Average', l => num(l.avg), l => l.avg ?? -1],
-    ['first9', 'First 9', l => num(l.first9), l => l.first9 ?? -1, 'wide'],
-    ['checkout', 'Checkout', l => l.checkout ?? '–', l => l.checkout ?? -1],
-  ] },
-  doubles: { sort: 'darts', open: d => ({ v: 'double', aim: d.aim }), cols: [
-    ['aim', 'Double', d => label({ seg: d.aim, mult: 2 }), d => d.aim],
-    ['hit', 'Hit', d => d.hit, d => d.hit],
-    ['darts', 'Darts at it', d => d.darts, d => d.darts],
-    ['rate', 'Rate', d => pct(d.hit, d.darts), d => d.hit / d.darts],
-  ] },
-  numbers: { sort: 'n', open: r => ({ v: 'number', seg: r.seg }), cols: [
-    ['seg', 'Number', r => r.seg === 25 ? 'Bull and 25' : r.seg || 'Miss', r => r.seg],
-    ['s', 'Singles', r => r.seg ? r.by[1] : '–', r => r.by[1]],
-    ['d', 'Doubles', r => r.seg ? r.by[2] : '–', r => r.by[2]],
-    ['t', 'Trebles', r => r.seg && r.seg !== 25 ? r.by[3] : '–', r => r.by[3]],
-    ['n', 'All darts', r => r.n, r => r.n],
-    ['share', 'Share', r => (r.share * 100).toFixed(1) + '%', r => r.n],
-  ] },
-  throws: { open: toMatch, cols: [
-    ['when', 'When', v => when(v.ts), v => v.ts],
-    ['darts', 'Darts', dartsText],
-    ['total', 'Scored', v => scoredText(v, v.total), v => v.total],
-    ['game', 'Game', v => `${esc(v.m.name)} ${against(v.m)}`],
-  ] },
-  matches: { open: m => ({ v: 'match', id: m.id }), cols: [
-    ['when', 'When', m => when(m.finished ?? m.started), m => m.finished ?? m.started],
-    ['players', 'Players', m => m.players.map(esc).join(', ')],
-    ['winner', 'Winner', m => m.players.length > 1 ? `<b>${esc(m.players[m.winner])}</b>` : '–'],
-    ['darts', 'Your darts', myDarts, myDarts],
-    ['time', 'Time', m => m.duration != null ? clock(m.duration) : '–', m => m.duration ?? -1],
-  ] },
-};
-const MOST = 500;  // lines shown of a list
-function listHtml(kind, rows, top) {
-  const { cols, open, sort = 'when' } = LISTS[kind];
-  const by = cols.find(c => c[0] === top.by && c[3]) ? top.by : sort, desc = top.desc ?? true;
-  const order = id => { const f = cols.find(c => c[0] === id)[3]; return (a, b) => f(b) - f(a); };
-  Object.assign(top, { by, desc });  // so that tapping a heading knows what it is changing
-  rows = [...rows].sort(order(sort));  // lines that tie stay newest (or biggest) first
-  if (by !== sort || !desc) rows.sort((a, b) => order(by)(a, b) * (desc ? 1 : -1));
-  return `<table class="plain"><thead><tr>${cols.map(([id, name, , sorts, cls = '']) =>
-    `<th class="${cls} ${id === by ? 'sorted' : ''}"${sorts ? ` data-sort="${id}"` : ''}>${name}${id === by ? (desc ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead>
-    ${rows.slice(0, MOST).map(r => `<tr${opens(open(r))}>${cols.map(([, , cell, , cls = '']) =>
-      `<td class="${cls}">${cell(r)}</td>`).join('')}</tr>`).join('')}</table>
-    ${rows.length > MOST ? `<p class="muted small">The first ${MOST} of ${rows.length} are shown.</p>` : ''}`;
-}
-// One game, visit by visit: a line per round, everyone side by side. An X01
-// match is shown leg by leg, with what each visit left. top: its level of
-// `drill`, which may name a visit (at) or a leg to point out.
-function matchHtml(m, top) {
-  const legs = m.game === 'x01' ? x01Legs(m) : null, game = gameById(m.game), wide = legs ? 2 : 1;
-  const facts = [when(m.started), ...(legs ? [`${m.opts.out === 'straight' ? 'straight' : 'double'} out`] : []),
-    m.winner == null ? 'not finished' : m.players.length > 1 ? `${esc(m.players[m.winner])} won` : 'finished',
-    ...(m.duration != null ? [clock(m.duration)] : [])];
-  const cell = v => {
-    if (!v) return `<td colspan="${wide}"></td>`;
-    const cls = v.i === top.at ? 'at' : '';
-    if (legs) return `<td class="${cls}">${scoredText(v, v.score)} <span class="muted small">${dartsText(v)}</span></td>
-      <td class="${cls} ${v.checkout ? 'out' : ''}">${v.after}</td>`;
-    const total = game?.showTotal === false ? '' : ` <span class="muted small">${v.bust ? 'bust' : `= ${v.total}`}</span>`;
-    return `<td class="${cls}">${v.darts ? dartsText(v) + total : `<b>${v.total}</b> <span class="muted small">typed</span>`}</td>`;
-  };
-  const rounds = visits => [...new Set(visits.map(v => v.round))].map((round, n) =>
-    `<tr><td class="muted">${n + 1}</td>${m.players.map((_, p) => cell(visits.find(v => v.round === round && v.p === p))).join('')}</tr>`).join('');
-  const add = f => legs.reduce((t, l, i) => t + f(l, i), 0);
-  // Each player's figures over the whole match.
-  const side = p => {
-    const darts = add(l => l.sides[p].darts), won = add(l => +(l.winner === p));
-    const nine = avg3(add(l => l.sides[p].ninePoints), add(l => l.sides[p].nineDarts));
-    return tile([`${esc(m.players[p])} · average`, darts ? `${darts} darts` : '', nine != null ? `first 9 ${num(nine)}` : '',
-      legs.length > 1 ? `${won} ${won === 1 ? 'leg' : 'legs'}` : legs[0].sides[p].checkout != null ? `checkout ${legs[0].sides[p].checkout}` : '']
-      .filter(Boolean).join(' · '), darts ? num(avg3(add(l => l.sides[p].points), darts)) : null);
-  };
-  return `<p class="muted facts">${facts.join(' · ')}</p>
-    ${legs?.length ? `<div class="tiles">${m.players.map((_, p) => side(p)).join('')}</div>` : ''}
-    <table class="plain sheet"><thead><tr><th>Round</th>${m.players.map(p => `<th colspan="${wide}">${esc(p)}</th>`).join('')}</tr></thead>
-    ${!legs ? rounds(visitsOf(m)) : legs.map(l => `${legs.length > 1 ? `<tr class="legrow"><td colspan="${1 + 2 * m.players.length}" class="${
-      l.n === top.leg && top.at == null ? 'at' : ''}">Leg ${l.n} · ${l.winner == null ? 'not finished'
-      : `${esc(m.players[l.winner])} in ${l.sides[l.winner].darts} darts`}</td></tr>` : ''}${rounds(l.visits)}`).join('')}</table>`;
-}
-const avg3 = (points, darts) => darts ? points / darts * 3 : null;
-// One level of `drill` as {title, html()}, or null if the stats no longer have it.
-function drillView(st, top) {
-  const d = deep(st), list = (title, kind, rows) => ({ title, html: () => listHtml(kind, rows, top) });
-  const some = (title, kind, rows) => rows.length ? list(`${title} (${rows.length})`, kind, rows) : null;
-  if (top.v === 'tile') {
-    const t = x01Tile(top.key);
-    if (!t || !d.x01) return null;
-    const rows = t.rows(d.x01);
-    return rows.length ? list(`X01 ${t.label.toLowerCase()} ${t.kind === 'doubles' ? 'by double' : `(${rows.length} ${
-      rows.length === 1 ? t.kind.slice(0, -1) : t.kind})`}`, t.kind, rows) : null;
-  }
-  if (top.v === 'double') return d.x01 && some(`Visits with a dart at ${label({ seg: top.aim, mult: 2 })}`, 'visits',
-    d.x01.visits.filter(v => v.atDouble.some(a => a.aim === top.aim)));
-  if (top.v === 'numbers') return d.mine.some(v => v.darts) ? list('Darts by number', 'numbers', dartTable(d.mine)) : null;
-  if (top.v === 'number') return some(top.seg === 25 ? 'Visits with a bull or 25' : top.seg ? `Visits with a ${top.seg}` : 'Visits with a miss',
-    'throws', visitsWith(d.mine, top.seg));
-  if (top.v === 'matches') return some(`${esc(top.name)} games`, 'matches', d.matches.filter(m => m.name === top.name && m.winner != null));
-  if (top.v === 'achievement') return achievementView(top.id, d);
-  const m = top.v === 'match' && d.matches.find(m => m.id === top.id);
-  return m ? { title: matchTitle(m), html: () => matchHtml(m, top) } : null;
-}
-
-const matchTitle = m => `${esc(m.name)}${m.game === 'x01' ? ` ${m.opts.start ?? 501}` : ''}`;
-function drawDrill(st, old) {
-  let views;
-  // Whatever can no longer be found (the stats changed underneath) is left behind.
-  while (drill.length && (views = drill.map(level => drillView(st, level))).some(v => !v)) drill.pop();
-  if (!drill.length) return false;
-  const game = statsGame && gameById(statsGame);
-  $app.innerHTML = `<div class="page">
-    ${pageHead('players')}
-    <div class="row under"><button class="ghost" data-act="up">‹ Back</button><h1 class="sub">${views.at(-1).title}</h1></div>
-    <p class="muted small crumbs">${[esc(nameOf(statsFor)), game ? game.name : 'All games',
-      ...(statsDarts ? [esc(dartsName(statsDarts))] : []), ...views.slice(0, -1).map(v => v.title)].join(' › ')}
-      ${['match', 'achievement'].includes(drill.at(-1).v) ? '' : ' · tap a line for more, a heading to sort'}</p>
-    ${old}<div class="fill drill">${views.at(-1).html()}</div>
-    ${pageFoot('players')}
-  </div>`;
-  document.querySelector('.drill .at')?.scrollIntoView({ block: 'center' });
-  refreshStatus();
-  return true;
-}
-
-export function drawPlayers() {
-  const st = statsData, x = st && deep(st).x01;
-  const game = statsGame && gameById(statsGame);  // the one game this page is about, if any
-  if (statsFor == null) return drawNoPlayers();
-  const tab = statsTab;
-  const wait = statsFailed ? `<p class="muted">No stats saved on this device${statsFor < 0 ? ' for this player' : ''} yet.
-      Stats are worked out on ${pi()} and kept here once it has been reached.</p>`
-    : !st ? '<p class="muted">Loading…</p>' : '';
-  const none = wait || (st.darts || st.detail || x ? '' : `<p class="muted">No throws recorded yet${game ? ` in ${game.name}` : ''}.</p>`);
-  const message = tab === 'games' || tab === 'achievements' ? wait : none;
-  const owed = data.waitingGames();
-  const old = st?.saved ? `<p class="muted small stale">${Pi()} can't be reached: these are the stats
-    from ${new Date(st.saved).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}${
-    owed ? `, without the ${owed === 1 ? 'game' : `${owed} games`} waiting to sync` : ''}.</p>` : '';
-  // Where a tile leads: the darts tiles to the numbers hit, a game's own tiles to its games.
-  const numbers = st?.darts && deep(st).mine.some(v => v.darts) ? { v: 'numbers' } : null;
-  const gamesOf = name => deep(st).matches.some(m => m.name === name && m.winner != null) ? { v: 'matches', name } : null;
-  const panes = () => `<div class="p-stats">
-    ${game?.id === 'x01' ? (x ? x01Tiles(x) : '')
-      : game && st.detail ? `<h2>${game.name} averages</h2><div class="tiles">${gameTiles(game.id, st.detail, gamesOf(game.name))}</div>` : ''}
-    <h2>${game ? `${game.name} darts` : 'All games'}${st.since ? ` · since ${new Date(st.since).toLocaleDateString()}` : ''}</h2>
-    <div class="tiles">${tile('Darts thrown', st.darts, numbers)}${tile('Time played', st.played_ms ? timeSpent(st.played_ms) : null)}${tile('Trebles', pct(st.trebles, st.darts), numbers)}
-      ${tile('Doubles', pct(st.doubles, st.darts), numbers)}${tile('Bulls and 25s', st.bulls, numbers)}${tile('Misses', pct(st.misses, st.darts), numbers)}
-      ${tile('Most hit', st.segments.slice(0, 3).map(g => g.seg === 25 ? 'Bull' : g.seg).join(', ') || null, numbers)}</div>
-    ${x && !game ? `<h2>X01</h2><div class="tiles">${x01Tiles(x, X01_HEADLINES)}</div>` : ''}</div>
-    <div class="p-games">${st.games.length ? `<h2>Finished games</h2>
-    <table class="plain"><tr><th>Game</th><th>Played</th><th>Won (2+ players)</th><th>Average time</th><th>Quickest</th><th class="wide">Total time</th></tr>${st.games.map(g =>
-      `<tr${opens(gamesOf(g.game))}><td>${esc(g.game)}</td><td>${g.played}</td><td>${g.won}</td>
-       <td>${g.avg_ms != null ? clock(g.avg_ms) : '–'}</td><td>${g.best_ms != null ? clock(g.best_ms) : '–'}</td>
-       <td class="wide">${g.total_ms ? timeSpent(g.total_ms) : '–'}</td></tr>`).join('')}</table>`
-      : '<p class="muted">No finished games yet.</p>'}${gearHtml(st, game)}</div>
-    <div class="p-board">${st.recent.length ? `<h2>Heat map · ${game ? `${game.name}, ` : ''}${
-      st.recent.length === 1 ? '1 dart' : `${st.recent.length < 5000 ? '' : 'last '}${st.recent.length} darts`}</h2>
-    <div class="statboard"><svg id="statboard"></svg></div>
-    <div class="heatkey"><span>Fewer darts</span><i></i><span>More</span></div>`
-      : `<p class="muted">No dart positions recorded yet${game ? ` in ${game.name}` : ''}.</p>`}</div>
-    ${tab === 'achievements' ? achievementsPane(game) : ''}`;
-  const lit = id => id === tab || (id === 'stats' && tab === 'board' && BIG.matches);
-  if (statsFailed) drill = [];
-  if (drill.length && st && drawDrill(st, old)) return;  // (still loading: the opened-up figure is drawn once the stats are here)
-  $app.innerHTML = `<div class="page">
-    ${pageHead('players')}
-    <div class="picks">
-      <label class="pick"><span>Player</span><select data-choose="player">${players.map(p =>
-        `<option value="${p.id}" ${p.id === statsFor ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
-      <label class="pick"><span>Game</span><select data-choose="game">${[{ id: '', name: 'All games' }, ...GAMES].map(g =>
-        `<option value="${g.id}" ${g.id === (statsGame ?? '') ? 'selected' : ''}>${g.name}</option>`).join('')}</select></label>
-      ${setsOf(statsFor, true).length ? `<label class="pick"><span>Darts</span><select data-choose="darts">${[{ id: '', name: 'All darts' },
-        ...setsOf(statsFor, true)].map(d => `<option value="${esc(d.id)}" ${d.id === (statsDarts ?? '') ? 'selected' : ''}>${
-        esc(d.name)}${d.retired ? ' (put away)' : ''}</option>`).join('')}</select></label>` : ''}</div>
-    <div class="row tabs">${STAT_TABS.map(([id, name]) =>
-      `<button class="${lit(id) ? 'on' : ''}" data-tab="${id}">${name}</button>`).join('')}</div>
-    ${old}<div class="fill panes tab-${tab}">${message || panes()}</div>
-    ${pageFoot('players')}
-  </div>`;
-  const svg = document.getElementById('statboard');
-  if (svg) buildBoard(svg).showHeat(st.recent);
-  refreshStatus();
-}
-// How much each set of darts has been thrown, like the miles on a runner's shoes.
-// A line can be tapped to see the stats of that set alone.
-function gearHtml(st, game) {
-  const gear = (st.gear ?? []).filter(g => g.games || g.id);
-  if (!gear.some(g => g.id)) return '';
-  const day = ts => ts ? new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short', year: '2-digit' }) : '–';
-  return `<h2>Darts${game ? ` · ${game.name}` : ''}</h2>
-    <table class="plain"><tr><th>Darts</th><th>Darts thrown</th><th>Games</th><th>Won (2+ players)</th><th class="wide">First used</th><th>Last used</th></tr>${gear.map(g =>
-      `<tr${g.id ? ` data-gear="${esc(g.id)}"` : ''} class="${g.id === statsDarts ? 'at' : ''}"><td>${g.id ? `<b>${esc(g.name)}</b>${
-        g.grams != null ? ` <span class="muted small">${grams(g.grams)}</span>` : ''}${g.retired ? ' <span class="muted small">put away</span>' : ''}`
-        : '<span class="muted">Not named</span>'}</td><td>${g.darts.toLocaleString()}</td><td>${g.games}</td><td>${g.won}</td>
-       <td class="wide">${day(g.first)}</td><td>${day(g.last)}</td></tr>`).join('')}</table>
-    <p class="muted small">Every dart counts towards the darts thrown, typed scores too. Tap a set to see its stats on their own.</p>`;
-}
-// Nobody to show stats for yet: say where players are made.
-function drawNoPlayers() {
-  drill = [];
-  $app.innerHTML = `<div class="page">
-    ${pageHead('players')}
-    <div class="fill noplayers"><p class="muted">No players yet. Add one and their stats will show here.</p>
-      <button data-act="manageplayers">Add a player</button></div>
-    ${pageFoot('players')}
-  </div>`;
-  refreshStatus();
-}
-// ---------- one game's scoresheet ----------
-// A game that is over, opened by its own address: by a link to it, or
-// by back, forward or a reload landing on a game that has since finished. It
-// is looked for among the games waiting here to be sent, then on the Pi, then
-// in the stats kept on this device.
-let sheet = null;  // {id, name: the first part of its address, m: the match once found, gone: why it wasn't}
-async function renderSheet(id, name = 'game') {
-  if (account.locked) return renderLanding();
-  screen = 'sheet';
-  if (sheet?.id !== id) sheet = { id, name, m: data.sheet(id) };
-  const want = sheet;
-  want.gone = null;
-  drawSheet();
-  if (want.m) return;
-  try {
-    want.m = await loadStats(`/matches/${encodeURIComponent(id)}`, connected ? 10000 : 2500);
-  } catch (e) {
-    want.m = e.status ? null : await shelved(id).catch(() => null);
-    want.gone = e.status ? 'This game is no longer saved.'
-      : `${Pi()} can't be reached, and this game isn't among the stats kept on this device.`;
-  }
-  if (screen !== 'sheet' || sheet !== want) return;
-  drawSheet();
-  mark();  // the address now says what kind of game it is
-}
-// A player's saved all-games stats list every game they played in.
-async function shelved(id) {
-  const kept = await shelf();
-  for (const req of await kept.keys()) {
-    if (!req.url.endsWith('/stats')) continue;
-    const st = await (await kept.match(req)).json();
-    const m = st.matches?.find(m => m.id === id);
-    if (m) return { ...m, saved: st.saved };
-  }
-  return null;
-}
-function drawSheet() {
-  const m = sheet.m;
-  $app.innerHTML = `<div class="page">
-    ${pageHead('players')}
-    <div class="row under"><button class="ghost" data-act="up">‹ Back</button><h1 class="sub">${m ? matchTitle(m) : 'Game'}</h1></div>
-    ${m?.saved ? `<p class="muted small stale">${Pi()} can't be reached: this is the copy
-      from ${new Date(m.saved).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}.</p>` : ''}
-    <div class="fill drill">${m ? matchHtml(m, {}) : `<p class="muted">${sheet.gone ?? 'Loading…'}</p>`}</div>
-    ${pageFoot('players')}
-  </div>`;
-  refreshStatus();
-}
-
 // ---------- number entry ----------
 // Instead of tapping each dart on the board, the whole visit can be typed in
 // as one number (games with visit() only: X01, Count Up and 121 Checkout).
@@ -1995,7 +1611,7 @@ $app.addEventListener('click', e => {
   }
   if (d.opt) { setup.opts[d.opt] = JSON.parse(d.val); saveSetup(); return renderHome(); }
   if (d.usedarts) { setup.darts = { ...setup.darts, [d.usedarts]: d.set }; saveSetup(); return renderHome(); }
-  if (d.gear !== undefined) { statsDarts = d.gear || null; drill = []; statsTab = 'stats'; renderPlayers(); return mark(); }
+  if (d.gear !== undefined) { statsView.darts = d.gear || null; statsView.drill = []; statsView.tab = 'stats'; renderPlayers(); return mark(); }
   if (d.pick) {
     const id = +d.pick, at = setup.players.indexOf(id);
     if (at >= 0) setup.players.splice(at, 1);
@@ -2006,11 +1622,11 @@ $app.addEventListener('click', e => {
   // Going somewhere new adds a history entry (mark(true)); changing what a
   // screen shows only updates the entry it has.
   if (d.sheet) { renderSheet(d.sheet); return mark(true); }
-  if (d.tab) { statsTab = d.tab; drawPlayers(); return mark(); }
+  if (d.tab) { statsView.tab = d.tab; drawPlayers(); return mark(); }
   if (d.slip !== undefined) return slipTapped();
-  if (d.drill) { drill.push(JSON.parse(d.drill)); drawPlayers(); return mark(true); }
+  if (d.drill) { statsView.drill.push(JSON.parse(d.drill)); drawPlayers(); return mark(true); }
   if (d.sort) {
-    const top = drill.at(-1);
+    const top = statsView.drill.at(-1);
     top.desc = top.by === d.sort ? !top.desc : true;
     top.by = d.sort;
     drawPlayers();
@@ -2083,7 +1699,7 @@ $app.addEventListener('click', e => {
     case 'adddarts': return addDarts(+d.id);
     case 'savedarts': return saveDarts(d.id);
     case 'retiredarts': return changeDarts(d.id, { retired: d.retired === 'yes' });
-    case 'players': drill = []; renderPlayers(); return mark(true);
+    case 'players': statsView.drill = []; renderPlayers(); return mark(true);
     case 'up': return goBack();
     case 'start':
     case 'rematch':
@@ -2175,11 +1791,11 @@ $app.addEventListener('change', e => {
   }
   const choose = e.target.dataset?.choose;
   if (!choose) return;
-  drill = [];
-  if (choose === 'game') statsGame = e.target.value || null;
-  if (choose === 'darts') statsDarts = e.target.value || null;
-  if (choose === 'player') statsDarts = null;  // sets belong to one player
-  renderPlayers(choose === 'player' ? +e.target.value : statsFor);
+  statsView.drill = [];
+  if (choose === 'game') statsView.game = e.target.value || null;
+  if (choose === 'darts') statsView.darts = e.target.value || null;
+  if (choose === 'player') statsView.darts = null;  // sets belong to one player
+  renderPlayers(choose === 'player' ? +e.target.value : statsView.player);
   mark();
 });
 // The camera picture is sized once it has loaded ('load' doesn't bubble, hence the capture).
