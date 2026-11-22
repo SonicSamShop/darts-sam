@@ -774,8 +774,8 @@ button.apple {
 .camview img { border-radius: 8px; }
 .camview i { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid #fff; background: var(--warn); }
 
-/* ---------- "Add to Home Screen" bar (install.js) ---------- */
-.install {
+/* ---------- "Add to Home Screen" bar (install.js), and the Google Analytics question (consent.js) ---------- */
+.install, .consent {
   position: fixed; z-index: 10; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 24px));
   bottom: calc(12px + env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: 12px; padding: 10px 12px;
@@ -788,17 +788,23 @@ button.apple {
 .install span { color: var(--muted); }
 .install svg { vertical-align: -4px; }
 .install button { white-space: nowrap; }
-body:has(.game) .install { display: none; }  /* never cover the scoreboard mid-game */
+.consent { flex-wrap: wrap; justify-content: flex-end; }
+.consent p { margin: 0; }
+.consent p:first-child { flex: 1 1 260px; }
+.consent a { color: inherit; text-underline-offset: 3px; }
+.consent-do { display: flex; gap: 8px; }
+.consent-do button { white-space: nowrap; }
+body:has(.game) :is(.install, .consent) { display: none; }  /* never cover the scoreboard mid-game */
 /* on the menu's two-column layout, keep it on the games' side: never over the Start button */
 @media (orientation: landscape) and (min-width: 801px) and (pointer: fine) {
-  body:has(.home-body) .install { left: calc(12px + env(safe-area-inset-left)); transform: none; width: min(560px, calc(50% - 24px)); }
+  body:has(.home-body) :is(.install, .consent) { left: calc(12px + env(safe-area-inset-left)); transform: none; width: min(560px, calc(50% - 24px)); }
 }
 /* one column (a phone, a tablet held upright) or tabs along the bottom (anything worked by touch):
    the bar takes its own room under the app instead of lying over it */
 @media (orientation: portrait), (max-width: 800px), (pointer: coarse) {
-  body:has(.install) { display: flex; flex-direction: column; }
-  body:has(.install) #app { flex: 1; min-height: 0; height: auto; }
-  .install { position: static; transform: none; flex: none; align-self: center; margin: 8px 0; }
+  body:has(.install, .consent) { display: flex; flex-direction: column; }
+  body:has(.install, .consent) #app { flex: 1; min-height: 0; height: auto; }
+  .install, .consent { position: static; transform: none; flex: none; align-self: center; margin: 8px 0; }
 }
 
 /* a problem report: lies over the game and, unlike the rest of the app, scrolls (reportProblem() in screens/report.js) */

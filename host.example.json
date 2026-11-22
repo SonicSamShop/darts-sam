@@ -5,6 +5,8 @@
   "home": "https://dartssam.co.uk",
   "email": {"resend_key": "", "from": "\"Darts S.A.M\" <signin@dartssam.co.uk>"},
   "analytics_token": "",
+  "google_analytics_id": "",
+  "analytics_skip_ips": [],
   "admins": ["you@example.com"],
   "dev": false
 }

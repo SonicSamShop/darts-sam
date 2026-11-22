@@ -179,6 +179,52 @@ The site adds the counter to every page it sends, on both addresses; the app's
 own files and the desktop and Pi apps never carry it. Visits show in Cloudflare
 under Web Analytics after a few minutes, and can be split by address there.
 
+### Google Analytics
+
+Google Analytics shows more than Cloudflare's counter: which of the app's
+screens people use (the app is one page, so Cloudflare sees it as one) and
+whether they come back. It sets cookies, so each person is asked first: a bar
+at the foot of the page, "Allow" or "No thanks" (`web/consent.js`). Google's
+script is only fetched after "Allow". The answer covers both addresses and is
+asked again after six months; the privacy page has a button to change it.
+
+1. At [analytics.google.com](https://analytics.google.com), make an account and
+   a property (Admin → Create → Property). Time zone United Kingdom.
+2. Add a **Web** data stream for `https://dartssam.co.uk`. One stream counts
+   both addresses (reports split them by "Hostname").
+3. In the stream, under **Enhanced measurement**, open the settings (the cog)
+   and switch off **Page changes based on browser history events**. The app
+   says which screen is showing itself; left on, Google counts each screen a
+   second time under an address it cannot read.
+4. Admin → Data collection and modification → **Data retention**: two months
+   is what the privacy page says. Leave it there, or change both.
+5. Copy the stream's **Measurement ID** (`G-` and ten letters and numbers).
+6. Find your own addresses, so your visits are not counted: open
+   `https://ifconfig.me` at home (and on any other connection you use, like
+   your phone on mobile data, though those change). For an IPv6 address
+   (it has colons) take its first four groups and add `::/64`, as home IPv6
+   addresses change within that range.
+7. In `/etc/dartssam/host.json` add:
+
+   ```json
+   "google_analytics_id": "G-XXXXXXXXXX",
+   "analytics_skip_ips": ["81.2.69.142", "2a00:23c8:1234:5678::/64"],
+   ```
+
+   and restart the site (`systemctl restart dartssam-host`).
+
+Pages sent to an address in `analytics_skip_ips` carry neither Google's
+question nor Cloudflare's counter. (Caddy passes the visitor's address on in
+`X-Forwarded-For`; the site only believes that header from this machine.) To
+check: `curl -s https://dartssam.co.uk/faq.html | grep -c consent.js` from home
+prints `0`, and the same on mobile data prints `1`. If your home address
+changes, update the list.
+
+In Google Analytics, **Reports → Engagement → Pages and screens** lists the
+site's pages (`/faq.html`, `/download.html`) and the app's screens (`/menu`,
+`/stats`, `/settings/players`, `/game/501`, `/cameras`); `/` is the welcome
+page. Only the kind of screen is sent, never names, scores or which game.
+
 ## 4. Start it
 
 ```bash

@@ -10,6 +10,7 @@ and reloads itself when they differ (web/update.js).
 import hashlib
 import mimetypes
 from pathlib import Path
+from typing import Callable
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
@@ -53,16 +54,18 @@ class WebFiles(StaticFiles):
     """The app's files, always checked with the server before a saved copy is used.
     Otherwise a browser can run a new app.js against an old board.js after an update.
     head: put at the end of each page's <head> as it is sent (the hosted site's
-    visitor counter); the files themselves are not changed."""
+    visitor counters), or a function of the request's scope giving that; the files
+    themselves are not changed."""
 
-    def __init__(self, *args, head: str = "", **kwargs):
+    def __init__(self, *args, head: str | Callable[[dict], str] = "", **kwargs):
         super().__init__(*args, **kwargs)
-        self.head = head
+        self.head = head if callable(head) else (lambda scope: head)
 
     async def get_response(self, path, scope):
         response = await super().get_response(path, scope)
-        if self.head and isinstance(response, FileResponse) and str(response.path).endswith(".html"):
+        head = self.head(scope)
+        if head and isinstance(response, FileResponse) and str(response.path).endswith(".html"):
             page = Path(response.path).read_text(encoding="utf-8")
-            response = HTMLResponse(page.replace("</head>", self.head + "</head>", 1), status_code=response.status_code)
+            response = HTMLResponse(page.replace("</head>", head + "</head>", 1), status_code=response.status_code)
         response.headers["Cache-Control"] = "no-cache"
         return response

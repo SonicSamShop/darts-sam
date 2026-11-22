@@ -114,7 +114,25 @@ delete settings.board;  // (the one board there was, before boards had a list of
 export let totals = store.get('totals', null);  // {darts, reports}: everything on the Pi, as it last said
 export const setTotals = v => { totals = v; };  // for screens/home.js
 export let screen = match ? 'game' : 'home';
-export const setScreen = v => { screen = v; };  // for screens/*.js: each sets its own
+export const setScreen = v => { screen = v; counted(); };  // for screens/*.js: each sets its own
+// Tell the hosted site's Google Analytics which screen is showing (web/consent.js,
+// which counts it only for people who allowed it; elsewhere there is no such thing).
+// Only what kind of screen it is: never whose stats or which game. It is told
+// once the screen is drawn (a section is picked as Settings opens, say).
+let toCount = null;
+function counted() {
+  if (!window.dartsCount || toCount) return;
+  toCount = setTimeout(() => {
+    toCount = null;
+    const tab = (prefix, t, first) => t && t !== first ? `${prefix}/${t}` : prefix;
+    try {
+      window.dartsCount(screen === 'game' ? `/game/${match ? routeName(match.gameId, match.opts) : ''}`
+        : screen === 'players' ? tab('/stats', statsView.tab, 'stats')
+        : screen === 'settings' ? tab('/settings', settingsView.tab)
+        : ({ landing: '/', welcome: '/first-time', home: '/menu', sheet: '/scoresheet' })[screen] ?? `/${screen}`);
+    } catch { /* counting never gets in the way */ }
+  });
+}
 export const MAX_PLAYERS = 6;
 
 // ---------- themes ----------
@@ -405,6 +423,7 @@ function place() {
 }
 // Note where the app is now: as a new history entry (push), or in place of the current one.
 export function mark(push) {
+  counted();  // a tab changed within the screen, say
   if (screen === 'landing') return;  // the welcome page has no address: the one asked for is kept for after signing in
   if (screen === 'welcome') return;  // nor has the desktop app's first screen: opened again, it asks again
   if (push) depth++;

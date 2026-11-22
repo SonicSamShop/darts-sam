@@ -209,7 +209,7 @@
 .t-chalk .camextra, .t-chalk .camside .camlink { border-top-color: var(--hair); }
 .t-chalk .banner { background: var(--sunk); border: 0; border-radius: var(--wobble); }
 .t-chalk .banner.win { background: none; border: 2px dashed var(--gold); }
-.t-chalk .install { background: var(--raised); border: 0; border-radius: var(--wobble); }
+.t-chalk :is(.install, .consent) { background: var(--raised); border: 0; border-radius: var(--wobble); }
 
 /* chosen things */
 /* a setting, a tab: raised, with a gold stroke under it */

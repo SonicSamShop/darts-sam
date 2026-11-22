@@ -11,6 +11,7 @@ each signs in with Google, Apple or a code sent by email and has their own playe
 no cameras and must run without OpenCV installed. See docs/hosting.md.
 """
 import argparse
+import ipaddress
 import json
 import re
 import sys
@@ -115,7 +116,11 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
     welcome page is always shown, and it sends people to "site" to sign in); "admins", the
     email addresses whose accounts may see the admin pages; "analytics_token", the
     site token of Cloudflare Web Analytics (left out: no visitor counter on the pages);
-    "dev", true when run on a laptop over plain http."""
+    "google_analytics_id", the G-... measurement ID of Google Analytics (left out: no
+    Google Analytics; when set, each page asks before counting: web/consent.js);
+    "analytics_skip_ips", addresses (or ranges, like "2a00:1:2:3::/64") whose visits
+    are not counted: pages sent to them carry neither counter; "dev", true when run
+    on a laptop over plain http."""
     store = hoststore.Store(folder)
     relay = Relay()
     app = FastAPI()
@@ -130,12 +135,31 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
     client_id = settings["google_client_id"]
     apple_id = settings.get("apple_client_id") or None
     admins = {a.lower() for a in settings.get("admins", [])}
-    downloads = Path(settings.get("downloads") or ROOT / "downloads")
+    downloads = Path(settings.get("downloads") or ROOT / "downloads")  # the folder the apps to download are put in
     counter = str(settings.get("analytics_token") or "")
     if counter and not re.fullmatch(r"[A-Za-z0-9_-]+", counter):
         raise ValueError('"analytics_token" should be the token from Cloudflare Web Analytics, nothing else')
     beacon = ("<script defer src='https://static.cloudflareinsights.com/beacon.min.js' "
-              f"""data-cf-beacon='{{"token": "{counter}"}}'></script>\n""") if counter else ""  # the folder the apps to download are put in
+              f"""data-cf-beacon='{{"token": "{counter}"}}'></script>\n""") if counter else ""
+    google = str(settings.get("google_analytics_id") or "")
+    if google and not re.fullmatch(r"G-[A-Z0-9]+", google):
+        raise ValueError('"google_analytics_id" should be the measurement ID from Google Analytics, like G-AB12CD34EF')
+    counters = beacon + (f"<script defer src='consent.js' data-ga='{google}'></script>\n" if google else "")
+    try:
+        skipped = [ipaddress.ip_network(str(a).strip(), strict=False) for a in settings.get("analytics_skip_ips", [])]
+    except ValueError as e:
+        raise ValueError(f'"analytics_skip_ips" should be a list of IP addresses or ranges: {e}')
+
+    def page_head(scope) -> str:
+        """The counters for a page, or nothing for an address in "analytics_skip_ips".
+        Behind Caddy the address is the visitor's: uvicorn takes it from the
+        X-Forwarded-For header Caddy sets, trusting that header from this machine only."""
+        try:
+            ip = ipaddress.ip_address((scope.get("client") or ("",))[0])
+        except ValueError:
+            return counters
+        ip = getattr(ip, "ipv4_mapped", None) or ip
+        return "" if any(ip in net for net in skipped) else counters
 
     @app.middleware("http")
     async def same_origin(request: Request, call_next):
@@ -573,7 +597,7 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
                         headers={"Cache-Control": "no-cache"})
 
     vision_files(app)
-    app.mount("/", WebFiles(directory=WEB, html=True, head=beacon), name="web")
+    app.mount("/", WebFiles(directory=WEB, html=True, head=page_head), name="web")
     return app
 
 

@@ -456,6 +456,26 @@ def analytics():
         except ValueError:
             pass
 
+        # Google Analytics: its consent script on the pages, but not for the addresses skipped
+        both = {"google_client_id": "client-123", "dev": True, "analytics_token": "abc123",
+                "google_analytics_id": "G-AB12CD34EF", "analytics_skip_ips": ["203.0.113.7", "2001:db8:1:2::/64"]}
+        tag = "<script defer src='consent.js' data-ga='G-AB12CD34EF'></script>"
+        made = host.create(Path(tmp) / "d", both)
+        for ip, counted in (("198.51.100.1", True), ("203.0.113.7", False), ("2001:db8:1:2::99", False),
+                            ("2001:db8:1:3::1", True), ("::ffff:203.0.113.7", False)):
+            for page in ("/", "/faq.html", "/privacy.html"):
+                head = TestClient(made, client=(ip, 5000)).get(page).text.split("</head>")[0]
+                assert (tag in head) == counted and ("cloudflareinsights" in head) == counted, (ip, page)
+        assert tag in TestClient(made).get("/").text  # "testclient", not an address: counted
+        assert tag not in TestClient(made).get("/app.js").text  # only pages, not the app's code
+        for bad in ({"google_analytics_id": "G-1'><script>"}, {"google_analytics_id": "UA-123-1"},
+                    {"analytics_skip_ips": ["my house"]}):
+            try:
+                host.create(Path(tmp) / "e", {"google_client_id": "client-123", **bad})
+                raise AssertionError(f"accepted {bad}")
+            except ValueError:
+                pass
+
 
 if __name__ == "__main__":
     main()
