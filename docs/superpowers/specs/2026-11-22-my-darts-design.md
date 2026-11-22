@@ -1,6 +1,6 @@
 # My darts: design
 
-2026-11-22. Status: draft for Sam to check (open questions at the end). No plan yet.
+2026-11-22. Status: approved by Sam, 2026-11-22 ("Yes, perfect"), including the trial event and the thresholds; build now, compare included.
 
 ## Why
 
