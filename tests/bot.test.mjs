@@ -65,6 +65,23 @@ test('bots: a dart lands near where it is aimed and is scored where it lands', (
   assert.deepEqual(throwAt({ seg: 20, mult: 3 }, 0, random), { seg: 20, mult: 3, x: 0, y: 103 });
 });
 
+test('bots: a dart that misses the board still lands in the picture of it', () => {
+  // A dart sent straight up from treble 20 by exactly its spread.
+  const up = mm => { const fixed = [1 - Math.exp(-0.5), 0.25]; return throwAt({ seg: 20, mult: 3 }, mm, () => fixed.shift()); };
+  assert.deepEqual(up(30), { seg: 20, mult: 1, x: 0, y: 133 });    // on the board: left where it lands
+  assert.deepEqual(up(97), { seg: 0, mult: 0, x: 0, y: 191.9 });   // 30 mm over the top: brought in a little
+  assert.deepEqual(up(900), { seg: 0, mult: 0, x: 0, y: 215 });    // miles over: as far out as can be shown
+  const random = seeded(6);
+  let missed = 0;
+  for (let i = 0; i < 2000; i++) {
+    const d = throwAt({ seg: 20, mult: 3 }, 150, random), out = Math.hypot(d.x, d.y);
+    assert.ok(out <= 215.1, `a dart ${out.toFixed(1)} mm from the bull`);
+    assert.deepEqual({ seg: d.seg, mult: d.mult }, scoreAt(d.x, d.y));
+    if (!d.mult) missed++;
+  }
+  assert.ok(missed > 800, `${missed} of 2000 missed`);  // and bringing them in puts none of them on the board
+});
+
 test('bots: each level hits its doubles as often as it says', () => {
   for (const l of LEVELS) {
     const random = seeded(l.level), n = 20000;
@@ -103,6 +120,53 @@ test('bots: X01 aims by the checkout chart', () => {
   assert.deepEqual(at(95, [{ seg: 20, mult: 3 }, { seg: 0, mult: 0 }]), [3, 1]);     // 35 left, one dart: sets up D16
   // A perfect bot takes out 501 in nine darts.
   assert.equal(legs(perfect, 1, random).longest, 9);
+});
+
+test('bots: X01 takes as much care over the single that leaves a double as over the double', () => {
+  const dart = (skill, score, thrown = []) => {
+    const s = compute({ ...newMatch('x01', ['Bot'], { start: score }), log: thrown.map(d => ({ t: 'dart', ...d })) });
+    return x01.bot(s, skill, seeded(score));
+  };
+  const middle = bed => { const [x, y] = aimPoint(bed); return { ...bed, x: +x.toFixed(1), y: +y.toFixed(1) }; };
+  // Can't miss when finishing, wild at anything else: only the darts of a finish land dead centre.
+  const finisher = { spread: 60, finish: 0 };
+  assert.deepEqual(dart(finisher, 40), middle({ seg: 20, mult: 2 }));  // D20
+  assert.deepEqual(dart(finisher, 45), middle({ seg: 13, mult: 1 }));  // 13, D16
+  assert.deepEqual(dart(finisher, 95, [{ seg: 20, mult: 3 }, { seg: 0, mult: 0 }]), middle({ seg: 3, mult: 1 }));  // 35 left, one dart: 3 for D16
+  // The other way round: scoring is a scoring dart, and so is a treble or the bull on the way to a finish.
+  const scorer = { spread: 0, finish: 60 };
+  assert.deepEqual(dart(scorer, 501), middle({ seg: 20, mult: 3 }));
+  assert.deepEqual(dart(scorer, 120), middle({ seg: 20, mult: 3 }));   // T20, 20, D20
+  assert.deepEqual(dart(scorer, 100), middle({ seg: 20, mult: 3 }));   // T20, D20
+  assert.deepEqual(dart(scorer, 82), { seg: 25, mult: 2, x: 0, y: 0 });  // Bull, D16
+  assert.deepEqual(dart(scorer, 65), { seg: 25, mult: 2, x: 0, y: 0 });  // 25, D20: the 25 is aimed at the bull
+});
+
+test('bots: a level scores near its average on the way down, not well above it', () => {
+  // The three-dart average over the visits a bot starts with more than 170 left, before it is on a finish.
+  const scoring = (skill, n, random) => {
+    let points = 0, visits = 0;
+    for (let i = 0; i < n; i++) {
+      const m = newMatch('x01', ['Bot'], { start: 501 });
+      let s = compute(m);
+      while (s.winner == null) {
+        m.log.push({ t: 'dart', ...x01.bot(s, skill, random), src: 'bot' });
+        s = compute(m);
+      }
+      const totals = new Map();
+      for (const t of s.throws) totals.set(t.round, (totals.get(t.round) ?? 0) + (t.bust ? 0 : t.seg * t.mult));
+      let left = 501;
+      for (const total of totals.values()) {
+        if (left > 170) { points += total; visits++; }
+        left -= total;
+      }
+    }
+    return points / visits;
+  };
+  for (const [level, n] of [[1, 80], [3, 100], [8, 120]]) {
+    const l = botLevel(level), got = scoring(l, n, seeded(20 + level));
+    assert.ok(got > l.average && got < l.average * 1.3, `level ${level}: ${got.toFixed(1)} for ${l.average}`);
+  }
 });
 
 test('the level suggested for a player is the first that averages as much as they do, or more', () => {

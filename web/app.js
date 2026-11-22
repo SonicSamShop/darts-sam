@@ -153,7 +153,14 @@ const botUp = (s = compute(match)) => s.winner == null ? match.bots?.[s.current]
 // it holds off for a while, counting down on screen, so a wrongly scored dart can be put right
 // (Undo) before it starts; "Throw now" skips the wait. The countdown is kept while the screen
 // redraws, and starts again only when something new goes into the game.
-const BOT_WAIT = 2200, BOT_PACE = 1200, BOT_HOLD = 8000;
+// How long it holds off is a setting (Settings > In a game): 0 to 30 seconds, 8 unless
+// changed. At 0 there is no wait and no countdown: it throws as it does after its own dart.
+const BOT_WAIT = 2200, BOT_PACE = 1200;
+const BOT_HOLD_MAX = 30, BOT_HOLD_USUAL = 8;  // seconds
+function botHoldSecs() {
+  const n = Math.round(Number(settings.botHold ?? BOT_HOLD_USUAL));
+  return Number.isFinite(n) ? Math.min(BOT_HOLD_MAX, Math.max(0, n)) : BOT_HOLD_USUAL;
+}
 let botTimer = 0, botTick = 0;
 let botHold = null;  // {at: match.log.length, due: time} while waiting after a person's visit
 let botFlight = false;  // the dart about to be drawn is the computer's: show it landing
@@ -168,13 +175,13 @@ function botSoon() {
     botTimer = setTimeout(botThrow, s.turn.length ? BOT_PACE : BOT_WAIT);
     return;
   }
-  if (botHold?.at !== match.log.length) botHold = { at: match.log.length, due: Date.now() + BOT_HOLD };
+  if (botHold?.at !== match.log.length) botHold = { at: match.log.length, due: Date.now() + botHoldSecs() * 1000 };
   botTimer = setTimeout(botThrow, Math.max(0, botHold.due - Date.now()));
   botTick = setInterval(showBotHold, 250);
   showBotHold();
 }
 // Whether the computer's next dart waits on a person's visit just gone in.
-const botHolds = s => !!botUp(s) && !s.turn.length && match.log.length > 0 && match.log.at(-1).src !== 'bot';
+const botHolds = s => botHoldSecs() > 0 && !!botUp(s) && !s.turn.length && match.log.length > 0 && match.log.at(-1).src !== 'bot';
 const botHoldLeft = () => botHold ? Math.max(1, Math.ceil((botHold.due - Date.now()) / 1000)) : 0;
 function showBotHold() {
   const el = document.querySelector('.botwait b');
@@ -429,6 +436,14 @@ function refreshStatus() {
 // Which of the device's voices to use is kept on this device, not with the
 // other settings: another device won't have the same voices.
 const voice = createVoice({ chosen: store.get('voiceName', '') });
+// How long the computer waits after a person's visit before it throws: a drop-down of seconds.
+function botHoldPicker() {
+  const now = botHoldSecs();
+  return `<div class="picks"><label class="pick"><span>Bot waits before it throws</span><select data-bothold>
+      ${Array.from({ length: BOT_HOLD_MAX + 1 }, (_, n) =>
+    `<option value="${n}" ${n === now ? 'selected' : ''}>${n ? `${n} second${n > 1 ? 's' : ''}` : 'No wait'}${n === BOT_HOLD_USUAL ? ' (usual)' : ''}</option>`).join('')}</select></label></div>
+    <p class="muted small">Against the computer, the time you have after your visit to undo a wrongly scored dart before it throws.</p>`;
+}
 // Voices can be listed a moment after the page loads: show them once they are.
 globalThis.speechSynthesis?.addEventListener?.('voiceschanged', () => { if (screen === 'settings') renderSettings(); });
 function say(text) {
@@ -2269,7 +2284,7 @@ function renderGame() {
     ${game.hint ? `<div class="hint">${s.winner == null ? esc(game.hint(s, { checkouts: settings.checkouts !== false })) : ''}</div>` : ''}
     ${slipHtml()}
     ${banner}${s.winner != null ? earnedLine() : ''}
-    ${botHolds(s) ? `<div class="botwait"><span>${esc(s.players[s.current])} throws in <b>${botHold?.at === match.log.length ? botHoldLeft() : BOT_HOLD / 1000}</b>s. Score wrong? Undo it now.</span>
+    ${botHolds(s) ? `<div class="botwait"><span>${esc(s.players[s.current])} throws in <b>${botHold?.at === match.log.length ? botHoldLeft() : botHoldSecs()}</b>s. Score wrong? Undo it now.</span>
       <button data-act="botgo">Throw now</button></div>` : ''}
     <div class="actions ${pad && s.winner == null ? 'solo' : ''}">
       <button data-act="undo" ${match.log.length ? '' : 'disabled'}>Undo</button>
@@ -2400,6 +2415,7 @@ function renderSettings(jump) {
     ${switchRow('Show achievements as they are earned', achievementsOn(), `data-achievements="${achievementsOn() ? 'off' : 'on'}"`, 'A first 180, a big finish and the like are shown, and called, as they happen. Off, they are still kept on the Stats page.')}
     ${switchRow('Keep a picture of the board with an achievement', photosOn() === true, `data-photos="${photosOn() === true ? 'off' : 'on'}"`, 'When a camera scores the dart that earns one. Kept with your games and nowhere else, and deleted with the game.')}
     ${switchRow('Show the bot\'s darts landing', settings.flight !== false, `data-flight="${settings.flight !== false ? 'off' : 'on'}"`, 'Against the computer, each of its darts flies in to where it lands on the board.')}
+    ${botHoldPicker()}
     </div></div>`;
   // [id, its name, its name on a tab, how it is set (the list says), the section]: in the list's groups
   const groups = [
@@ -3280,6 +3296,11 @@ $app.addEventListener('change', e => {
     store.set('voiceName', e.target.value);
     voice.choose(e.target.value);
     say('One hundred and eighty');  // so it can be heard
+    return;
+  }
+  if (e.target.dataset?.bothold !== undefined) {
+    settings.botHold = +e.target.value;
+    saveSettings();
     return;
   }
   const choose = e.target.dataset?.choose;

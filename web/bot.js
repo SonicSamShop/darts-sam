@@ -11,10 +11,15 @@
 // a bot's darts show on the board and count in the game as a player's would.
 //
 // A level has two spreads, because its two published figures are set apart:
-//   spread  for scoring and setting up, tuned to give the level's `average`
-//           (three-dart average over a leg of 501, double out)
-//   finish  for a dart that would win the leg, tuned to give its `checkout`
-//           rate (the share of darts thrown at a double that hit it)
+//   spread  for scoring, tuned to give the level's `average` (three-dart
+//           average over a leg of 501, double out)
+//   finish  for finishing, tuned to give its `checkout` rate (the share of
+//           darts thrown at a double that hit it)
+// What counts as finishing is the game's to say. In X01 it is the dart that
+// would win the leg and the single that leaves its double, so a level takes as
+// much care setting a double up as throwing at it. (With that single thrown as
+// a scoring dart, the lower levels went bust on most visits once they were on
+// a finish, and had to score well above their average to make up for it.)
 // The averages rise evenly from 18 at level 1 to 110 at level 15, and the
 // checkout rates from 8% (about 1 in 12) to 80%. The spreads are worked out
 // from those by tools/bot_levels.mjs: change the targets there, run it, and
@@ -26,18 +31,18 @@ import { scoreAt, SEGMENTS } from './board.js';
 
 //                      level, average, checkout, spread, finish
 export const LEVELS = [
-  [1, 18, 0.08, 77.8, 26.8],
-  [2, 25, 0.13, 58.4, 19.8],
-  [3, 31, 0.18, 42, 15.8],
-  [4, 38, 0.23, 28.6, 13],
-  [5, 44, 0.29, 23.2, 10.6],
-  [6, 51, 0.34, 18.8, 9.1],
-  [7, 57, 0.39, 16.6, 7.8],
-  [8, 64, 0.44, 14.3, 6.9],
-  [9, 71, 0.49, 12.6, 6.1],
+  [1, 18, 0.08, 107.1, 26.8],
+  [2, 25, 0.13, 73.5, 19.8],
+  [3, 31, 0.18, 51, 15.8],
+  [4, 38, 0.23, 31.4, 13],
+  [5, 44, 0.29, 24.1, 10.6],
+  [6, 51, 0.34, 19.3, 9.1],
+  [7, 57, 0.39, 16.9, 7.8],
+  [8, 64, 0.44, 14.4, 6.9],
+  [9, 71, 0.49, 12.7, 6.1],
   [10, 77, 0.54, 11.4, 5.4],
   [11, 84, 0.59, 10, 4.8],
-  [12, 90, 0.65, 9, 4.3],
+  [12, 90, 0.65, 9.1, 4.3],
   [13, 97, 0.70, 7.9, 3.8],
   [14, 103, 0.75, 7, 3.5],
   [15, 110, 0.80, 6.2, 3.1],
@@ -55,13 +60,15 @@ export const levelFor = average => LEVELS.find(l => l.average >= average) ?? LEV
 // aims for it. A single is its big outer half, between the treble and the
 // double; the 25 ring has no middle of its own, so that is the bull.
 const AIM = { 1: 134.5, 2: 166, 3: 103 };
-// The outside of the doubles, and how far out the picture of the board shows a dart.
-const EDGE = 170, SEEN = 215;
 export function aimPoint({ seg, mult }) {
   if (seg === 25) return [0, 0];
   const a = SEGMENTS.indexOf(seg) * 18 * Math.PI / 180;
   return [AIM[mult] * Math.sin(a), AIM[mult] * Math.cos(a)];
 }
+
+// The outside of the doubles, and how far out the app's picture of the board
+// (the numbers and the surround) can show a dart: both in mm from the bull.
+const EDGE = 170, SEEN = 215;
 
 // One dart aimed at `bed` by a thrower whose darts land `spread` mm around
 // where they aim: {seg, mult, x, y}, as a tap on the board gives.
@@ -71,9 +78,9 @@ export function throwAt(bed, spread, random = Math.random) {
   const far = spread * Math.sqrt(-2 * Math.log(1 - random())), turn = 2 * Math.PI * random();
   let x = ax + far * Math.cos(turn), y = ay + far * Math.sin(turn);
   // A dart that misses the board is brought in to land among the numbers round
-  // it, where the app's picture of the board can show it: the further off it
-  // was going, the nearer to SEEN mm from the bull, and never past that. It is
-  // a miss either way. (The lowest levels miss the board with a lot of darts.)
+  // it, where it can be seen to miss: the further off it was going, the nearer
+  // to SEEN, and never past it. It is a miss either way. (The lowest levels
+  // miss the board with a lot of their darts, some by a long way.)
   const out = Math.hypot(x, y);
   if (out > EDGE) {
     const room = SEEN - EDGE, pull = (EDGE + room * (1 - Math.exp((EDGE - out) / room))) / out;
