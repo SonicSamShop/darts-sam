@@ -2174,7 +2174,8 @@ function renderGame() {
     ${pad && !s.turn.length ? '' : `<div class="turn">${slots}<div class="slot total ${s.note ? 'bust' : ''}">${s.note || (game.showTotal === false ? '' : total)}</div></div>`}
     ${last}
     ${game.hint ? `<div class="hint">${s.winner == null ? esc(game.hint(s, { checkouts: settings.checkouts !== false })) : ''}</div>` : ''}
-    ${banner}
+    ${slipHtml()}
+    ${banner}${s.winner != null ? earnedLine() : ''}
     ${botHolds(s) ? `<div class="botwait"><span>${esc(s.players[s.current])} throws in <b>${botHold?.at === match.log.length ? botHoldLeft() : BOT_HOLD / 1000}</b>s. Score wrong? Undo it now.</span>
       <button data-act="botgo">Throw now</button></div>` : ''}
     <div class="actions ${pad && s.winner == null ? 'solo' : ''}">
