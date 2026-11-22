@@ -18,6 +18,7 @@ import { ACHIEVEMENTS, GROUPS, byId, held, newly, chief, add, tally as gameTally
 import {
   deleteShared, loadShare, openDetail, setShare, share, shareAsk, sharePanel, sharing
 } from './screens/sharing.js';
+import { accountDo, accountPanel, acct, feedbackBox, sendFeedback } from './screens/accountpanel.js';
 
 const $app = document.getElementById('app');
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -46,7 +47,7 @@ phone.offered();  // is it offered here? (asked once, before the Cameras screen 
 // this device first and sent to the Pi when it can be reached (see sync.js).
 // So the whole app works with no Pi and no network, and catches up later.
 // (api.js says what a refusal means to the queue of changes waiting to be sent.)
-const call = (url, method, body, timeout) => request((u, o) => fetch(u, o), url, method, body, timeout)
+export const call = (url, method, body, timeout) => request((u, o) => fetch(u, o), url, method, body, timeout)
   .catch(e => { if (e.signedOut) account.expired(); throw e; });
 export async function api(path, method = 'GET', body, timeout = 10000) {
   // Hosted and not signed in: there is no account to send to yet. Fail the way
@@ -56,7 +57,7 @@ export async function api(path, method = 'GET', body, timeout = 10000) {
 }
 // The hosted version only (see account.js): who is signed in.
 // Signed out there, the welcome page takes over; signed in from it, the app opens.
-const account = createAccount({ request: call, store, onChange: () => {
+export const account = createAccount({ request: call, store, onChange: () => {
   if (account.locked) redraw(renderLanding); else if (screen === 'landing') begin();
   refreshStatus();
 } });
@@ -220,7 +221,7 @@ function randomOrder() {
   const ids = seats(), at = Math.floor(Math.random() * ids.length);
   return [...ids.slice(at), ...ids.slice(0, at)];
 }
-const data = createSync({ store, api, changed: synced });
+export const data = createSync({ store, api, changed: synced });
 function saveSetup() { data.saveSetting('setup', setup); data.sync(); }
 function saveSettings() { data.saveSetting('settings', settings); data.sync(); }
 // Every change to a match is queued as a full copy of the match.
@@ -298,7 +299,8 @@ async function warmStats() {
   warming = false;
 }
 
-let connected = false, cameraCount = 0;
+let connected = false;
+export let cameraCount = 0;
 let helperLinked = false;  // hosted: the person's cameras' computer is connected to the site
 
 // ---------- new versions ----------
@@ -2818,66 +2820,7 @@ function watchLink() {
   }, 2000);
 }
 
-// ---------- account (the hosted version only, see account.js) ----------
-let acctNote = '';        // what went wrong last
-let acctSigningOut = false; // "Sign out" pressed once: asking if they are sure
-let acctDeleting = false; // "Delete my account" pressed once: asking if they are sure
-let fbNote = '';          // how sending feedback went
-async function sendFeedback() {
-  const box = document.getElementById('fb-text'), text = box.value;
-  try {
-    await call(account.hosted ? '/api/feedback' : '/api/share/feedback', 'POST', { text, app: {
-      version: appVersion, browser: navigator.userAgent, w: innerWidth, h: innerHeight, cameras: cameraCount,
-    } });
-    fbNote = 'Thanks, sent.';
-  } catch (e) {
-    fbNote = e.signedOut ? 'You are no longer signed in.' : e.status ? e.message : 'Not sent: no connection. Try again.';
-    if (onAccountTab()) { renderSettings(); document.getElementById('fb-text').value = text; }  // keep what they typed
-    return;
-  }
-  if (onAccountTab()) renderSettings();
-}
-function accountPanel() {
-  const note = acctNote ? `<p class="warn">${esc(acctNote)}</p>` : '';
-  if (!account.account) return '';  // signed out is the welcome page's business
-  return `<div class="settings">
-    ${note}
-    ${acctSigningOut ? `<p>Are you sure you want to sign out?</p>
-    <div class="row"><button data-act="acct-signout-yes">Sign out</button><button data-act="acct-signout-no">Stay signed in</button></div>`
-    : acctDeleting ? '' : '<div class="rows"><button class="srow" data-act="acct-signout"><span><b>Sign out</b></span></button></div>'}
-    <p class="muted small"><a href="privacy.html" target="_blank" rel="noopener">What is stored about you</a>${
-      account.account.admin ? ' · <a href="/admin">The trial\'s admin pages</a>' : ''}</p>
-    <div class="setend">${acctDeleting ? `<p>This deletes your account, games and stats for good.</p>
-    <div class="row"><button class="danger" data-act="acct-delete-yes">Delete</button><button data-act="acct-delete-no">Keep</button></div>`
-    : '<button class="ghost danger" data-act="acct-delete">Delete my account</button>'}</div></div>`;
-}
 export const onAccountTab = () => screen === 'settings' && (sectShown('acct') || sectShown('share') || sectShown('feedback') || listShown());
-const feedbackBox = () => `<div class="feedback"><label for="fb-text">Tell us what you think: what works, what doesn't, what's missing.</label>
-      <textarea id="fb-text" rows="3" maxlength="2000"></textarea>
-      <div class="row"><button data-act="feedback">Send feedback</button><span class="muted">${esc(fbNote)}</span></div></div>`;
-
-async function accountDo(what) {
-  acctNote = '';
-  try {
-    if (what === 'signout') {
-      // Signing out empties this device, so anything not yet saved to the account would be lost.
-      if (data.waiting() && !(await data.sync()) || data.waiting()) {
-        throw new Error(`${data.waiting()} change${data.waiting() === 1 ? ' hasn\'t' : 's haven\'t'} been saved yet. Connect to the internet and try again.`);
-      }
-      await account.signOut();
-    }
-    if (what === 'delete') await account.remove();
-    // this device's copy is gone: start again clean rather than show what is still in memory
-    if (what !== 'rename') {
-      await window.caches?.delete('dartssam-data').catch(() => {});  // their stats, kept for offline
-      return location.reload();
-    }
-  } catch (e) {
-    acctNote = e.signedOut ? 'You are no longer signed in.' : e.message;
-  }
-  acctDeleting = acctSigningOut = false;
-  if (onAccountTab()) renderSettings();
-}
 
 // Have the Pi look for its cameras again, as restarting it would: for one plugged
 // in late, or one that came back under another number. With a path and body,
@@ -3190,11 +3133,11 @@ $app.addEventListener('click', e => {
     case 'mail-code': return signIn('email', { email: mailTo, code: document.getElementById('mail-code').value });
     case 'mail-back': mailStep = 'ask'; landNote = ''; renderLanding(); return document.getElementById('mail-addr').focus();
     case 'sback': return closeSection();
-    case 'acct-signout': acctSigningOut = true; acctNote = ''; return renderSettings();
-    case 'acct-signout-no': acctSigningOut = false; return renderSettings();
+    case 'acct-signout': acct.signingOut = true; acct.note = ''; return renderSettings();
+    case 'acct-signout-no': acct.signingOut = false; return renderSettings();
     case 'acct-signout-yes': return accountDo('signout');
-    case 'acct-delete': acctDeleting = true; acctSigningOut = false; acctNote = ''; return renderSettings();
-    case 'acct-delete-no': acctDeleting = false; return renderSettings();
+    case 'acct-delete': acct.deleting = true; acct.signingOut = false; acct.note = ''; return renderSettings();
+    case 'acct-delete-no': acct.deleting = false; return renderSettings();
     case 'acct-delete-yes': return accountDo('delete');
     case 'share-on': return setShare(true);
     case 'share-off': return setShare(false);
