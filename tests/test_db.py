@@ -105,7 +105,7 @@ def main():
         expect(db.NotFound, db.stats, 999)
         # one match on its own: the same history entry, belonging to nobody (so thrown with no one's darts)
         assert h["darts"] is None
-        assert db.match("m1") == {k: v for k, v in h.items() if k not in ("me", "darts")}
+        assert db.match("m1") == {k: v for k, v in h.items() if k not in ("me", "darts", "board")}
         expect(db.NotFound, db.match, "nope")
 
         # undo after the win: the match goes back to unfinished

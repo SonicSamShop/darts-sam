@@ -636,17 +636,18 @@ HEAT_DARTS = 5000  # most recent dart positions sent for the heat map
 PLAYED_MS = "COALESCE(m.duration, MAX(0, (SELECT MAX(ts) FROM throws WHERE match_id = m.id) - m.started), 0)"
 
 
-def _matches(db, player_id: int, game_id: str | None, darts: str | None = None) -> list:
+def _matches(db, player_id: int, game_id: str | None, darts: str | None = None, board: str | None = None) -> list:
     """Every match the player took part in (of one game type, or of them all;
-    with darts, only those they threw that set of darts in), oldest first, as
+    with darts, only those they threw that set of darts in; with board, only
+    those played on that board), oldest first, as
     (match row, player ids in throwing order, throws in the order thrown).
     The row's my_darts is the set the player threw, or None if not said."""
     out = []
     for m in db.execute(
             "SELECT m.*, mp.darts AS my_darts FROM matches m JOIN match_players mp ON mp.match_id = m.id "
             "WHERE mp.player_id = ?" + (" AND m.game_id = ?" if game_id else "")
-            + (" AND mp.darts = ?" if darts else "") + " ORDER BY m.started",
-            (player_id, *([game_id] if game_id else []), *([darts] if darts else []))).fetchall():
+            + (" AND mp.darts = ?" if darts else "") + (" AND m.board = ?" if board else "") + " ORDER BY m.started",
+            (player_id, *([game_id] if game_id else []), *([darts] if darts else []), *([board] if board else []))).fetchall():
         ids = [r["player_id"] for r in db.execute(
             "SELECT player_id FROM match_players WHERE match_id = ? ORDER BY position", (m["id"],))]
         throws = db.execute("SELECT * FROM throws WHERE match_id = ? ORDER BY id", (m["id"],)).fetchall()
@@ -665,7 +666,8 @@ def _visits(throws) -> list:
     return out
 
 
-def _history(db, player_id: int, game_id: str | None, darts: str | None = None) -> list[dict]:
+def _history(db, player_id: int, game_id: str | None, darts: str | None = None,
+             board: str | None = None) -> list[dict]:
     """The player's matches, oldest first, visit by visit and with everyone's
     darts. The app works the X01 figures out from this, and opens any figure
     up into the visits, legs and scoresheets behind it (web/stats.js).
@@ -674,12 +676,12 @@ def _history(db, player_id: int, game_id: str | None, darts: str | None = None) 
     match's players and each dart is seg * 10 + mult (T20 is 203, a miss 0).
     A visit typed in as one number has no darts to list and is
     [player, round, ts, bust, None, total, darts used].
-    "darts" is the set the player threw in it, so the app can put their sets
-    side by side.
+    "darts" is the set the player threw in it and "board" the board it was
+    played on, so the app can put their sets, and the boards, side by side.
     """
     names, bots = _names(db), _bots(db)
-    return [{**_sheet(m, ids, throws, names, bots), "me": ids.index(player_id), "darts": m["my_darts"]}
-            for m, ids, throws in _matches(db, player_id, game_id, darts)]
+    return [{**_sheet(m, ids, throws, names, bots), "me": ids.index(player_id), "darts": m["my_darts"], "board": m["board"]}
+            for m, ids, throws in _matches(db, player_id, game_id, darts, board)]
 
 
 def _names(db) -> dict:
@@ -724,11 +726,11 @@ def match(match_id: str) -> dict:
         return _sheet(m, ids, throws, _names(db), _bots(db))
 
 
-def _cricket(db, player_id: int, dart_set: str | None = None):
+def _cricket(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     """Marks per round, the usual Cricket average. A mark counts if it went
     towards closing a number or scored points; darts at a dead number don't."""
     marks = rounds = best = big = 0
-    for _m, ids, throws in _matches(db, player_id, "cricket", dart_set):
+    for _m, ids, throws in _matches(db, player_id, "cricket", dart_set, board):
         got = {p: dict.fromkeys(CRICKET, 0) for p in ids}
         for visit in _visits(throws):
             n = 0
@@ -752,10 +754,10 @@ def _cricket(db, player_id: int, dart_set: str | None = None):
     return {"mpr": round(marks / rounds, 2), "best_round": best, "big_rounds": big, "marks": marks}
 
 
-def _clock(db, player_id: int, dart_set: str | None = None):
+def _clock(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     darts = hits = best_run = 0
     finishes = []  # darts taken in each game the player got all the way round
-    for m, _ids, throws in _matches(db, player_id, "clock", dart_set):
+    for m, _ids, throws in _matches(db, player_id, "clock", dart_set, board):
         opts = json.loads(m["opts"])
         ring = {"double": 2, "treble": 3}.get(opts.get("hit"))  # Round the World; None = any part
         skip = opts.get("skip") == "yes" and ring is None
@@ -791,9 +793,9 @@ def _clock(db, player_id: int, dart_set: str | None = None):
     }
 
 
-def _countup(db, player_id: int, dart_set: str | None = None):
+def _countup(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     scores, totals, darts = [], [], 0
-    for m, _ids, throws in _matches(db, player_id, "countup", dart_set):
+    for m, _ids, throws in _matches(db, player_id, "countup", dart_set, board):
         mine = [t for t in throws if t["player_id"] == player_id]
         visits = [sum(t["seg"] * t["mult"] for t in v) for v in _visits(mine)]
         scores += visits
@@ -811,12 +813,12 @@ def _countup(db, player_id: int, dart_set: str | None = None):
     }
 
 
-def _gotcha(db, player_id: int, dart_set: str | None = None):
+def _gotcha(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     """Gotcha: games won, and the three-dart average over the player's visits
     that did not bust (the score being sent back to zero does not matter here)."""
     won = darts = points = 0
     played = False
-    for m, _ids, throws in _matches(db, player_id, "gotcha", dart_set):
+    for m, _ids, throws in _matches(db, player_id, "gotcha", dart_set, board):
         played = True
         won += m["winner_id"] == player_id
         for v in _visits([t for t in throws if t["player_id"] == player_id]):
@@ -828,13 +830,13 @@ def _gotcha(db, player_id: int, dart_set: str | None = None):
     return {"won": won, "average": round(points / darts * 3, 1) if darts else None}
 
 
-def _bobs27(db, player_id: int, dart_set: str | None = None):
+def _bobs27(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     """Bob's 27: every player has their own score and double, so only the
     player's own visits are replayed, with the game's own options. Score
     figures count finished games only."""
     darts = hits = 0
     scores = []
-    for m, _ids, throws in _matches(db, player_id, "bobs27", dart_set):
+    for m, _ids, throws in _matches(db, player_id, "bobs27", dart_set, board):
         o = json.loads(m["opts"])
         last = 20 if o.get("bull") == "no" else 25
         stop = o.get("zero") != "on"
@@ -865,14 +867,14 @@ def _bobs27(db, player_id: int, dart_set: str | None = None):
     }
 
 
-def _shanghai(db, player_id: int, dart_set: str | None = None):
+def _shanghai(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     """Shanghai: in round N only the number N scores, so the player's own
     visits are read by round. A Shanghai is a single, a double and a treble of
     the round's number in one visit, counted whether or not it ended the game.
     Total figures count finished games only."""
     darts = hits = shanghais = 0
     totals = []
-    for m, _ids, throws in _matches(db, player_id, "shanghai", dart_set):
+    for m, _ids, throws in _matches(db, player_id, "shanghai", dart_set, board):
         total = 0
         for visit in _visits(throws):
             if visit[0]["player_id"] != player_id:
@@ -894,7 +896,7 @@ def _shanghai(db, player_id: int, dart_set: str | None = None):
     }
 
 
-def _bermuda(db, player_id: int, dart_set: str | None = None):
+def _bermuda(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     """Bermuda: round N has its own target (see ROUNDS in web/games/bermuda.js),
     so the player's visits are read by round. A visit with no hit halves the
     total. Total and halved figures count finished games only."""
@@ -911,7 +913,7 @@ def _bermuda(db, player_id: int, dart_set: str | None = None):
 
     darts = hits = 0
     totals, halves = [], []
-    for m, _ids, throws in _matches(db, player_id, "bermuda", dart_set):
+    for m, _ids, throws in _matches(db, player_id, "bermuda", dart_set, board):
         total = halved = 0
         for visit in _visits(throws):
             if visit[0]["player_id"] != player_id:
@@ -937,7 +939,7 @@ def _bermuda(db, player_id: int, dart_set: str | None = None):
     }
 
 
-def _segment(db, player_id: int, dart_set: str | None = None):
+def _segment(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     """Segment Training: a dart counts if it is in the game's bed (and ring, when
     the game asks for one) and scores its multiplier. One figure over all the
     player's segment games, whichever bed they aimed at; best session counts
@@ -945,7 +947,7 @@ def _segment(db, player_id: int, dart_set: str | None = None):
     ring = {"single": 1, "double": 2, "treble": 3}
     darts = hits = points = 0
     best = []
-    for m, _ids, throws in _matches(db, player_id, "segment", dart_set):
+    for m, _ids, throws in _matches(db, player_id, "segment", dart_set, board):
         o = json.loads(m["opts"])
         want = ring.get(o.get("counts"))
         if o.get("seg", 20) == 25 and want == 3:  # the bull has no treble: Trebles means the inner bull
@@ -971,14 +973,14 @@ def _segment(db, player_id: int, dart_set: str | None = None):
 _NO_FINISH = {159, 162, 163, 165, 166, 168, 169}
 
 
-def _c121(db, player_id: int, dart_set: str | None = None):
+def _c121(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     """121 Checkout: every player has their own target, so only the player's
     own visits are replayed. (Games from when the target was shared are read
     the same way.)"""
     tries = made = highest = 0
     took = []  # darts used on each target that was checked out
     played = False
-    for m, _ids, throws in _matches(db, player_id, "c121", dart_set):
+    for m, _ids, throws in _matches(db, player_id, "c121", dart_set, board):
         played = played or bool(throws)
         o = json.loads(m["opts"])
         start, limit = o.get("start", 121), o.get("darts", 9)
@@ -1069,13 +1071,13 @@ def _rc_targets(seed: int, rng_range: str, count: int) -> list[int]:
     return out
 
 
-def _rcheckout(db, player_id: int, dart_set: str | None = None):
+def _rcheckout(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     """Random Checkout: the targets are made again from the game's seed, and
     only the player's own visits are replayed, as in 121."""
     tries = made = 0
     took = []  # darts used on each target that was checked out
     played = False
-    for m, _ids, throws in _matches(db, player_id, "rcheckout", dart_set):
+    for m, _ids, throws in _matches(db, player_id, "rcheckout", dart_set, board):
         o = json.loads(m["opts"])
         limit, count = o.get("darts", 6), o.get("count", 10)
         targets = _rc_targets(o.get("seed", 1), o.get("range", "low"), count)
@@ -1115,13 +1117,14 @@ def _rcheckout(db, player_id: int, dart_set: str | None = None):
 GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai, "bermuda": _bermuda, "segment": _segment, "rcheckout": _rcheckout, "gotcha": _gotcha}
 
 
-def _gear(db, player_id: int, game_id: str | None) -> list[dict]:
+def _gear(db, player_id: int, game_id: str | None, board: str | None = None) -> list[dict]:
     """How much each of the player's sets of darts has been used (in one game
-    type, or in all), the way a running app counts the miles on each pair of
-    shoes. Every set is listed, used or not, and games thrown with no set
-    named are one more line with id None (left out if there are none).
+    type, or in all; on one board, or on all), the way a running app counts the
+    miles on each pair of shoes. Every set is listed, used or not, and games
+    thrown with no set named are one more line with id None (left out if there are none).
     darts counts every dart thrown, typed visits too: they wore the darts all the same."""
-    game, args = (" AND m.game_id = ?", (player_id, game_id)) if game_id else ("", (player_id,))
+    game = (" AND m.game_id = ?" if game_id else "") + (" AND m.board = ?" if board else "")
+    args = (player_id, *([game_id] if game_id else []), *([board] if board else []))
     used = {r["id"]: dict(r) for r in db.execute(
         "SELECT mp.darts AS id, COUNT(*) AS games, "
         "SUM(m.winner_id = mp.player_id AND (SELECT COUNT(*) FROM match_players o WHERE o.match_id = m.id) > 1) AS won, "
@@ -1145,14 +1148,36 @@ def _gear(db, player_id: int, game_id: str | None) -> list[dict]:
     return out
 
 
-def stats(player_id: int, game_id: str | None = None, darts: str | None = None) -> dict:
+def _board_use(db, player_id: int, game_id: str | None, darts: str | None) -> list[dict]:
+    """How much the player has thrown on each board (in one game type, or in all; with one set
+    of darts, or with any), as _gear counts each set. Every board is listed, used or not."""
+    where = (" AND m.game_id = ?" if game_id else "") + (" AND mp.darts = ?" if darts else "")
+    args = (player_id, *([game_id] if game_id else []), *([darts] if darts else []))
+    used = {r["id"]: dict(r) for r in db.execute(
+        "SELECT m.board AS id, COUNT(*) AS games, "
+        "SUM(m.winner_id = mp.player_id AND (SELECT COUNT(*) FROM match_players o WHERE o.match_id = m.id) > 1) AS won, "
+        "MIN(m.started) AS first, MAX(COALESCE(m.finished, m.started)) AS last "
+        "FROM match_players mp JOIN matches m ON m.id = mp.match_id "
+        "WHERE mp.player_id = ?" + where + " GROUP BY m.board", args)}
+    for r in db.execute(
+            "SELECT m.board AS id, COUNT(*) AS n FROM throws t "
+            "JOIN match_players mp ON mp.match_id = t.match_id AND mp.player_id = t.player_id "
+            "JOIN matches m ON m.id = t.match_id WHERE t.player_id = ?" + where + " GROUP BY m.board", args):
+        used[r["id"]]["darts"] = r["n"]
+    return [{**_board(b), **{k: u.get(k, 0) for k in ("games", "won", "darts")}, "first": u.get("first"), "last": u.get("last")}
+            for b in db.execute("SELECT * FROM boards ORDER BY created, id") for u in [used.get(b["id"], {})]]
+
+
+def stats(player_id: int, game_id: str | None = None, darts: str | None = None, board: str | None = None) -> dict:
     """A player's stats: for every game together, or for one game type.
 
     With game_id, everything is limited to that game and "detail" holds the
     game's own figures (None if the player has not played it, and for X01,
     whose figures the app works out itself from "matches").
     With darts (the id of one of the player's sets), everything is limited
-    to the games they threw those darts in. "gear" is always every set's use.
+    to the games they threw those darts in, and with board to the games played
+    on that board. "gear" is every set's use (on the board, if one is given) and
+    "boards" every board's (with the darts, if a set is given).
     """
     where, args = [], [player_id]
     if game_id:
@@ -1161,6 +1186,9 @@ def stats(player_id: int, game_id: str | None = None, darts: str | None = None) 
     if darts:
         where.append("match_id IN (SELECT match_id FROM match_players WHERE player_id = ? AND darts = ?)")
         args += [player_id, darts]
+    if board:
+        where.append("match_id IN (SELECT id FROM matches WHERE board = ?)")
+        args.append(board)
     scope = "".join(" AND " + w for w in where)
     args = tuple(args)
     with connect() as db:
@@ -1170,6 +1198,10 @@ def stats(player_id: int, game_id: str | None = None, darts: str | None = None) 
         if darts and not db.execute("SELECT 1 FROM dart_sets WHERE id = ? AND player_id = ?",
                                     (darts, player_id)).fetchone():
             raise NotFound("no such darts")
+        if board and not db.execute("SELECT 1 FROM boards WHERE id = ?", (board,)).fetchone():
+            raise NotFound("no such board")
+        mine = (" AND m.game_id = ?" if game_id else "") + (" AND mp.darts = ?" if darts else "") + (" AND m.board = ?" if board else "")
+        mine_args = (*([game_id] if game_id else []), *([darts] if darts else []), *([board] if board else []))
         h = db.execute(
             "SELECT COUNT(*) AS darts, COALESCE(SUM(mult = 0), 0) AS misses, "
             "COALESCE(SUM(mult = 3), 0) AS trebles, COALESCE(SUM(mult = 2 AND seg <> 25), 0) AS doubles, "
@@ -1184,14 +1216,12 @@ def stats(player_id: int, game_id: str | None = None, darts: str | None = None) 
             "CAST(AVG(m.duration) AS INTEGER) AS avg_ms, MIN(m.duration) AS best_ms, "
             f"SUM({PLAYED_MS}) AS total_ms "
             "FROM match_players mp JOIN matches m ON m.id = mp.match_id "
-            "WHERE mp.player_id = ? AND m.finished IS NOT NULL" + (" AND m.game_id = ?" if game_id else "")
-            + (" AND mp.darts = ?" if darts else "") + " GROUP BY m.game_id ORDER BY played DESC",
-            (player_id, *([game_id] if game_id else []), *([darts] if darts else []))).fetchall()
+            "WHERE mp.player_id = ? AND m.finished IS NOT NULL" + mine + " GROUP BY m.game_id ORDER BY played DESC",
+            (player_id, *mine_args)).fetchall()
         # Time at the board in every game they threw in, finished or not.
         played = db.execute(
             f"SELECT COALESCE(SUM({PLAYED_MS}), 0) FROM match_players mp JOIN matches m ON m.id = mp.match_id "
-            "WHERE mp.player_id = ?" + (" AND m.game_id = ?" if game_id else "") + (" AND mp.darts = ?" if darts else ""),
-            (player_id, *([game_id] if game_id else []), *([darts] if darts else []))).fetchone()[0]
+            "WHERE mp.player_id = ?" + mine, (player_id, *mine_args)).fetchone()[0]
         segs = db.execute(
             "SELECT seg, COUNT(*) AS n FROM throws WHERE player_id = ? AND mult > 0 "
             "AND COALESCE(src, '') <> 'visit'" + scope + " GROUP BY seg ORDER BY n DESC LIMIT 5", args).fetchall()
@@ -1199,13 +1229,15 @@ def stats(player_id: int, game_id: str | None = None, darts: str | None = None) 
         recent = db.execute(
             "SELECT x, y FROM throws WHERE player_id = ? AND x IS NOT NULL" + scope
             + " ORDER BY ts DESC, id DESC LIMIT ?", (*args, HEAT_DARTS)).fetchall()
-        matches = _history(db, player_id, game_id, darts)
-        detail = GAME_STATS[game_id](db, player_id, darts) if game_id in GAME_STATS else None
-        gear = _gear(db, player_id, game_id)
+        matches = _history(db, player_id, game_id, darts, board)
+        detail = GAME_STATS[game_id](db, player_id, darts, board) if game_id in GAME_STATS else None
+        gear = _gear(db, player_id, game_id, board)
+        boards = _board_use(db, player_id, game_id, darts)
     return {
         "player": _player(p),
         "game": game_id,
         "set": darts,
+        "board": board,
         "darts": h["darts"], "misses": h["misses"], "trebles": h["trebles"],
         "doubles": h["doubles"], "bulls": h["bulls"], "since": h["first"],
         "played_ms": played,
@@ -1215,4 +1247,5 @@ def stats(player_id: int, game_id: str | None = None, darts: str | None = None) 
         "segments": [dict(s) for s in segs],
         "recent": [[r["x"], r["y"]] for r in recent],
         "gear": gear,
+        "boards": boards,
     }

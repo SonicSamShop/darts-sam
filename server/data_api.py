@@ -115,11 +115,13 @@ def make_router(db_file: Callable[[Request], Path | None], reports: Callable[[],
             return {"ok": True}
 
     @router.get("/api/players/{player_id}/stats")
-    def player_stats(request: Request, player_id: int, game: str | None = None, darts: str | None = None):
+    def player_stats(request: Request, player_id: int, game: str | None = None, darts: str | None = None,
+                     board: str | None = None):
         """Stats for every game together, or with ?game=x01 (a game id) for one game type,
-        and with ?darts=<set id> only from the games thrown with that set."""
+        with ?darts=<set id> only from the games thrown with that set, and with ?board=<board id>
+        only from the games played on that board."""
         with db.at(db_file(request)):
-            return _db(db.stats, player_id, game, darts)
+            return _db(db.stats, player_id, game, darts, board)
 
     @router.get("/api/darts")
     def darts(request: Request):

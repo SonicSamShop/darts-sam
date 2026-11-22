@@ -165,6 +165,59 @@ def test_move_games_since_and_before(tmp):
         expect(db.NotFound, db.move_games, "nonesuch", None, None, None)
 
 
+def _two_boards(tmp, name):
+    """Sam's games: two on the old board (one with the red darts), one on the new."""
+    db.prepare(tmp / name)
+    [old] = db.list_boards()
+    sam = db.add_player("Sam")
+    db.save_darts("red", {"player": sam["id"], "name": "Red"})
+    db.save_board("new", {"up": 500, "down": None})
+    db.save_match("o1", match(1, [sam["id"]], [throw(0, 1, 20, 3)] * 3, started=100, board=old["id"], darts=["red"]))
+    db.save_match("o2", match(1, [sam["id"]], [throw(0, 1, 20, 1)] * 3, started=200, board=old["id"]))
+    db.save_match("n1", match(1, [sam["id"]], [throw(0, 1, 5, 1)] * 2, started=600, board="new", darts=["red"]))
+    return sam["id"], old["id"]
+
+
+def test_stats_by_board(tmp):
+    with db.at(tmp / "s1.db"):
+        sam, old = _two_boards(tmp, "s1.db")
+        assert db.stats(sam)["darts"] == 8
+        st = db.stats(sam, board=old)
+        assert st["darts"] == 6 and st["board"] == old
+        assert [m["id"] for m in st["matches"]] == ["o1", "o2"]
+        assert db.stats(sam, game_id="x01", board="new")["darts"] == 2
+        expect(db.NotFound, db.stats, sam, None, None, "nonesuch")
+
+
+def test_stats_board_and_darts(tmp):
+    with db.at(tmp / "s2.db"):
+        sam, old = _two_boards(tmp, "s2.db")
+        st = db.stats(sam, darts="red", board=old)
+        assert st["darts"] == 3 and st["trebles"] == 3
+        assert [m["id"] for m in st["matches"]] == ["o1"]
+        # the darts table is for the board picked
+        red = next(g for g in st["gear"] if g["id"] == "red")
+        assert red["games"] == 1
+
+
+def test_stats_boards_use(tmp):
+    with db.at(tmp / "s3.db"):
+        sam, old = _two_boards(tmp, "s3.db")
+        use = {b["id"]: b for b in db.stats(sam)["boards"]}
+        assert (use[old]["games"], use[old]["darts"]) == (2, 6)
+        assert (use["new"]["games"], use["new"]["darts"]) == (1, 2)
+        assert use["new"]["down"] is None and use[old]["first"] == 100
+        # with a set picked, the boards' use is for that set; the board filter leaves it whole
+        use = {b["id"]: b for b in db.stats(sam, darts="red", board="new")["boards"]}
+        assert (use[old]["games"], use["new"]["games"]) == (1, 1)
+
+
+def test_history_says_board(tmp):
+    with db.at(tmp / "s4.db"):
+        sam, old = _two_boards(tmp, "s4.db")
+        assert {m["id"]: m["board"] for m in db.stats(sam)["matches"]} == {"o1": old, "o2": old, "n1": "new"}
+
+
 def main():
     with tempfile.TemporaryDirectory() as t:
         tmp = Path(t)
