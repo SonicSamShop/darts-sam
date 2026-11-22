@@ -463,6 +463,7 @@ svg.heat .b-num { fill: #d9dce3; }
 .slip span { flex: 1; min-width: 0; }
 .slip b { display: block; color: var(--gold); font-size: 19px; line-height: 1.25; }
 .slip small { display: block; color: var(--muted); font-size: 14px; line-height: 1.3; }
+.slip img { flex: none; width: 76px; height: 57px; object-fit: cover; border: 1px solid var(--line); border-radius: var(--round); }
 .slip.new { animation: slip-in .3s ease-out; }
 @keyframes slip-in { from { opacity: 0; transform: translateY(-8px); } }
 @media (prefers-reduced-motion: reduce) { .slip.new { animation: none; } }

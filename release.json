@@ -2,7 +2,8 @@
   "version": "1.5",
   "unreleased": [
     "Choosing X01 now shows your own average under the players, and the bot's level is suggested from it: the first level that averages as much as you or more (on 40, the level that averages 44). A level you set yourself stays put, with the suggested one a tap away.",
-    "Achievements. A first game of each kind, a first 180, a 170 finish, a 501 leg in 15 darts (about sixty in all) are shown on the game screen and called as you earn them, with everything earned listed when the game ends. Stats has a new Achievements tab for each player: the ones held, when and in which game, and the ones still to get. Games you have already played count. Settings › In a game switches the showing off."
+    "Achievements. A first game of each kind, a first 180, a 170 finish, a 501 leg in 15 darts (about sixty in all) are shown on the game screen and called as you earn them, with everything earned listed when the game ends. Stats has a new Achievements tab for each player: the ones held, when and in which game, and the ones still to get. Games you have already played count. Settings › In a game switches the showing off.",
+    "When a camera scores the dart that earns an achievement, a picture of the board is kept with it, darts and all, and shown when you open the achievement. On the site, and when a phone's own camera is scoring, the app asks first. Settings › In a game switches it off, and a picture is deleted with its game."
   ],
   "notes": {
     "1.0": [

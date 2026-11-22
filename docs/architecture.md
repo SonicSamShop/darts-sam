@@ -51,6 +51,7 @@ through them:
 |---|---|
 | `app.py` | Starts the cameras and the vision loop, serves `web/`, and answers `/api/...` (camera pictures, calibration, reports, pairing) and `/ws` (darts as they land). |
 | `data_api.py`, `db.py` | Players, their darts, settings, matches and stats: the addresses, and the SQLite behind them. Shared with the hosted site. |
+| `photos.py` | A picture of the board kept with a game, taken when a dart the cameras scored earned an achievement. |
 | `guard.py`, `limits.py` | No sign-in here, so: only names a home network uses are answered, and no request may be huge. |
 | `paths.py` | Where the code, the app's files and the kept data are (different once built into one program). |
 | `awake.py` | Keeps the computer from sleeping while it watches the cameras. |
@@ -118,6 +119,7 @@ It must run without OpenCV installed (`requirements-host.txt`).
 |---|---|
 | Camera list, calibration, pairing, sharing | `config.json` |
 | Players, games, every dart | `data/dartssam.db` |
+| Pictures of the board kept with achievements | `data/dartssam.photos/<game>/` (on the site, beside the account's games) |
 | Problem reports | `data/reports/<date_time>/` |
 | The hosted site's accounts and sessions | `<data>/host.db` |
 | Each account's games | `<data>/accounts/<id>/darts.db` |

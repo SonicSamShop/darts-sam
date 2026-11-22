@@ -482,7 +482,7 @@ function push(ev) {
   if (ev.t === 'dart') tracker.entered(match.id, ev); else tracker.moved();
   match.log.push({ ...ev, ts: Date.now() });
   const after = compute(match);
-  const earned = sheetBefore ? achieved(before, sheetBefore, after) : [];  // said after the score: "Sam, Maximum"
+  const earned = sheetBefore ? achieved(before, sheetBefore, after, ev.src === 'cam') : [];  // said after the score: "Sam, Maximum"
   if (after.winner != null) endedHere();
   store.set('match', match);
   queueSync();
@@ -540,6 +540,7 @@ function undo() {
   // Whatever those darts earned goes with them: it is worked out again from the darts that are left.
   slips = slips.filter(s => s.at <= match.log.length);
   forgetEnded(match.id);
+  dropPictures();
   store.set('match', match);
   queueSync();
   renderGame();
@@ -590,8 +591,9 @@ async function loadBases() {
 }
 // What the dart just entered earned everyone playing (a game that ends is a game finished for all
 // of them). Each gets one slip, however many it was; the caller's words for them are returned.
-function achieved(before, sheetBefore, after) {
-  const sheet = matchSheet(match), said = [];
+// byCamera: the cameras scored it, so the darts are in the board: a picture of it is kept (see below).
+function achieved(before, sheetBefore, after, byCamera) {
+  const sheet = matchSheet(match), said = [], shown = slips.length;
   const openBefore = openVisit(before, sheetBefore), openAfter = openVisit(after, sheet);
   match.playerIds.forEach((id, i) => {
     const fresh = earnedBy(bases.of[i], sheetBefore, openBefore, sheet, openAfter, i);
@@ -600,8 +602,96 @@ function achieved(before, sheetBefore, after) {
     slips.push({ seat: i, top, also: fresh.filter(a => a !== top), at: match.log.length });
     said.push(people(match) > 1 ? `${after.players[i]}, ${top.name}` : top.name);
   });
+  if (byCamera && slips.length > shown) {
+    const on = photosOn();
+    if (on) keepPicture(slips.slice(shown), match.id, sheet.visits.length - 1, match.log.length);
+    else if (on === null) photoAsk = true;  // asked when the game is over, never mid-visit
+  }
   return said;
 }
+
+// A picture of the board with an achievement (server/photos.py): taken when the cameras scored the
+// dart that earned it, kept with the game under where in the game's visits that dart was, and
+// thrown away with the game or when the dart is undone. It is on from the start at home. Where it
+// would leave the room (the hosted site) or the phone (its own camera scoring) the player is asked
+// first, once: until then photosOn() is null and none is taken.
+const PHOTO_WIDE = 1280, PHOTO_MOST = 400000, PHOTO_WAIT = 2000;
+const photoUrl = (id, visit) => `/api/matches/${id}/photos/${visit}`;
+const photosOn = () => settings.photos ?? (account.hosted || phone.scoring() ? null : true);
+const taken = new Map();  // pictures kept in this game: its address -> the log's length when it was taken
+let photoAsk = false;     // a picture would have been kept, had they been asked
+let photoBox = null;      // the question, while it is on screen
+async function jpegOf(source, w, h) {
+  const k = Math.min(1, PHOTO_WIDE / w);
+  const canvas = Object.assign(document.createElement('canvas'), { width: Math.round(w * k), height: Math.round(h * k) });
+  canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+  for (const quality of [0.8, 0.6, 0.4]) {
+    const blob = await new Promise(done => canvas.toBlob(done, 'image/jpeg', quality));
+    if (blob && blob.size <= PHOTO_MOST) return blob;
+  }
+  return null;
+}
+// The board as one camera sees it now: this phone's own if it is the one scoring, otherwise the
+// first of the cameras by the board that is lined up.
+async function boardPicture() {
+  const video = phone.video();
+  if (video) return jpegOf(video, video.videoWidth, video.videoHeight);
+  const status = await api('/status', 'GET', undefined, PHOTO_WAIT);
+  const cam = status.cameras.find(c => c.ok && c.points) ?? status.cameras.find(c => c.ok);
+  if (!cam) return null;
+  const r = await fetch(`/api/cameras/${cam.id}/snapshot.jpg?t=${Date.now()}`, { signal: AbortSignal.timeout?.(PHOTO_WAIT) });
+  if (!r.ok) return null;
+  const picture = await createImageBitmap(await r.blob());
+  return jpegOf(picture, picture.width, picture.height);
+}
+// Never in the way of the game: if the camera or the Pi doesn't answer, there is no picture.
+async function keepPicture(forSlips, id, visit, at) {
+  try {
+    const blob = await boardPicture();
+    if (!blob || match?.id !== id || match.log.length < at) return;  // (undone meanwhile)
+    for (let tries = 0; tries < 2; tries++) {
+      const r = await fetch(photoUrl(id, visit), { method: 'PUT', body: blob, headers: { 'Content-Type': 'image/jpeg' } });
+      if (r.ok) {
+        taken.set(photoUrl(id, visit), at);
+        if (match?.id === id && match.log.length < at) return dropPictures();  // undone while it was on its way
+        for (const s of forSlips) s.photo = `${photoUrl(id, visit)}?t=${at}`;
+        if (screen === 'game' && forSlips.includes(slips[0])) renderGame();
+        return;
+      }
+      if (r.status !== 404) return;
+      await new Promise(done => setTimeout(done, 1500));  // the game itself may not have reached the Pi yet
+    }
+  } catch { /* no picture */ }
+}
+// After Undo: the pictures taken of darts that are no longer in the game.
+function dropPictures() {
+  for (const [url, at] of taken) if (!url.startsWith(photoUrl(match.id, '')) || at > match.log.length) {
+    if (url.startsWith(photoUrl(match.id, ''))) fetch(url, { method: 'DELETE' }).catch(() => {});
+    taken.delete(url);
+  }
+}
+function askPhotos() {
+  if (photoBox) return;
+  photoBox = document.body.appendChild(document.createElement('div'));
+  photoBox.className = 'report shareask photoask';
+  photoBox.innerHTML = `<div class="report-in">
+    <h1>Keep a picture with your achievements?</h1>
+    <p class="muted">When your camera scores a dart that earns an achievement, the app can keep that picture of the board,
+      darts and all, to look back at. It is kept with your games${account.hosted ? ' on the site' : ''} and nowhere else, and is
+      deleted with the game. You can change this under Settings › In a game.</p>
+    <div class="row"><button class="primary" data-keepphotos="yes">Keep pictures</button>
+      <button data-keepphotos="no">No thanks</button></div></div>`;
+  photoBox.querySelector('.primary').focus();
+}
+document.addEventListener('click', e => {
+  const answer = e.target.closest('.photoask [data-keepphotos]')?.dataset.keepphotos;
+  if (!answer) return;
+  photoBox?.remove(); photoBox = null; photoAsk = false;
+  settings.photos = answer === 'yes';
+  saveSettings();
+});
+// A picture that isn't there (none was taken, or its game was thrown away) leaves no gap.
+document.addEventListener('error', e => { if (e.target.matches?.('img.shot')) e.target.remove(); }, true);
 // An achievement's badge: a round pin with its mark lettered on it, as a league's 180 badge is.
 // Not held: the outline only. blank: one kept as a surprise.
 function badge(a, size = 44, has = true, blank = false) {
@@ -623,7 +713,8 @@ function slipHtml() {
   }
   return `<div class="banner slip${fresh ? ' new' : ''}" role="status" data-slip>${badge(s.top, 48)}
     <span><b>${people(match) > 1 ? `${esc(match.players[s.seat])} · ` : ''}${esc(s.top.name)}</b><small>${esc(s.top.how)}</small>
-    ${s.also.length ? `<small>Also: ${s.also.map(a => esc(a.name)).join(', ')}</small>` : ''}</span></div>`;
+    ${s.also.length ? `<small>Also: ${s.also.map(a => esc(a.name)).join(', ')}</small>` : ''}</span>
+    ${s.photo ? `<img class="shot" src="${s.photo}" alt="The board">` : ''}</div>`;
 }
 // During a game a tap only closes it. Once the game is over it opens that player's achievements.
 function slipTapped() {
@@ -1797,6 +1888,7 @@ function achievementView(id, d) {
     const visit = visitOf(a, totalOf(all.entries.slice(0, at)), e.sheet, e.me);
     const there = d.matches.some(m => m.id === g.match);  // (a game not sent yet has no scoresheet here)
     return `<div class="achievement">${badge(a, 120)}<p>${esc(a.how)}</p><p class="muted">${esc(nameOf(statsFor))} · ${dayOf(g.at)}</p>
+      ${visit != null ? `<img class="shot" src="${photoUrl(g.match, visit)}" alt="The board when it was earned">` : ''}
       ${there ? `<button${opens({ v: 'match', id: g.match, ...(visit != null && { at: visit }) })}>Open the game</button>` : ''}</div>`;
   } };
 }
@@ -2126,6 +2218,7 @@ function renderGame() {
   const game = gameById(match.gameId);
   const s = compute(match);
   loadBases();  // (once a game: what everyone held before it)
+  if (s.winner != null && photoAsk && photosOn() === null) askPhotos();
   const pad = usingPad(game);
   // The TV view: the player cards give way to one scoreboard along the bottom.
   const tv = usingTv(game, s);
@@ -2305,6 +2398,7 @@ function renderSettings(jump) {
     ${voicePicker()}` : ''}
     ${switchRow('Checkout hints', hints, `data-checkouts="${hints ? 'off' : 'on'}"`, 'Switch off to practise working out your finishes yourself.')}
     ${switchRow('Show achievements as they are earned', achievementsOn(), `data-achievements="${achievementsOn() ? 'off' : 'on'}"`, 'A first 180, a big finish and the like are shown, and called, as they happen. Off, they are still kept on the Stats page.')}
+    ${switchRow('Keep a picture of the board with an achievement', photosOn() === true, `data-photos="${photosOn() === true ? 'off' : 'on'}"`, 'When a camera scores the dart that earns one. Kept with your games and nowhere else, and deleted with the game.')}
     ${switchRow('Show the bot\'s darts landing', settings.flight !== false, `data-flight="${settings.flight !== false ? 'off' : 'on'}"`, 'Against the computer, each of its darts flies in to where it lands on the board.')}
     </div></div>`;
   // [id, its name, its name on a tab, how it is set (the list says), the section]: in the list's groups
@@ -3049,6 +3143,7 @@ $app.addEventListener('click', e => {
   if (d.theme) { settings.theme = d.theme; saveSettings(); applyTheme(); renderSettings(); return mark(); }
   if (d.checkouts) { settings.checkouts = d.checkouts === 'on'; saveSettings(); return renderSettings(); }
   if (d.achievements) { settings.achievements = d.achievements === 'on'; saveSettings(); return renderSettings(); }
+  if (d.photos) { settings.photos = d.photos === 'on'; saveSettings(); return renderSettings(); }
   if (d.flight) { settings.flight = d.flight === 'on'; saveSettings(); return renderSettings(); }
   if (d.autostart) { settings.autoCal = d.autostart === 'on'; saveSettings(); return drawCameras(camStatus); }
   if (d.botlevel) { setup.bot = botLevel(botAt().level + +d.botlevel).level; setup.botAuto = false; saveSetup(); return renderHome(); }

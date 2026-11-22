@@ -212,10 +212,10 @@ says how to get it.
 
 ## When one is earned
 
-- **The slip.** A line across the top of the game screen, clear of the score
-  cards and the board: the badge, then `Sam · Maximum` and under it `180 in a
-  visit`. With one player the name is left out. In the TV view it sits above
-  the scoreboard.
+- **The slip.** A banner in the game's own column, where a bust is shown, so
+  it covers neither a score nor the board (the prototype's slip across the
+  top covered the second player's card): the badge, then `Sam · Maximum` and
+  under it `180 in a visit`. With one player the name is left out.
   - Stays about 6 seconds, then goes. A tap opens that player's Achievements tab
     only once the game is over; during a game a tap just closes it.
   - **A visit's total is judged when the visit is over** (learned from the
@@ -254,19 +254,23 @@ picture of the board with the darts in it, and show it with the achievement.
   frame. A face-on picture made from the calibration can come later.
 - **Where it is kept.** With the games: the app fetches the picture and sends
   it to the server it saves games to, as
-  `PUT /api/matches/<match id>/photos/<achievement id>`; read back with `GET`.
-  At home that is `data/photos/<match id>/`, on the site the account's own
-  folder, so deleting an account still is deleting a folder. A JPEG no wider
+  `PUT /api/matches/<match id>/photos/<visit>`; read back with `GET`.
+  `<visit>` is where in the game's visits the dart was thrown, so one picture
+  serves everything that dart earned and is found from the game alone.
+  At home that is `data/dartssam.photos/<match id>/`, on the site the same
+  beside the account's games, so deleting an account still is deleting a
+  folder. A JPEG no wider
   than 1280 and no bigger than 400 KB; anything else is refused.
 - **It follows the achievement.** Undo the dart and the picture is deleted.
   Delete or throw away the game and its pictures go with it. Earn the same
-  dart again and it is replaced. There is at most one per achievement step,
-  so a player can never have more than about 70.
+  dart again and it is replaced. There is at most one per dart that earned
+  something, and the server keeps no more than 300 beside one database.
 - **Offline, or the camera doesn't answer in a couple of seconds:** no
   picture. The achievement is shown without one. Nothing is queued.
-- **Seeing it.** A small one in the slip, beside the badge. On the
-  Achievements tab, on the achievement's own view, full width; a tap shows it
-  alone. The end-of-game line doesn't show pictures.
+- **Seeing it.** A small one in the slip, beside the badge, and full width
+  on the achievement's own view. As built, the lines of the Achievements tab
+  show no small picture (finding each one's visit is too much work for a
+  list) and a tap on the picture does nothing yet.
 - **Privacy.** A camera at the board can catch a hand or someone walking
   past. Pictures are kept only with the player's own games, are never sent by
   `share.py`, and are in no problem report. A setting, **Keep a picture of the
@@ -288,8 +292,7 @@ Darts picker doesn't apply and is ignored.
   right the date. Held ones first within a group.
 - A held line opens the achievement: its badge, name, date, the picture if
   there is one, and **Open the game** (its scoresheet, which the stats page
-  already shows, at the visit where that is known). A line with a picture
-  shows a small one at its end.
+  already shows, at the visit where that is known).
 - A counted achievement is one line: `Maximum ×10 · 12 so far, next at 50`.
 - One not yet held: the badge as an outline, its line muted. Where there is a
   number to show, how far along: `Darts thrown · 6,214 of 10,000`.
