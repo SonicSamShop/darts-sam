@@ -1,16 +1,6 @@
 {
-  "version": "1.5",
-  "unreleased": [
-    "When a visit is over, what it scored (or Bust) takes over the scores, large, for a couple of seconds, so it can be read from the oche when the voice can't be heard. Settings › In a game switches it off.",
-    "Choosing X01 now shows your own average under the players, and the bot's level is suggested from it: the first level that averages as much as you or more (on 40, the level that averages 44). A level you set yourself stays put, with the suggested one a tap away.",
-    "Playing the computer, you can now choose how long it waits after your visit before it throws: anything from no wait to 30 seconds, under Settings › In a game. It stays at 8 seconds unless you change it.",
-    "The computer plays a steadier leg, most of all at the lower levels: it scores nearer its level's average on the way down and goes bust far less once it is on a finish, where before it scored high and then lost its average at the end. Each level still averages what it says and hits its doubles as often. A dart of its that misses the board now always shows beside the board, where a wild one could land out of the picture.",
-    "Achievements. A first game of each kind, a first 180, a 170 finish, a 501 leg in 15 darts (about sixty in all) are shown on the game screen and called as you earn them, with everything earned listed when the game ends. Stats has a new Achievements tab for each player: the ones held, when and in which game, and the ones still to get. Games you have already played count. Settings › In a game switches the showing off.",
-    "Your darts can now say more about themselves: under Settings › Players and darts, More details on a set keeps its brand, tungsten, barrel shape, grip, shaft, flight and a note.",
-    "Settings has a new Your board section: keep your board's brand, model, the year you bought it and a note (when you last turned it, say).",
-    "Stats now puts your sets of darts side by side: the 3-dart average and checkout rate in X01, and trebles hit, for each set. A figure waits (\"not yet\") until a set has enough darts behind it to mean something.",
-    "When a camera scores the dart that earns an achievement, a picture of the board is kept with it, darts and all, and shown when you open the achievement. On the site, and when a phone's own camera is scoring, the app asks first. Settings › In a game switches it off, and a picture is deleted with its game."
-  ],
+  "version": "1.6",
+  "unreleased": [],
   "notes": {
     "1.0": [
       "First release."
@@ -61,6 +51,17 @@
       "Five new training games: Bob's 27 (every double in turn, starting on 27), Shanghai, Bermuda, Segment Training (pick a number or the bull and see how often you hit it) and Random Checkout. Each has its own stats.",
       "Around the Clock has a Round the World option: count only doubles, or only trebles.",
       "New game: Gotcha, a race to exactly 301 or 501, where landing on another player's score sends them back to zero."
+    ],
+    "1.6": [
+      "When a visit is over, what it scored (or Bust) takes over the scores, large, for a couple of seconds, so it can be read from the oche when the voice can't be heard. Settings › In a game switches it off.",
+      "Choosing X01 now shows your own average under the players, and the bot's level is suggested from it: the first level that averages as much as you or more (on 40, the level that averages 44). A level you set yourself stays put, with the suggested one a tap away.",
+      "Playing the computer, you can now choose how long it waits after your visit before it throws: anything from no wait to 30 seconds, under Settings › In a game. It stays at 8 seconds unless you change it.",
+      "The computer plays a steadier leg, most of all at the lower levels: it scores nearer its level's average on the way down and goes bust far less once it is on a finish, where before it scored high and then lost its average at the end. Each level still averages what it says and hits its doubles as often. A dart of its that misses the board now always shows beside the board, where a wild one could land out of the picture.",
+      "Achievements. A first game of each kind, a first 180, a 170 finish, a 501 leg in 15 darts (about sixty in all) are shown on the game screen and called as you earn them, with everything earned listed when the game ends. Stats has a new Achievements tab for each player: the ones held, when and in which game, and the ones still to get. Games you have already played count. Settings › In a game switches the showing off.",
+      "Your darts can now say more about themselves: under Settings › Players and darts, More details on a set keeps its brand, tungsten, barrel shape, grip, shaft, flight and a note.",
+      "Settings has a new Your board section: keep your board's brand, model, the year you bought it and a note (when you last turned it, say).",
+      "Stats now puts your sets of darts side by side: the 3-dart average and checkout rate in X01, and trebles hit, for each set. A figure waits (\"not yet\") until a set has enough darts behind it to mean something.",
+      "When a camera scores the dart that earns an achievement, a picture of the board is kept with it, darts and all, and shown when you open the achievement. On the site, and when a phone's own camera is scoring, the app asks first. Settings › In a game switches it off, and a picture is deleted with its game."
     ]
   }
 }
