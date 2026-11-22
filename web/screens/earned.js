@@ -11,9 +11,9 @@ import { matchSheet } from '../sync.js';
 import { add, chief, earnedBy, held, newly, standing, tally as gameTally } from '../achievements.js';
 import { renderPlayers, statsView } from './stats.js';
 import {
-  account, api, data, esc, loadStats, mark, match, phone, players, renderGame, saveSettings, screen, settings,
-  statsPath
+  account, api, data, esc, loadStats, mark, match, phone, players, saveSettings, screen, settings, statsPath
 } from '../app.js';
+import { renderGame } from './game.js';
 
 // ---------- achievements (achievements.js) ----------
 // None is stored: what a player holds is worked out from their games. For the game in progress the

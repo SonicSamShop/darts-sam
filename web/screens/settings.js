@@ -11,9 +11,10 @@ import { accountPanel, feedbackBox } from './accountpanel.js';
 import { renderLanding } from './landing.js';
 import { playersPanel } from './playerspanel.js';
 import {
-  $app, BOT_HOLD_MAX, BOT_HOLD_USUAL, THEMES, account, applyTheme, botHoldSecs, depth, esc, fit, icon, mark,
-  pageFoot, pageHead, players, refreshStatus, screen, setScreen, settings, store, voice
+  $app, THEMES, account, applyTheme, depth, esc, fit, icon, mark, pageFoot, pageHead, players, refreshStatus,
+  screen, setScreen, settings, store, voice
 } from '../app.js';
+import { BOT_HOLD_MAX, BOT_HOLD_USUAL, botHoldSecs } from './game.js';
 import { achievementsOn, photosOn } from './earned.js';
 import { aboutPanel, appRelease } from './release.js';
 
