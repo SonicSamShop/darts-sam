@@ -23,6 +23,9 @@
 //                            boards. The one with no `down` is on the wall; one with no
 //                            `up` (and down 0) hasn't been put up yet. Ids made up here.
 //   boardsq   [id]           boards added, changed or removed here, to send
+//   boardsup  [id]           those of them put up or taken down here: only these send their
+//                            up and down, so details changed on a device that hasn't heard
+//                            of a swap don't undo it
 //   moves     [{n, id, start, end, only}]  games said to be on a board (see moveGames), to send
 //   dirty     {setup?, settings?}   settings changed here since they were last sent
 //   pending   {matchId: {seq, m: match} | {seq, quit: true}}  matches to send
@@ -197,15 +200,16 @@ export function createSync({ store, api, changed = () => {} }) {
   // (match.board); the stats can then be seen board by board.
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const boardsNow = () => get('boards', []);
-  function queueBoard(b) {
+  function queueBoard(b, placed) {
     set('boards', [...boardsNow().filter(o => o.id !== b.id), b]);
     set('boardsq', [...get('boardsq', []).filter(id => id !== b.id), b.id]);
+    if (placed && !get('boardsup', []).includes(b.id)) set('boardsup', [...get('boardsup', []), b.id]);
   }
   const wallBoard = () => boardsNow().find(b => b.down == null)?.id ?? null;
   // A new board: not up yet (see putUp). fields: brand, model, bought, notes.
   function addBoard(fields = {}) {
     const b = { id: newId(), brand: null, model: null, bought: null, notes: null, ...cleanBoard(fields), up: null, down: 0, created: Date.now() };
-    queueBoard(b);
+    queueBoard(b, true);
     return b;
   }
   // Change a board's details (brand, model, bought, notes), or its up and down.
@@ -215,7 +219,7 @@ export function createSync({ store, api, changed = () => {} }) {
     const next = { ...b, ...changes };
     const details = cleanBoard({ brand: next.brand, model: next.model, bought: next.bought, notes: next.notes }) ?? {};
     for (const k of ['brand', 'model', 'bought', 'notes']) next[k] = details[k] ?? null;
-    queueBoard(next);
+    queueBoard(next, 'up' in changes || 'down' in changes);
     return next;
   }
   function removeBoard(id) {
@@ -258,7 +262,7 @@ export function createSync({ store, api, changed = () => {} }) {
   function playedBefore(id, until) {
     const b = boardsNow().find(o => o.id === id);
     if (!b) throw new Error('no such board');
-    if (b.down != null && (!b.down || b.down > until)) changeBoard(id, { down: until });
+    if (b.down === 0) changeBoard(id, { down: until });  // (never put up: it was played on until then)
     moveGames(id, null, until, null);
   }
 
@@ -389,12 +393,16 @@ export function createSync({ store, api, changed = () => {} }) {
     for (const id of get('boardsq', [])) {
       const b = now(id);
       try {
-        if (b) await api(`/boards/${id}`, 'PUT', { brand: b.brand, model: b.model, bought: b.bought, notes: b.notes, up: b.up, down: b.down, created: b.created });
+        const placed = get('boardsup', []).includes(id);
+        if (b) await api(`/boards/${id}`, 'PUT', { brand: b.brand, model: b.model, bought: b.bought, notes: b.notes, created: b.created, ...(placed && { up: b.up, down: b.down }) });
         else await api(`/boards/${id}`, 'DELETE');
       } catch (e) {
         if (!refused(e)) throw e;  // refused: the Pi's list puts it right
       }
-      if (JSON.stringify(now(id)) === JSON.stringify(b)) set('boardsq', get('boardsq', []).filter(o => o !== id));
+      if (JSON.stringify(now(id)) === JSON.stringify(b)) {
+        set('boardsq', get('boardsq', []).filter(o => o !== id));
+        set('boardsup', get('boardsup', []).filter(o => o !== id));
+      }
     }
     for (;;) {
       const mv = get('moves', [])[0];

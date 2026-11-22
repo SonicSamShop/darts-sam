@@ -61,8 +61,9 @@ function rig() {
         if ([...pi.matches.values()].some(m => m.board === key)) refuse(400, 'games were played on this board');
         pi.boards.delete(key); return null;
       }
-      if (body.down == null) for (const b of pi.boards.values()) if (b.down == null && b.id !== key) b.down = body.up;
-      pi.boards.set(key, { id: key, ...body });
+      const placed = 'down' in body, was = pi.boards.get(key);
+      if (placed && body.down == null) for (const b of pi.boards.values()) if (b.down == null && b.id !== key) b.down = body.up;
+      pi.boards.set(key, { id: key, ...(placed ? {} : { up: was?.up ?? null, down: was?.down ?? 0 }), ...body });
       return pi.boards.get(key);
     }
     if (path === '/settings') return pi.settings;
@@ -424,4 +425,31 @@ test('a board put up from before the one on the wall went up leaves that one nev
   data.putUp(neu.id, 1000);
   const was = store.get('boards').find(b => b.id === first.id);
   assert.deepEqual([was.up, was.down], [null, 0]);
+});
+
+test('changing a board\'s details from a device that hasn\'t heard of a swap doesn\'t undo it', async () => {
+  const { store, pi, data } = rig();
+  pi.boards.set('old', { id: 'old', brand: 'Old', up: 1, down: null, created: 1 });
+  pi.up = true;
+  await data.sync(true);
+  // another device puts a new board up; this one hasn't synced since
+  pi.boards.get('old').down = 500;
+  pi.boards.set('new', { id: 'new', brand: 'New', up: 500, down: null, created: 2 });
+  data.changeBoard('old', { notes: 'turned twice' });
+  await data.sync(true);
+  assert.equal(pi.boards.get('new').down, null);
+  assert.equal(pi.boards.get('old').down, 500);
+  assert.equal(pi.boards.get('old').notes, 'turned twice');
+  assert.equal(data.wallBoard(), 'new');
+});
+
+test('saying an older board was played on before a date keeps the dates it already has', () => {
+  const { store, data } = rig();
+  const a = data.addBoard({ brand: 'A' });
+  data.putUp(a.id, 1000);
+  const b = data.addBoard({ brand: 'B' });
+  data.putUp(b.id, 3000);
+  data.playedBefore(a.id, 2000);
+  const now = store.get('boards').find(o => o.id === a.id);
+  assert.deepEqual([now.up, now.down], [1000, 3000]);
 });

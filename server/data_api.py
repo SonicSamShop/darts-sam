@@ -142,7 +142,8 @@ def make_router(db_file: Callable[[Request], Path | None], reports: Callable[[],
     @router.put("/api/boards/{board_id}")
     def save_board(request: Request, board_id: str, body: BoardIn):
         with db.at(db_file(request)):
-            return _db(db.save_board, board_id, body.model_dump())
+            # (up and down left out: details changed on a device that may not know of a swap; kept as they are)
+            return _db(db.save_board, board_id, body.model_dump(exclude_unset=True))
 
     @router.delete("/api/boards/{board_id}", status_code=204)
     def delete_board(request: Request, board_id: str):

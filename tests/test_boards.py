@@ -101,6 +101,18 @@ def test_one_board_on_the_wall(tmp):
         assert {b["id"] for b in db.list_boards() if b["down"] is None} == {"new"}
 
 
+def test_details_saved_without_dates_keep_the_dates(tmp):
+    with db.at(tmp / "k.db"):
+        db.prepare(db.file())
+        [first] = db.list_boards()
+        db.save_board("new", {"up": 500, "down": None})
+        db.save_board(first["id"], {"notes": "turned"})  # a device that hasn't heard of the swap
+        by = {b["id"]: b for b in db.list_boards()}
+        assert by["new"]["down"] is None and by[first["id"]]["down"] == 500
+        assert by[first["id"]]["notes"] == "turned"
+        assert (db.save_board("fresh", {"brand": "X"})["up"], db.list_boards()[-1]["down"]) == (None, 0)
+
+
 def test_board_checked(tmp):
     with db.at(tmp / "e.db"):
         db.prepare(db.file())

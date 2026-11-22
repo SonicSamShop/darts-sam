@@ -416,16 +416,21 @@ def _int_or_none(v):
 def save_board(board_id: str, b: dict) -> dict:
     """Add a board or change one: b has brand, model, bought, notes (see clean_board), up and
     down (ms, down None while it is on the wall) and created. Saved on the wall, it takes down
-    the one that was, at the time this one went up."""
+    the one that was, at the time this one went up. Without up and down, a board keeps the
+    ones it has (a new one is not up yet: up None, down 0)."""
     if not _ID.match(board_id):
         raise Invalid("a board needs an id of letters, numbers, - and _")
     details = clean_board({k: b.get(k) for k in ("brand", "model", "bought", "notes") if k in b}) or {}
     for key in b:
         if key not in ("brand", "model", "bought", "notes", "up", "down", "created", "id"):
             raise Invalid(f"a board has no detail called {key}")
+    placed = "up" in b or "down" in b
     up, down = _int_or_none(b.get("up")), _int_or_none(b.get("down"))
     with connect() as db:
-        if down is None:
+        if not placed:
+            old = db.execute("SELECT up, down FROM boards WHERE id = ?", (board_id,)).fetchone()
+            up, down = (old["up"], old["down"]) if old else (None, 0)
+        elif down is None:
             db.execute("UPDATE boards SET down = ? WHERE down IS NULL AND id <> ?", (up if up is not None else now_ms(), board_id))
         db.execute(
             "INSERT INTO boards (id, brand, model, bought, notes, up, down, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
