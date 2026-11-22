@@ -19,8 +19,12 @@ import {
   deleteShared, loadShare, openDetail, setShare, share, shareAsk, sharePanel, sharing
 } from './screens/sharing.js';
 import { accountDo, accountPanel, acct, feedbackBox, sendFeedback } from './screens/accountpanel.js';
+import {
+  addCamera, autoCalibrate, calibTap, calibrateOnStart, camScreen, camStatus, changeCameras, drawCameras, linkDo,
+  pairCameras, pairing, refreshCameras, renderCameras, resetDetection, unpairCameras, usbChosen
+} from './screens/cameras.js';
 
-const $app = document.getElementById('app');
+export const $app = document.getElementById('app');
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // Saved on this device. If the browser refuses to store something (storage
 // full, private mode) it is kept in memory so the app carries on until closed.
@@ -34,7 +38,7 @@ export const store = {
 };
 navigator.storage?.persist?.().catch(() => {});  // ask the browser not to clear it when space runs short
 // Scoring with this phone's own camera (Beta): its screen is a sheet of its own (phoneui.js).
-const phone = createPhoneUi({ onEvent: onBoardEvent, onChange: refreshStatus, store,
+export const phone = createPhoneUi({ onEvent: onBoardEvent, onChange: refreshStatus, store,
   inGame: () => screen === 'game' && !!match && !botUp(), say: text => say(text),
   note: (kind, detail) => tracker.track(kind, { match: match?.id, ...detail }), undoLast: () => undo(),
   dartCount: () => (match ? match.log.filter(e => e.t === 'dart').length : 0) });
@@ -86,7 +90,7 @@ let darts = store.get('darts', []);  // every player's sets of darts: [{id, play
 // players: ids in throwing order. darts: {player id: the set of darts they are throwing}
 let setup = store.get('setup', { gameId: 'x01', players: [], opts: {} });
 // Sound starts off; once on, the visit's total is called, and each dart only if asked for.
-let settings = store.get('settings', { voice: false });
+export let settings = store.get('settings', { voice: false });
 // A phone or a tablet (anything held upright, narrow or worked by touch), as style.css has it:
 // tabs along the bottom, and the settings as a list that opens a section at a time instead of tabs.
 const STACKED = matchMedia('(orientation: portrait), (max-width: 800px), (pointer: coarse)');
@@ -103,6 +107,7 @@ let addingPlayer = false;  // home: the "new player" box is out of sight until a
 let homeStep;
 let stepMoved = false;  // a step has just been opened: bring it into view
 export let screen = match ? 'game' : 'home';
+export const setScreen = v => { screen = v; };  // for screens/cameras.js
 const MAX_PLAYERS = 6;
 
 // ---------- themes ----------
@@ -301,7 +306,8 @@ async function warmStats() {
 
 let connected = false;
 export let cameraCount = 0;
-let helperLinked = false;  // hosted: the person's cameras' computer is connected to the site
+export const setCameraCount = v => { cameraCount = v; };  // for screens/cameras.js
+export let helperLinked = false;  // hosted: the person's cameras' computer is connected to the site
 
 // ---------- new versions ----------
 // When the app's files on the Pi change while the app is open, it reloads onto
@@ -413,10 +419,10 @@ function onBoardEvent(ev) {
   const s = compute(match);
   if (ev.type === 'takeout' && (s.turn.length || s.turnOver)) push({ t: 'next' });
 }
-function refreshStatus() {
+export function refreshStatus() {
   document.querySelectorAll('.conn').forEach(n => {
     const cams = connected && cameraCount > 0, auto = cams || phone.scoring(), owed = data.waiting();
-    const full = (startCal === 'busy' ? 'Finding the board again…'
+    const full = (camScreen.startCal === 'busy' ? 'Finding the board again…'
       : cams ? `Auto-scoring · ${cameraCount} cam${cameraCount > 1 ? 's' : ''}`
       : phone.on() ? phone.statusText()
       : !connected ? 'Offline · manual scoring'
@@ -471,7 +477,7 @@ function voicePicker() {
 // Not the menu or the settings on a phone or a tablet, though: there the middle
 // of the page scrolls instead (see STACKED and style.css), so nothing gets too
 // small to read or to tap.
-function fit() {
+export function fit() {
   for (const el of $app.querySelectorAll('.page, .side, .tvbar')) {
     el.style.zoom = '';
     const spills = () => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
@@ -844,7 +850,7 @@ function fromHash() {
   if (a === 'cameras' && !b) return { screen: 'cameras' };
   if (a === 'start' && !b) return { screen: 'start' };
   // the link the cameras' computer shows when pairing: Cameras with its code filled in
-  if (a === 'pair' && /^[A-Za-z0-9]{6}$/.test(b ?? '')) { pairCode = b.toUpperCase(); return { screen: 'cameras' }; }
+  if (a === 'pair' && /^[A-Za-z0-9]{6}$/.test(b ?? '')) { pairing.code = b.toUpperCase(); return { screen: 'cameras' }; }
   if (word.test(a ?? '') && word.test(b ?? '')) return { screen: 'game', id: b, name: a };
   return { screen: 'home' };
 }
@@ -972,7 +978,7 @@ let landNote = '';     // why the last try at signing in came to nothing
 let mailStep = '';     // signing in by email: '' not begun, 'ask' for the address, 'sent' the code is on its way
 let mailTo = '';       // the address it went to
 let newcomer = false;  // they signed up just now (see synced())
-function renderLanding() {
+export function renderLanding() {
   screen = 'landing';
   const pic = (file, alt, w, h, lazy = true) =>
     `<img src="shots/${file}" alt="${alt}" width="${w}" height="${h}"${lazy ? ' loading="lazy"' : ''}>`;
@@ -1145,11 +1151,11 @@ async function signIn(provider, details) {
     // the link their cameras' computer showed: that has answered it, and opens the cameras.
     // Signed up without a name (by email): their name is asked first, whichever way they came.
     if (how === 'unnamed') store.set('unnamed', account.account.id);
-    if (newcomer && !pairCode) store.set('newcomer', account.account.id);
-    if (how === 'unnamed' || (newcomer && !pairCode)) renderWelcome();
+    if (newcomer && !pairing.code) store.set('newcomer', account.account.id);
+    if (how === 'unnamed' || (newcomer && !pairing.code)) renderWelcome();
     // someone else's games were cleared from this device: start again from what is saved
     if (had && had !== account.account.id) return location.reload();
-    startCal = '';  // signed in: their cameras find the board again (calibrateOnStart)
+    camScreen.startCal = '';  // signed in: their cameras find the board again (calibrateOnStart)
     liveLine?.close();  // it reconnects, now as this person: their cameras' darts come down it
     data.sync(true);
     tracker.flush();
@@ -1174,8 +1180,8 @@ const PLACES = [  // [where, its name, its name where room is short, its picture
 const nav = (on, where) => `<nav class="nav ${where}" aria-label="Darts S.A.M">${PLACES.map(([id, name, short, pic]) =>
   `<button class="${id === on ? 'on' : ''}" data-nav="${id}"${id === on ? ' aria-current="page"' : ''}>${pic}<span class="long">${name}</span><span class="short">${short}</span></button>`).join('')}</nav>`;
 // The top and the bottom of a screen: `on` is the place it belongs to.
-const pageHead = on => `<div class="row head"><h1>Darts S.A.M</h1><span class="spacer"></span><span class="conn muted"></span>${nav(on, 'top')}</div>`;
-const pageFoot = on => nav(on, 'foot');
+export const pageHead = on => `<div class="row head"><h1>Darts S.A.M</h1><span class="spacer"></span><span class="conn muted"></span>${nav(on, 'top')}</div>`;
+export const pageFoot = on => nav(on, 'foot');
 // One place to another. Only the first step away from the menu, or from deep
 // in the stats, is a new step for Back: between the places themselves each
 // takes the last one's, so Back from any of them is the menu.
@@ -1184,7 +1190,7 @@ function goTo(place) {
   rulesOpen = false;  // back on the menu later, the games are there, not the rules last read
   const deep = screen === 'home' || screen === 'sheet' || (screen === 'players' && drill.length > 0);
   if (place === 'players') { drill = []; renderPlayers(); }
-  if (place === 'cameras') { camAdding = false; camStep = camNote = ''; renderCameras(); }
+  if (place === 'cameras') { camScreen.adding = false; camScreen.step = camScreen.note = ''; renderCameras(); }
   if (place === 'settings') { settingsOpen = fromList = false; renderSettings(); }
   mark(deep);
 }
@@ -2540,410 +2546,11 @@ function finishWelcome(camera) {
   }
   if (!account.hosted) store.set('welcomed', { camera });
   // Which kind of camera is asked first, even when one (a laptop's own, say) has been found already.
-  camAdding = camFirst = camera; camStep = camNote = '';
+  camScreen.adding = camScreen.first = camera; camScreen.step = camScreen.note = '';
   open({ screen: camera ? 'cameras' : 'home' });
 }
 
-// ---------- cameras & calibration ----------
-// A screen of its own. One camera is shown at a time: its picture, and beside
-// it the one thing that camera needs next (lining up with the board, a tap on
-// the picture, nothing: it is ready). Adding a camera is a step aside from that.
-let calib = {};  // camera id -> points tapped so far
-let autoCal = null;  // camera id waiting for a tap on the 20, for auto-calibration
-let calibBusy = false;  // the Pi is looking for the board in a camera's picture
-let calibNote = '';  // how the last calibration went
-let calibFailed = false;  // ...and whether that was badly
-let startCal = '';  // finding the board again on opening the app: '' not yet, 'wait' (for the settings), 'busy', 'done'
-let camShown = 0;  // the camera on screen
-let camSearch = false;  // the Pi is looking for its cameras again
-let camAdding = false;  // "Add a camera" is open
-let camFirst = false;  // ...opened by the desktop app's first screens: asked as if there were no camera yet
-let camNote = '';  // why the cameras could not be changed
-let camStep = '';  // adding one: '' which kind, then 'usb' or 'phone'
-let camStatus = null;  // what the Pi last said about its cameras
-let camAddress = '';  // an address typed into "Add a phone", kept while it is refused
-async function renderCameras() {
-  if (account.locked) return renderLanding();
-  screen = 'cameras';
-  if (!document.querySelector('.camstage, .camsetup')) drawCameras(undefined);  // something to look at meanwhile
-  if (account.hosted && account.account) await account.refresh().catch(() => {});  // are their cameras connected?
-  if (!account.hosted) linkInfo = await api('/link', 'GET', undefined, 4000).catch(() => null);
-  let status = null;
-  try { status = await api('/status', 'GET', undefined, 6000); } catch { /* no Pi, or no cameras connected */ }
-  if (account.hosted) await phone.offered();
-  if (screen !== 'cameras') return;
-  watchLink();
-  drawCameras(status);
-}
-function drawCameras(status) {
-  const cams = status?.cameras ?? [];
-  const cam = cams.find(c => c.id === camShown) ?? cams[0];
-  const wait = text => `<p class="dim camwait">${text}</p>`;
-  if (status) camStatus = status;
-  $app.innerHTML = `<div class="page">
-    ${pageHead('cameras')}
-    ${camSearch ? wait('Looking for cameras…')
-      : status === undefined ? wait(`Looking for ${account.hosted ? 'your cameras' : 'cameras'}…`)
-      : account.hosted && !status ? hostedCameras()
-      : !status ? `${wait('The cameras aren\'t answering. You can still score by tapping the board.')}
-    <div class="row"><button data-act="pair-retry">Try again</button></div>`
-      : camAdding || !cam ? camSetup(status, cam) : camPanel(status, cams, cam)}
-    ${pageFoot('cameras')}
-  </div>`;
-  refreshStatus();
-  fit();
-  watchUsb(status);
-}
-
-// One camera: which one, its picture, and what to do about it.
-function camPanel(status, cams, cam) {
-  const pts = calib[cam.id];
-  const wantTwenty = autoCal === cam.id;
-  const lined = !!cam.points;
-  const another = cams.find(c => c.id !== cam.id && c.ok && !c.points);  // one still to be lined up
-  const auto = (label, cls = '') => `<button class="${cls}" data-autocal="${cam.id}" ${lined ? 'data-has="1"' : ''}>${label}</button>`;
-  const byHand = `<button data-calib="${cam.id}">Mark it by hand</button>`;
-  // [how it looks, the headline, what to do, the buttons]: the first that applies
-  const [look, head, text, acts] =
-    !cam.ok ? ['bad', 'No picture', cam.kind === 'added'
-        ? 'Can\'t reach this camera. Check the address and that the phone app is running.'
-        : 'Check the camera is plugged in, then look again.',
-      '<button class="primary" data-act="refreshcams">Look again</button>']
-    : calibBusy ? ['', 'Looking for the board…', 'This takes a few seconds.', '']
-    : wantTwenty ? ['now', 'Tap the 20', 'Tap anywhere inside the <b>20</b> segment on the picture. That shows which way up the board is.',
-      `<button data-autocal="${cam.id}">Cancel</button>`]
-    : pts ? ['now', `Point ${pts.length + 1} of 4`,
-      `Tap the picture where the <b>outer double wire</b> meets the wire between <b>${esc(status.targets[pts.length])}</b>.`,
-      `<button data-calib="${cam.id}">Cancel</button>`]
-    : calibFailed ? ['bad', 'Couldn\'t find the board', `${esc(calibNote)} Check the whole board is in the picture and well lit, with no darts in it.`,
-      auto('Try again', 'primary') + byHand]
-    : !lined ? ['now', 'Line it up with the board', 'Point the camera so the whole board is in the picture. Take the darts out, then press <b>Find the board</b>.',
-      auto('Find the board', 'primary') + byHand]
-    : ['ok', 'Ready to score', 'The green lines should sit on the board\'s wires, with the green 20 in the 20. If they don\'t, find the board again.',
-      (another ? `<button class="primary" data-showcam="${another.id}">Next camera</button>` : '<button class="primary" data-act="home">Done</button>')
-        + auto('Find the board again') + byHand];
-  const quiet = pts || wantTwenty || calibBusy;  // in the middle of lining up: nothing else to look at
-  const extra = (text, buttons) => `<div class="camextra"><span class="dim">${text}</span>${buttons}</div>`;
-  return `
-    <div class="row camtabs">${cams.map(c => `<button class="${c.id === cam.id ? 'on' : ''}" data-showcam="${c.id}"
-        title="${!c.ok ? 'No picture' : c.points ? 'Ready to score' : 'Not lined up yet'}"><span class="dot ${c.ok && c.points ? 'ok' : ''}"></span>${esc(c.label)}</button>`).join('')}
-      ${status.fixed ? '' : '<button class="ghost camnew" data-act="camadd">+ Add a camera</button>'}</div>
-    ${camNote ? `<p class="warn">${esc(camNote)}</p>` : ''}
-    <div class="cambody fill">
-      <div class="camstage">${cam.ok ? `<div class="camview ${pts || wantTwenty ? 'tapping' : ''}" data-cam="${cam.id}">
-        <img src="/api/cameras/${cam.id}/snapshot.jpg?overlay=${pts || wantTwenty ? 0 : 1}&t=${Date.now()}" alt="">
-        ${(pts ?? []).map(p => `<i style="left:${p.fx * 100}%;top:${p.fy * 100}%"></i>`).join('')}
-      </div>` : '<span class="dim">No picture</span>'}</div>
-      <div class="camside">
-        <div class="camstate ${look}"><b>${head}</b><p>${text}</p>
-          ${acts ? `<div class="row">${acts}</div>` : ''}
-          ${calibNote && !calibFailed && look === 'ok' ? `<p class="dim">${esc(calibNote)}</p>` : ''}</div>
-        ${quiet ? '' : `${lined && cam.ok ? extra('Scoring stuck, or darts missed? Take the darts out, then press:', '<button data-act="reset">Board is empty now</button>') : ''}
-        ${status.fixed ? '' : extra(cam.kind === 'added' ? 'Not using this camera any more?' : 'Not for the board (a laptop\'s own webcam, say)?',
-          `<button data-camoff="${esc(cam.name)}">Switch off</button>${cam.kind === 'added' ? `<button class="danger" data-camremove="${esc(cam.name)}">Remove</button>` : ''}`)}
-        ${cams.some(c => c.points) ? `<div class="camextra">${switchRow('Auto-calibrate on start', settings.autoCal !== false,
-          `data-autostart="${settings.autoCal !== false ? 'off' : 'on'}"`, 'Every camera finds the board again each time the app opens.')}</div>` : ''}
-        ${linkRow()}${account.hosted && account.helper ? `<div class="camextra">${unpairButton()}</div>` : ''}`}
-      </div>
-    </div>`;
-}
-
-// No cameras yet, or "Add a camera": one question at a time. Which kind of
-// camera; then for a USB one nothing to press (it is looked for until it turns
-// up), and for a phone its address. Nothing can be added when the cameras were
-// named on the command line.
-function camSetup(status, cam) {
-  if (camFirst) cam = null;
-  const off = kind => (status.off ?? []).filter(o => (o.kind === 'added') === (kind === 'added'));
-  const offRows = kind => off(kind).map(o => `<div class="camoff"><span><b>${esc(o.label)}</b> is switched off</span>
-      <button class="primary" data-camon="${esc(o.name)}">Use this camera</button></div>`).join('');
-  const back = camStep ? '<button class="ghost" data-act="cam-step">‹ Back</button>'
-    : cam ? '<button class="ghost" data-act="camadd-done">‹ Back to the cameras</button>' : '';
-  const note = camNote ? `<p class="warn">${esc(camNote)}</p>` : '';
-  const step = camStep === 'usb' ? `<b class="camlead">Plug in your USB camera</b>
-      <p class="dim">Plug it into ${account.hosted ? 'the computer by your board' : 'this computer'} and point it at the board.
-        There is nothing to press: it shows up here by itself.</p>
-      ${note}${offRows('usb')}
-      <p class="camseek dim"><span class="dot"></span>Looking for ${off('usb').length ? 'another camera' : 'a camera'}…</p>`
-    : camStep === 'phone' ? `<b class="camlead">Use a phone or network camera</b>
-      <ol><li>On the phone, install an IP-webcam app and start it.</li>
-        <li>Stand the phone where it sees the whole board.</li>
-        <li>Type the address the app shows:</li></ol>
-      <div class="row camadd"><input type="text" id="cam-address" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false"
-        placeholder="http://192.168.1.50:8080/video" aria-label="The camera's address" value="${esc(camAddress)}">
-        <button class="primary" data-act="addcam">Add camera</button></div>
-      ${note}${offRows('added')}`
-    : `<b class="camlead">${cam ? 'Add a camera' : 'Which camera will you use?'}</b>
-      <p class="dim">${cam ? 'Which kind is it?' : 'Darts S.A.M scores by itself with a camera pointed at the board.'}</p>
-      ${note}
-      <div class="camkinds">
-        <button class="game-card" data-act="cam-usb"><b>USB camera</b><span>A webcam plugged in by the board. What most people use.</span></button>
-        ${status.fixed ? '' : '<button class="game-card" data-act="cam-phone"><b>Phone or network camera</b><span>A phone running an IP-webcam app, on the same Wi-Fi.</span></button>'}
-      </div>
-      ${cam ? '' : '<p class="camskip"><button class="ghost" data-act="home">No camera: score by tapping the board</button></p>'}
-      ${!cam && account.hosted && account.helper ? `<div class="row camlink">${unpairButton()}</div>` : ''}`;
-  return `<div class="camsetup fill">${back ? `<div class="row">${back}</div>` : ''}<div class="camwizard">${step}</div></div>`;
-}
-// The USB step with no camera running: look again every few seconds until one is there.
-let usbWatch = null;
-function watchUsb(status) {
-  clearTimeout(usbWatch);
-  const here = () => onCamerasTab() && camStep === 'usb' && !camSearch;
-  if (!here() || !status || status.cameras.length) return;
-  usbWatch = setTimeout(async () => {
-    if (!here()) return;
-    const now = await api('/cameras/refresh', 'POST', undefined, 30000).catch(() => null);
-    if (!here()) return;
-    if (now?.cameras.length) { cameraCount = now.scoring; camStep = ''; camAdding = false; camShown = now.cameras[0].id; return drawCameras(now); }
-    if (now && JSON.stringify(now.off) !== JSON.stringify(status.off)) return drawCameras(now);
-    watchUsb(now ?? status);
-  }, 3000);
-}
-// "USB camera" chosen. With none running the step itself keeps looking; with
-// some, look once and go back to them, saying so if there is nothing new.
-async function usbChosen() {
-  const had = camStatus?.cameras.length ?? 0;
-  camNote = '';
-  if (!had) { camStep = 'usb'; return renderCameras(); }
-  // Asked first of all, with a camera here already: that may well be the one they mean. Show what there is.
-  if (camFirst) { camFirst = false; return void changeCameras('/cameras/refresh'); }
-  const now = await changeCameras('/cameras/refresh');
-  if (now && now.cameras.length <= had && onCamerasTab()) {
-    camNote = 'No new camera found. Check it is plugged in, then try Add a camera again.';
-    drawCameras(now);
-  }
-}
-
-// ---------- cameras and the hosted site ----------
-// The cameras are plugged into a computer at home running this same server
-// (the "helper"). It is paired once with the person's account by a code it
-// shows, and from then on the hosted app reaches the cameras through the site.
-let pairCode = '';        // hosted: the code being typed (or come with the link the helper showed)
-let pairNote = '';        // hosted: what went wrong
-let pairWaiting = false;  // hosted: code accepted, waiting for the helper to connect
-let unpairAsk = false;    // hosted: "Disconnect cameras" pressed once
-let linkInfo = null;      // the helper's own page: GET /api/link
-let linkNote = '';
-// Hosted, and the cameras can't be asked anything: say why, and what to do.
-function hostedCameras() {
-  const note = pairNote ? `<p class="warn">${esc(pairNote)}</p>` : '';
-  if (!account.account) return `<p class="dim">${pairCode ? 'Sign in, then press Connect.' : 'Sign in to connect your cameras.'}</p>
-    <div class="row"><button data-stab="acct">Sign in</button></div>`;
-  if (pairWaiting) return '<p class="dim">Waiting for your cameras…</p>';
-  // one step of the cameras' wizard, as camSetup()'s are: once connected, that asks which kind of camera
-  if (!account.helper) return `<div class="camsetup fill"><div class="camwizard pairing">
-    <b class="camlead">Connect your cameras</b>
-    <p class="dim">The cameras plug into a computer by your board. Darts S.A.M runs on it and sends each dart here.</p>
-    <ol><li>On that computer, start Darts S.A.M.
-        <a href="download.html" target="_blank" rel="noopener">Download it for Mac, Windows or Linux</a></li>
-      <li>In its window, open <b>Cameras</b> and press <b>Connect to your account</b>. It shows a 6-letter code.</li>
-      <li>Type the code here:</li></ol>
-    <div class="row camadd"><input type="text" id="pair-code" maxlength="12" autocapitalize="characters" autocomplete="off"
-        spellcheck="false" placeholder="ABC234" aria-label="The code" value="${esc(pairCode)}"><button class="primary" data-act="pair">Connect</button></div>
-    ${note}
-    <p class="camskip"><button class="ghost" data-act="home">No camera: score by tapping the board</button></p></div>${phoneOffer()}</div>`;
-  return `<p class="dim">${account.helper.connected ? 'Your cameras\' computer didn\'t answer.'
-      : 'Your cameras\' computer isn\'t connected. Check it is switched on and Darts S.A.M is running.'}</p>
-    ${note}<div class="row"><button data-act="pair-retry">Try again</button>${unpairButton()}</div>${phoneOffer()}`;
-}
-// This phone's own camera instead of a computer's (phoneui.js), where it can be used.
-function phoneOffer() {
-  if (!phone.offeredNow()) return '';
-  return `<div class="camwizard phoneoffer"><b class="camlead">Or use this Device Camera <span class="beta">Beta</span></b>
-    <p class="dim">${phone.on() ? esc(phone.statusText())
-      : 'No computer needed: stand this device beside the board and it scores by itself. It is new, so it gets some darts wrong, and asks when it isn\'t sure.'}</p>
-    <div class="row"><button class="primary" data-act="phonecam">${phone.on() ? 'Open the Device Camera' : 'Use this Device Camera'}</button></div></div>`;
-}
-function unpairButton() {
-  if (!account.hosted || !account.helper) return '';
-  return unpairAsk ? '<span class="dim">Disconnect them from your account?</span><button class="danger" data-act="unpair-yes">Disconnect</button><button data-act="unpair-no">Keep</button>'
-    : '<button data-act="unpair" title="Stop using these cameras with your account">Disconnect cameras</button>';
-}
-async function pairCameras() {
-  pairCode = document.getElementById('pair-code').value;
-  pairNote = '';
-  try {
-    await call('/api/pair/claim', 'POST', { code: pairCode });
-  } catch (e) {
-    pairNote = e.signedOut ? 'You are no longer signed in.' : e.message;
-    return renderCameras();
-  }
-  pairCode = '';
-  pairWaiting = true;
-  if (onCamerasTab()) drawCameras(null);
-  // the helper asks the site every couple of seconds whether its code was typed, then connects
-  for (let i = 0; i < 15 && !account.helper?.connected; i++) {
-    await new Promise(done => setTimeout(done, 2000));
-    await account.refresh().catch(() => {});
-  }
-  pairWaiting = false;
-  if (onCamerasTab()) renderCameras();
-}
-async function unpairCameras() {
-  unpairAsk = false;
-  try { await call('/api/helper', 'DELETE'); } catch (e) { pairNote = e.message; }
-  if (onCamerasTab()) renderCameras();
-}
-const onCamerasTab = () => screen === 'cameras';
-
-// The helper's own page: use these cameras with an account on the hosted site.
-function linkRow() {
-  const l = linkInfo;
-  if (account.hosted || !l?.host) return '';
-  const site = esc(l.host.replace(/^https?:\/\//, ''));
-  const note = linkNote ? `<span class="warn">${esc(linkNote)}</span>` : '';
-  if (l.code) return `<div class="row camlink"><span>Code: <b class="paircode">${esc(l.code.slice(0, 3))} ${esc(l.code.slice(3))}</b></span>
-      <span class="dim">Type this code at <a href="${esc(l.url)}" target="_blank" rel="noopener">${site}</a> → Cameras.
-      It works for 10 minutes.</span></div>`;
-  if (!l.paired) return `<div class="row camlink"><span class="dim">Use these cameras at ${site}</span>
-      <button data-act="link-pair">Connect to your account</button>${note}</div>`;
-  return `<div class="row camlink"><span class="dim">${l.connected ? 'Connected to your online account' : 'Paired with your online account · not connected right now'}</span>
-      <button data-act="link-unpair">Disconnect</button>${note}</div>`;
-}
-async function linkDo(method, path) {
-  linkNote = '';
-  try { await api(path, method); } catch (e) { linkNote = e.message; }
-  if (onCamerasTab()) renderCameras();
-}
-// While a code is waiting to be typed on the site, look every 2 s for it to have worked.
-let linkWatch = null;
-function watchLink() {
-  clearTimeout(linkWatch);
-  if (account.hosted || !(linkInfo?.code || (linkInfo?.paired && !linkInfo.connected))) return;
-  linkWatch = setTimeout(async () => {
-    if (!onCamerasTab()) return;
-    const was = JSON.stringify(linkInfo);
-    linkInfo = await api('/link', 'GET', undefined, 4000).catch(() => linkInfo);
-    if (!onCamerasTab()) return;
-    if (JSON.stringify(linkInfo) !== was && !Object.keys(calib).length && autoCal == null) return renderCameras();
-    watchLink();
-  }, 2000);
-}
-
 export const onAccountTab = () => screen === 'settings' && (sectShown('acct') || sectShown('share') || sectShown('feedback') || listShown());
-
-// Have the Pi look for its cameras again, as restarting it would: for one plugged
-// in late, or one that came back under another number. With a path and body,
-// first change which cameras it uses (add, remove, switch off or on).
-const refreshCameras = () => changeCameras('/cameras/refresh');
-async function changeCameras(path, body) {
-  if (camSearch) return;
-  // camera numbers are about to change: drop anything that refers to them
-  camSearch = true; calib = {}; autoCal = null; calibNote = camNote = ''; calibFailed = false; camShown = 0;
-  camAddress = body?.address ?? '';
-  drawCameras(null);
-  let status = null;
-  try {
-    status = await api(path, 'POST', body, 30000);
-    cameraCount = status.scoring;
-    camAdding = false; camStep = '';
-    if (body?.address) { camAddress = ''; camShown = status.cameras.at(-1)?.id ?? 0; }  // show the one just added
-    else camShown = (status.cameras.find(c => c.ok && !c.points) ?? status.cameras[0])?.id ?? 0;  // or the first with something to do
-  } catch (err) {
-    camNote = err.message;
-  }
-  camSearch = false;
-  if (screen !== 'cameras') return refreshStatus();
-  status ? drawCameras(status) : renderCameras();
-  return status;
-}
-
-function addCamera() {
-  return changeCameras('/cameras', { address: document.getElementById('cam-address').value });
-}
-
-// Auto-calibrate one camera. `twenty` is a tapped pixel in the 20 segment; left
-// out, the Pi uses the camera's existing calibration to know which way is up.
-async function autoCalibrate(camId, twenty) {
-  autoCal = null;
-  calibBusy = true; calibNote = ''; calibFailed = false;
-  drawCameras(await api('/status', 'GET', undefined, 4000).catch(() => null));
-  try {
-    const r = await api(`/cameras/${camId}/autocalibration`, 'POST', { twenty });
-    calibNote = `Board found: ${r.joins} of 40 points, within ${r.rms_px} px.`;
-    cameraCount = Math.max(cameraCount, 1);
-    tracker.track('calibrated', { ok: true, how: 'auto', joins: r.joins, rms_px: r.rms_px, tapped: !!twenty });
-  } catch (err) {
-    calibNote = err.message; calibFailed = true;
-    tracker.track('calibrated', { ok: false, how: 'auto', why: err.message, tapped: !!twenty });
-  }
-  calibBusy = false;
-  if (onCamerasTab()) renderCameras();
-}
-
-// Each time the app is opened, or someone signs in: every camera that has been
-// lined up before finds the board again, one after another, with nothing to
-// press. A camera gets nudged between one evening and the next, and this saves
-// going through them by hand. It is asked for on each hello from the cameras'
-// computer and done once. A camera never lined up is left alone (it needs a tap
-// on the 20 first), and one that can't find the board keeps the line-up it had.
-// Not under a game: there may be darts in the board. Settings: autoCal.
-async function calibrateOnStart() {
-  if (startCal) return;
-  if (account.hosted && !(account.account && helperLinked)) return;  // their cameras can't be reached yet
-  startCal = 'wait';
-  // the settings as they were last saved, from any device: is this switched off?
-  await Promise.race([data.sync(true).catch(() => {}), new Promise(done => setTimeout(done, 5000))]);
-  if (settings.autoCal === false || screen === 'game' || screen === 'bull') { startCal = 'done'; return; }
-  startCal = 'busy';
-  let todo = [];
-  for (let tries = 0; tries < 5; tries++) {  // a camera just switched on has no picture for a moment
-    const status = await api('/status', 'GET', undefined, 6000).catch(() => null);
-    if (!status) { startCal = ''; return refreshStatus(); }  // not reached: the next hello asks again
-    const lined = status.cameras.filter(c => c.points);
-    todo = lined.filter(c => c.ok);
-    if (todo.length === lined.length) break;
-    await new Promise(done => setTimeout(done, 2000));
-  }
-  if (!todo.length) { startCal = 'done'; return refreshStatus(); }
-  calibBusy = true; calibNote = ''; calibFailed = false;
-  refreshStatus();
-  if (onCamerasTab()) renderCameras();
-  const missed = [];
-  for (const cam of todo) {
-    try {
-      const r = await api(`/cameras/${cam.id}/autocalibration`, 'POST', { idle: true }, 30000);
-      tracker.track('calibrated', { ok: true, how: 'start', joins: r.joins, rms_px: r.rms_px, tapped: false });
-    } catch (err) {
-      missed.push(cam.label);
-      tracker.track('calibrated', { ok: false, how: 'start', why: err.message, tapped: false });
-    }
-  }
-  calibBusy = false; startCal = 'done';
-  const n = todo.length - missed.length;
-  calibNote = !missed.length ? `Board found again on ${n === 1 ? 'the camera' : n === 2 ? 'both cameras' : `all ${n} cameras`} when the app opened.`
-    : `Couldn't find the board again on ${missed.join(', ')} when the app opened, so ${missed.length > 1 ? 'they keep' : 'it keeps'} the line-up from before.`;
-  refreshStatus();
-  if (onCamerasTab()) renderCameras();
-}
-
-async function calibTap(camId, img, e) {
-  const pts = calib[camId];
-  const r = img.getBoundingClientRect();
-  const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
-  if (autoCal === camId) return autoCalibrate(camId, [fx * img.naturalWidth, fy * img.naturalHeight]);
-  if (!pts) return;
-  pts.push({ fx, fy, x: fx * img.naturalWidth, y: fy * img.naturalHeight });
-  if (pts.length === 4) {
-    delete calib[camId];
-    await fetch(`/api/cameras/${camId}/calibration`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ points: pts.map(p => [p.x, p.y]) }),
-    });
-    cameraCount = Math.max(cameraCount, 1);
-    calibNote = ''; calibFailed = false;
-    tracker.track('calibrated', { ok: true, how: 'manual' });
-  }
-  renderCameras();
-}
-
-// The tracker is told the board is empty as it stands: what it takes to be darts is forgotten.
-async function resetDetection() {
-  calibFailed = false;
-  calibNote = await fetch('/api/reset', { method: 'POST' }).then(r => r.ok, () => false)
-    ? 'Done: the board is taken as empty.' : 'That didn\'t reach the cameras. Try again.';
-  if (onCamerasTab()) renderCameras();
-}
 
 // ---------- events ----------
 $app.addEventListener('click', e => {
@@ -3008,7 +2615,7 @@ $app.addEventListener('click', e => {
   if (d.camremove) return changeCameras('/cameras/remove', { name: d.camremove });
   if (d.camoff) return changeCameras('/cameras/enabled', { name: d.camoff, on: false });
   if (d.camon) return changeCameras('/cameras/enabled', { name: d.camon, on: true });
-  if (d.showcam) { camShown = +d.showcam; camAdding = false; calib = {}; autoCal = null; calibNote = camNote = ''; calibFailed = false; return renderCameras(); }
+  if (d.showcam) { camScreen.shown = +d.showcam; camScreen.adding = false; camScreen.calib = {}; camScreen.autoCal = null; camScreen.calibNote = camScreen.note = ''; camScreen.calibFailed = false; return renderCameras(); }
   if (d.key === 'cancel') { padAsk = null; padValue = ''; return renderGame(); }
   if (d.key) return padKey(d.key);
   if (d.fin) return padCommit(padAsk.total, +d.fin);
@@ -3033,16 +2640,16 @@ $app.addEventListener('click', e => {
     return renderSettings();
   }
   if (d.calib) {
-    if (calib[d.calib]) delete calib[d.calib]; else calib[d.calib] = [];
-    autoCal = null; calibNote = ''; calibFailed = false;
+    if (camScreen.calib[d.calib]) delete camScreen.calib[d.calib]; else camScreen.calib[d.calib] = [];
+    camScreen.autoCal = null; camScreen.calibNote = ''; camScreen.calibFailed = false;
     return renderCameras();
   }
   if (d.autocal) {
     const id = +d.autocal;
-    delete calib[id];
-    if (autoCal === id) { autoCal = null; return renderCameras(); }
+    delete camScreen.calib[id];
+    if (camScreen.autoCal === id) { camScreen.autoCal = null; return renderCameras(); }
     if (b.dataset.has) return autoCalibrate(id);
-    autoCal = id; calibNote = ''; calibFailed = false;
+    camScreen.autoCal = id; camScreen.calibNote = ''; camScreen.calibFailed = false;
     return renderCameras();
   }
   switch (d.act) {
@@ -3088,16 +2695,16 @@ $app.addEventListener('click', e => {
     case 'quit': return askQuit();
     case 'home': return goHome();
     case 'settings': settingsOpen = fromList = false; renderSettings(); return mark(true);
-    case 'cameras': camAdding = false; camStep = camNote = ''; renderCameras(); return mark(true);
-    case 'camadd': camAdding = true; camFirst = false; camStep = camNote = ''; return renderCameras();
-    case 'camadd-done': camAdding = false; camStep = camNote = ''; return renderCameras();
-    case 'cam-step': camStep = camNote = ''; return renderCameras();
+    case 'cameras': camScreen.adding = false; camScreen.step = camScreen.note = ''; renderCameras(); return mark(true);
+    case 'camadd': camScreen.adding = true; camScreen.first = false; camScreen.step = camScreen.note = ''; return renderCameras();
+    case 'camadd-done': camScreen.adding = false; camScreen.step = camScreen.note = ''; return renderCameras();
+    case 'cam-step': camScreen.step = camScreen.note = ''; return renderCameras();
     case 'cam-usb': return usbChosen();
     case 'welcome-name': return welcomeNamed();
     case 'welcome-back': welcomeStep = welcomeNote = ''; return renderWelcome();
     case 'welcome-cam': return finishWelcome(true);
     case 'welcome-nocam': return finishWelcome(false);
-    case 'cam-phone': camStep = 'phone'; camNote = ''; renderCameras().then(() => document.getElementById('cam-address')?.focus()); return;
+    case 'cam-phone': camScreen.step = 'phone'; camScreen.note = ''; renderCameras().then(() => document.getElementById('cam-address')?.focus()); return;
     case 'undo': padValue = ''; padAsk = null; padError = ''; return undo();
     case 'entry':
       settings.entry = settings.entry === 'pad' ? 'board' : 'pad';
@@ -3115,10 +2722,10 @@ $app.addEventListener('click', e => {
     case 'addcam': return addCamera();
     case 'report': return reportProblem();
     case 'pair': return pairCameras();
-    case 'pair-retry': pairNote = ''; return renderCameras();
+    case 'pair-retry': pairing.note = ''; return renderCameras();
     case 'phonecam': return phone.open();
-    case 'unpair': unpairAsk = true; return renderCameras();
-    case 'unpair-no': unpairAsk = false; return renderCameras();
+    case 'unpair': pairing.unpairAsk = true; return renderCameras();
+    case 'unpair-no': pairing.unpairAsk = false; return renderCameras();
     case 'unpair-yes': return unpairCameras();
     case 'link-pair': return linkDo('POST', '/link/pair');
     case 'link-unpair': return linkDo('DELETE', '/link');
