@@ -436,6 +436,15 @@ svg.heat .b-num { fill: #d9dce3; }
 .pcard .name { font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pcard .big { font-family: var(--display); font-size: 54px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .pcard .small { font-size: 14px; color: var(--muted); min-height: 20px; }
+/* A visit just over: what it scored takes over the players' scores for a moment (renderGame in screens/game.js). */
+.vflash { grid-column: 1 / -1; text-align: center; padding: 8px 14px; border: 2px solid var(--accent); border-radius: var(--round);
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
+.vflash .name { font-size: 18px; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vflash .big { font-family: var(--display); font-size: 96px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); }
+.vflash .small { font-size: 15px; color: var(--muted); }
+.vflash.bust { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, var(--panel)); }
+.vflash.bust .name, .vflash.bust .big { color: var(--warn); }
+.flash.bust { color: var(--warn); }
 .turn { display: grid; grid-template-columns: repeat(3, 1fr) 1.1fr; gap: 8px; }
 .slot { background: var(--panel); border-radius: var(--round); text-align: center; padding: 12px 4px; font-family: var(--display); font-size: 26px; font-weight: 700; min-height: 62px; }
 .slot.empty { color: var(--line); }

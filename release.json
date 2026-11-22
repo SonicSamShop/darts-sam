@@ -1,6 +1,7 @@
 {
   "version": "1.5",
   "unreleased": [
+    "When a visit is over, what it scored (or Bust) takes over the scores, large, for a couple of seconds, so it can be read from the oche when the voice can't be heard. Settings › In a game switches it off.",
     "Choosing X01 now shows your own average under the players, and the bot's level is suggested from it: the first level that averages as much as you or more (on 40, the level that averages 44). A level you set yourself stays put, with the suggested one a tap away.",
     "Playing the computer, you can now choose how long it waits after your visit before it throws: anything from no wait to 30 seconds, under Settings › In a game. It stays at 8 seconds unless you change it.",
     "The computer plays a steadier leg, most of all at the lower levels: it scores nearer its level's average on the way down and goes bust far less once it is on a finish, where before it scored high and then lost its average at the end. Each level still averages what it says and hits its doubles as often. A dart of its that misses the board now always shows beside the board, where a wild one could land out of the picture.",

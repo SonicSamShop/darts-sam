@@ -76,6 +76,32 @@ export function botThrow() {
   botFlight = false;
 }
 
+// ---------- the visit's score, large ----------
+// When a visit is over, what it scored (or Bust) takes over the players' scores for a couple of
+// seconds, large, before they come back: easy to read from the oche when the voice can't be
+// heard (a noisy pub). The player cards give way to one panel saying who threw and what it
+// scored; in the TV view, the thrower's score on the scoreboard shows it instead. Games with no
+// total (Cricket, Killer and the like) and the end of a game, which has its banner, don't.
+// A setting (Settings > In a game), on unless switched off.
+export const FLASH_MS = 2200;
+let flash = null;  // {player, text, bust, until} while it is showing
+let flashTimer = 0;
+export const flashOn = () => settings.visitFlash !== false;
+function visitFlash(game, before, after) {
+  if (!flashOn() || game.showTotal === false || after.winner != null) return null;
+  if (after.bust != null) return { player: after.bust, text: 'Bust', bust: true };
+  if (after.lastVisit) return { player: after.lastVisit.player, text: after.lastVisit.total };
+  if (after.turnOver && !before.turnOver) return { player: after.current, text: after.turn.reduce((t, d) => t + value(d), 0) };
+  return null;
+}
+// What player i's score on the TV scoreboard shows just now: the visit's flash, or their score as usual.
+const bigOf = (i, usual) => flash?.player === i
+  ? `<span class="flash${flash.bust ? ' bust' : ''}">${flash.text}</span>` : usual;
+// The panel that stands in for the player cards while the flash is on.
+const flashHtml = s => `<div class="vflash${flash.bust ? ' bust' : ''}" role="status">
+  ${s.players.length > 1 ? `<div class="name">${esc(s.players[flash.player])}</div>` : ''}
+  <div class="big">${flash.text}</div><div class="small">${flash.bust ? 'Scores nothing' : 'Scored this visit'}</div></div>`;
+
 // ---------- match actions ----------
 export function push(ev) {
   const before = compute(match);
@@ -131,6 +157,9 @@ export function push(ev) {
   const next = name ? (aim ? `${name}, ${aim}` : name) : aim && `${changed ? 'Next,' : 'Aim for'} ${aim}`;
   const said = [dart, call, ...rest, ...earned, next].filter(x => x !== '');
   if (said.length) say(said.join('. '));
+  const f = visitFlash(game, before, after);
+  if (f) flash = { ...f, until: Date.now() + FLASH_MS };
+  else if (ev.t === 'dart' || ev.t === 'visit') flash = null;  // the next visit has begun
   renderGame();
 }
 export function undo() {
@@ -138,6 +167,7 @@ export function undo() {
   // (it throws again when its turn comes back round).
   while (match.log.at(-1)?.src === 'bot') match.log.pop();
   const gone = match.log.pop();
+  flash = null;
   tracker.undone(match.id, gone?.t === 'dart' ? gone : undefined);  // a camera dart undone may be about to be put right
   // Whatever those darts earned goes with them: it is worked out again from the darts that are left.
   dropSlips();
@@ -247,7 +277,7 @@ function tvHtml(game, s) {
     ${sets ? '<th>Sets</th>' : ''}<th>Legs</th><th>Score</th><td class="gap"></td>
     <th>100+</th><th>140+</th><th>180s</th><th>Average</th></tr></thead>
     ${rows.map(r => `<tr class="${s.winner === r.i ? 'win' : s.winner == null && r.i === s.current ? 'cur' : ''}">
-      <td class="name">${esc(r.p)}</td>${sets ? `<td>${r.sets}</td>` : ''}<td>${r.legs}</td><td class="score">${r.score}</td>
+      <td class="name">${esc(r.p)}</td>${sets ? `<td>${r.sets}</td>` : ''}<td>${r.legs}</td><td class="score">${bigOf(r.i, r.score)}</td>
       <td class="gap"></td><td>${r.t100}</td><td>${r.t140}</td><td>${r.t180}</td><td class="avg">${r.average}</td></tr>`).join('')}
   </table>`;
 }
@@ -274,6 +304,9 @@ export function renderGame() {
   const s = compute(match);
   loadBases();  // (once a game: what everyone held before it)
   if (s.winner != null && photoAsk && photosOn() === null) askPhotos();
+  if (flash && Date.now() >= flash.until) flash = null;
+  clearTimeout(flashTimer);
+  if (flash) flashTimer = setTimeout(() => { if (screen === 'game' && match) renderGame(); }, flash.until - Date.now());
   const pad = usingPad(game);
   // The TV view: the player cards give way to one scoreboard along the bottom.
   const tv = usingTv(game, s);
@@ -313,7 +346,7 @@ export function renderGame() {
       ${canTv(game, s) ? `<button data-act="tv">${tv ? 'Card view' : 'TV view'}</button>` : ''}
       ${game.visit ? `<button data-act="entry">${pad ? 'Use board' : 'Type scores'}</button>` : ''}
       ${s.winner == null ? `<button class="danger" data-act="quit">Quit game</button>` : ''}</div>
-    ${tv ? '' : `<div class="players">${s.players.map((p, i) => {
+    ${tv ? '' : flash ? `<div class="players">${flashHtml(s)}</div>` : `<div class="players">${s.players.map((p, i) => {
       const v = game.summary(s, i);
       return `<div class="pcard ${s.winner === i ? 'win' : s.winner == null && i === s.current ? 'cur' : ''}${v.out ? ' out' : ''}">
         <div class="name">${esc(p)}${playingWith(i)}</div><div class="big">${v.big}</div><div class="small">${v.small}</div></div>`;

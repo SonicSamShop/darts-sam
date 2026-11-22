@@ -593,6 +593,7 @@ $app.addEventListener('click', e => {
   if (d.checkouts) { settings.checkouts = d.checkouts === 'on'; saveSettings(); return renderSettings(); }
   if (d.achievements) { settings.achievements = d.achievements === 'on'; saveSettings(); return renderSettings(); }
   if (d.photos) { settings.photos = d.photos === 'on'; saveSettings(); return renderSettings(); }
+  if (d.visitflash) { settings.visitFlash = d.visitflash === 'on'; saveSettings(); return renderSettings(); }
   if (d.flight) { settings.flight = d.flight === 'on'; saveSettings(); return renderSettings(); }
   if (d.autostart) { settings.autoCal = d.autostart === 'on'; saveSettings(); return drawCameras(camStatus); }
   if (d.botlevel) { setup.bot = botLevel(botAt().level + +d.botlevel).level; setup.botAuto = false; saveSetup(); return renderHome(); }

@@ -14,7 +14,7 @@ import {
   $app, THEMES, account, applyTheme, depth, esc, fit, icon, mark, pageFoot, pageHead, players, refreshStatus,
   screen, setScreen, settings, store, voice
 } from '../app.js';
-import { BOT_HOLD_MAX, BOT_HOLD_USUAL, botHoldSecs } from './game.js';
+import { BOT_HOLD_MAX, BOT_HOLD_USUAL, botHoldSecs, flashOn } from './game.js';
 import { achievementsOn, photosOn } from './earned.js';
 import { aboutPanel, appRelease } from './release.js';
 
@@ -88,6 +88,7 @@ export function renderSettings(jump) {
     ${switchRow('Sound', settings.voice, `data-voice="${settings.voice ? 'off' : 'on'}"`, 'Calls each visit\'s total, busts, what you require and game shot.')}
     ${settings.voice ? `${switchRow('Call each dart', !!settings.eachDart, `data-eachdart="${settings.eachDart ? 'off' : 'on'}"`, 'Say every dart as it lands too, not just the total. Cricket, Killer and the practice games call each dart anyway.')}
     ${voicePicker()}` : ''}
+    ${switchRow('Show each visit\'s score large', flashOn(), `data-visitflash="${flashOn() ? 'off' : 'on'}"`, 'For a couple of seconds after a visit, what it scored takes over the scores, for when the voice can\'t be heard.')}
     ${switchRow('Checkout hints', hints, `data-checkouts="${hints ? 'off' : 'on'}"`, 'Switch off to practise working out your finishes yourself.')}
     ${switchRow('Show achievements as they are earned', achievementsOn(), `data-achievements="${achievementsOn() ? 'off' : 'on'}"`, 'A first 180, a big finish and the like are shown, and called, as they happen. Off, they are still kept on the Stats page.')}
     ${switchRow('Keep a picture of the board with an achievement', photosOn() === true, `data-photos="${photosOn() === true ? 'off' : 'on'}"`, 'When a camera scores the dart that earns one. Kept with your games and nowhere else, and deleted with the game.')}
