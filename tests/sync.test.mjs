@@ -6,7 +6,7 @@
 // Offline-first saving (web/sync.js) against a pretend Pi that can be switched off.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanBoard, cleanDetails, createSync } from '../web/sync.js';
+import { cleanBoard, cleanDetails, createSync, matchBody } from '../web/sync.js';
 import { newMatch } from '../web/engine.js';
 
 function rig() {
@@ -15,7 +15,7 @@ function rig() {
     get: (k, d) => kept.has(k) ? JSON.parse(kept.get(k)) ?? d : d,
     set: (k, v) => kept.set(k, JSON.stringify(v)),
   };
-  const pi = { up: false, players: [], settings: {}, matches: new Map(), darts: new Map(), calls: [], nextId: 1 };
+  const pi = { up: false, players: [], settings: {}, matches: new Map(), darts: new Map(), boards: new Map(), noBoards: false, calls: [], nextId: 1 };
   const refuse = (status, msg) => { throw Object.assign(new Error(msg), { status }); };
   async function api(path, method = 'GET', body) {
     if (!pi.up) throw new TypeError('Failed to fetch');
@@ -44,6 +44,27 @@ function rig() {
       pi.darts.set(key, { id: key, ...body });
       return pi.darts.get(key);
     }
+    if (path.startsWith('/boards')) {
+      if (pi.noBoards) refuse(404, 'Not Found');
+      const key = path.split('/')[2];
+      if (!key) return [...pi.boards.values()];
+      if (path.endsWith('/games')) {
+        if (!pi.boards.has(key)) refuse(404, 'no such board');
+        let moved = 0;
+        for (const m of pi.matches.values()) {
+          if ((body.start == null || m.started >= body.start) && (body.end == null || m.started < body.end)
+            && (!body.only || body.only.includes(m.board ?? null)) && m.board !== key) { m.board = key; moved++; }
+        }
+        return { moved };
+      }
+      if (method === 'DELETE') {
+        if ([...pi.matches.values()].some(m => m.board === key)) refuse(400, 'games were played on this board');
+        pi.boards.delete(key); return null;
+      }
+      if (body.down == null) for (const b of pi.boards.values()) if (b.down == null && b.id !== key) b.down = body.up;
+      pi.boards.set(key, { id: key, ...body });
+      return pi.boards.get(key);
+    }
     if (path === '/settings') return pi.settings;
     if (path.startsWith('/settings/')) { pi.settings[path.split('/')[2]] = body.value; return { ok: true }; }
     if (path.startsWith('/matches?')) return [...pi.matches].filter(([, m]) => m.winner != null)
@@ -52,7 +73,8 @@ function rig() {
       const key = path.split('/')[2];
       if (method === 'DELETE') { pi.matches.delete(key); return { ok: true }; }
       if (body.players.some(p => !pi.players.some(o => o.id === p))) refuse(400, 'unknown player id');
-      if (!(pi.matches.get(key)?.seq >= body.seq)) pi.matches.set(key, body);
+      const was = pi.matches.get(key);
+      if (!(was?.seq >= body.seq)) pi.matches.set(key, { ...body, board: was?.board ?? body.board });
       return { ok: true };
     }
     throw new Error('unexpected ' + path);
@@ -280,4 +302,116 @@ test('darts made offline wait for their player\'s number, then go with the games
   pi.up = true;
   await data.sync(true);
   assert.deepEqual(store.get('darts').map(d => [d.name, d.retired]), [['Red (old)', false], ['Blue', false]]);
+});
+
+// ---------- boards ----------
+test('boards made offline reach the Pi, and one goes up taking the other down', async () => {
+  const { store, pi, data } = rig();
+  const old = data.addBoard({ brand: 'Winmau', model: 'Blade 6' });
+  assert.equal(data.wallBoard(), null);  // added, not put up yet
+  data.putUp(old.id, null);
+  assert.equal(data.wallBoard(), old.id);
+  const neu = data.addBoard({ brand: 'Unicorn', bought: 2026 });
+  data.putUp(neu.id, null);
+  assert.equal(data.wallBoard(), neu.id);
+  const boards = store.get('boards');
+  assert.equal(boards.filter(b => b.down == null).length, 1);
+  assert.equal(boards.find(b => b.id === old.id).down, boards.find(b => b.id === neu.id).up);
+  assert.throws(() => data.addBoard({ brand: 'x'.repeat(41) }), /at most 40/);
+  pi.up = true;
+  assert.equal(await data.sync(true), true);
+  assert.deepEqual([...pi.boards.keys()].sort(), [old.id, neu.id].sort());
+  assert.equal(pi.boards.get(neu.id).down, null);
+  assert.equal(pi.boards.get(neu.id).brand, 'Unicorn');
+  assert.equal(data.waiting(), 0);
+});
+
+test('a game carries the board it was played on', () => {
+  const { data } = rig();
+  const m = { ...game('m1', [1], ['Sam'], [D(20)]), board: 'b1' };
+  assert.equal(matchBody(m).board, 'b1');
+  assert.equal(matchBody(game('m2', [1], ['Sam'], [])).board, null);
+  assert.ok(data);
+});
+
+test('putting a board up from a date moves the games since then, here and on the Pi', async () => {
+  const { store, pi, data } = rig();
+  pi.players.push({ id: 1, name: 'Sam' });
+  store.set('players', [{ id: 1, name: 'Sam' }]);
+  const old = data.addBoard({ brand: 'Old' });
+  data.putUp(old.id, null);
+  pi.up = true;
+  await data.sync(true);
+  // one game already on the Pi, one waiting here, both on the old board; one from before the date
+  pi.matches.set('sent', { players: [1], seq: 1, started: 2000, board: old.id, winner: 0 });
+  pi.matches.set('before', { players: [1], seq: 1, started: 500, board: old.id, winner: 0 });
+  pi.up = false;
+  const waiting = { ...game('waiting', [1], ['Sam'], [D(20)]), started: 3000, board: old.id };
+  data.saveMatch(waiting);
+  const neu = data.addBoard({ brand: 'New' });
+  data.putUp(neu.id, 1000);
+  assert.equal(store.get('pending').waiting.m.board, neu.id);  // moved here at once
+  pi.up = true;
+  assert.equal(await data.sync(true), true);
+  assert.equal(pi.matches.get('sent').board, neu.id);
+  assert.equal(pi.matches.get('waiting').board, neu.id);
+  assert.equal(pi.matches.get('before').board, old.id);
+  assert.equal(pi.boards.get(old.id).down, 1000);
+});
+
+test('games before a date can be put on an older board', async () => {
+  const { store, pi, data } = rig();
+  pi.players.push({ id: 1, name: 'Sam' });
+  store.set('players', [{ id: 1, name: 'Sam' }]);
+  const wall = data.addBoard({ brand: 'Wall' });
+  data.putUp(wall.id, null);
+  const older = data.addBoard({ brand: 'Older' });
+  data.playedBefore(older.id, 1000);
+  assert.equal(store.get('boards').find(b => b.id === older.id).down, 1000);
+  assert.equal(data.wallBoard(), wall.id);
+  pi.matches.set('a', { players: [1], seq: 1, started: 500, board: wall.id, winner: 0 });
+  pi.matches.set('b', { players: [1], seq: 1, started: 1500, board: wall.id, winner: 0 });
+  pi.up = true;
+  await data.sync(true);
+  assert.equal(pi.matches.get('a').board, older.id);
+  assert.equal(pi.matches.get('b').board, wall.id);
+});
+
+test('the board on the wall, or one a waiting game was played on, can\'t be removed', async () => {
+  const { store, pi, data } = rig();
+  const wall = data.addBoard({});
+  data.putUp(wall.id, null);
+  assert.throws(() => data.removeBoard(wall.id), /on the wall/);
+  const spare = data.addBoard({ brand: 'Spare' });
+  data.saveMatch({ ...game('m', [1], ['Sam'], []), board: spare.id });
+  assert.throws(() => data.removeBoard(spare.id), /played on/);
+  store.set('pending', {});
+  pi.up = true;
+  await data.sync(true);
+  assert.ok(pi.boards.has(spare.id));
+  data.removeBoard(spare.id);
+  assert.ok(!store.get('boards').some(b => b.id === spare.id));
+  await data.sync(true);
+  assert.ok(!pi.boards.has(spare.id));
+});
+
+test('a Pi that doesn\'t know boards leaves ours alone', async () => {
+  const { store, pi, data } = rig();
+  pi.noBoards = true;
+  const b = data.addBoard({ brand: 'Mine' });
+  pi.up = true;
+  assert.equal(await data.sync(true), true);
+  assert.deepEqual(store.get('boards').map(o => o.id), [b.id]);
+});
+
+test('the Pi\'s boards come back, except ones changed here and not yet sent', async () => {
+  const { store, pi, data } = rig();
+  pi.boards.set('pb', { id: 'pb', brand: 'On the Pi', up: 1, down: null, created: 1 });
+  pi.up = true;
+  await data.sync(true);
+  assert.equal(data.wallBoard(), 'pb');
+  pi.up = false;
+  data.changeBoard('pb', { notes: 'turned' });
+  pi.boards.get('pb').notes = 'old';
+  assert.equal(store.get('boards')[0].notes, 'turned');
 });

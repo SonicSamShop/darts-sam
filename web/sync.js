@@ -19,6 +19,11 @@
 //                            darts; the app makes up their ids, so none is renumbered.
 //                            details: brand, barrel and so on (DARTS_DETAILS), or null
 //   dartsq    [id]           sets added or changed here, to send
+//   boards    [{id, brand, model, bought, notes, up, down, created}]  the household's
+//                            boards. The one with no `down` is on the wall; one with no
+//                            `up` (and down 0) hasn't been put up yet. Ids made up here.
+//   boardsq   [id]           boards added, changed or removed here, to send
+//   moves     [{n, id, start, end, only}]  games said to be on a board (see moveGames), to send
 //   dirty     {setup?, settings?}   settings changed here since they were last sent
 //   pending   {matchId: {seq, m: match} | {seq, quit: true}}  matches to send
 //   recent    finished games as the Pi last listed them
@@ -39,8 +44,7 @@ export const DARTS_DETAILS = {
   flight: ['standard', 'slim', 'kite', 'pear', 'small', 'other'],
   notes: 120,
 };
-// The board the household plays on, kept in the settings (settings.board) for the
-// player to look back on: it changes nothing in the games or the stats.
+// What can be said about a board (the same checks are in server/db.py, clean_board):
 //   brand, model, notes   words typed in, at most BOARD_MAX[field] characters
 //   bought                the year it was bought (a number), not after `year`
 export const BOARD_MAX = { brand: 40, model: 40, notes: 120 };
@@ -89,7 +93,7 @@ export function matchBody(m) {
   const s = compute(m);
   return {
     seq: m.seq, game_id: m.gameId, game_name: gameById(m.gameId).name, opts: m.opts,
-    log: m.log, started: m.started, players: m.playerIds, darts: m.darts ?? null, winner: s.winner, throws: s.throws,
+    log: m.log, started: m.started, players: m.playerIds, darts: m.darts ?? null, board: m.board ?? null, winner: s.winner, throws: s.throws,
     duration: s.winner != null ? elapsed(m, s) : null,  // how long the game took, once it is won
   };
 }
@@ -188,6 +192,73 @@ export function createSync({ store, api, changed = () => {} }) {
     return next;
   }
 
+  // ---------- boards ----------
+  // The household's boards. One is on the wall, and a game takes that one when it starts
+  // (match.board); the stats can then be seen board by board.
+  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const boardsNow = () => get('boards', []);
+  function queueBoard(b) {
+    set('boards', [...boardsNow().filter(o => o.id !== b.id), b]);
+    set('boardsq', [...get('boardsq', []).filter(id => id !== b.id), b.id]);
+  }
+  const wallBoard = () => boardsNow().find(b => b.down == null)?.id ?? null;
+  // A new board: not up yet (see putUp). fields: brand, model, bought, notes.
+  function addBoard(fields = {}) {
+    const b = { id: newId(), brand: null, model: null, bought: null, notes: null, ...cleanBoard(fields), up: null, down: 0, created: Date.now() };
+    queueBoard(b);
+    return b;
+  }
+  // Change a board's details (brand, model, bought, notes), or its up and down.
+  function changeBoard(id, changes) {
+    const b = boardsNow().find(o => o.id === id);
+    if (!b) throw new Error('no such board');
+    const next = { ...b, ...changes };
+    const details = cleanBoard({ brand: next.brand, model: next.model, bought: next.bought, notes: next.notes }) ?? {};
+    for (const k of ['brand', 'model', 'bought', 'notes']) next[k] = details[k] ?? null;
+    queueBoard(next);
+    return next;
+  }
+  function removeBoard(id) {
+    const b = boardsNow().find(o => o.id === id);
+    if (!b) return;
+    if (b.down == null) throw new Error('the board on the wall can\'t be removed: put another one up first');
+    const games = [...Object.values(get('pending', {})).map(i => i.m), get('match', null)];
+    if (games.some(m => m?.board === id)) throw new Error('games were played on this board: it can be taken down, not removed');
+    set('boards', boardsNow().filter(o => o.id !== id));
+    set('boardsq', [...get('boardsq', []).filter(q => q !== id), id]);
+  }
+  // Games started from `start` up to `end` (ms; null: open) were on this board; with `only`,
+  // just those on one of those boards (null: on none). The games waiting here change at once,
+  // and the Pi is told to change its own.
+  function moveGames(id, start, end, only = null) {
+    const fits = m => m && (start == null || m.started >= start) && (end == null || m.started < end)
+      && (!only || only.includes(m.board ?? null));
+    const pending = get('pending', {});
+    for (const item of Object.values(pending)) if (fits(item.m)) item.m.board = id;
+    set('pending', pending);
+    const match = get('match', null);
+    if (fits(match)) set('match', { ...match, board: id });
+    const moves = get('moves', []);
+    set('moves', [...moves, { n: Math.max(0, ...moves.map(o => o.n)) + 1, id, start, end, only }]);
+  }
+  // This board goes on the wall from `since` (ms), or from now if null, and the one up there
+  // comes down at the same moment. From a date, the games since then that were on the board
+  // coming down (or on none) move to this one.
+  function putUp(id, since = null) {
+    const at = since ?? Date.now(), was = wallBoard();
+    if (was === id) return;
+    if (was) changeBoard(was, { down: at });
+    changeBoard(id, { up: at, down: null });
+    if (since != null) moveGames(id, since, null, [was, null]);
+  }
+  // This board was the one played on before `until`: every game from before then moves to it.
+  function playedBefore(id, until) {
+    const b = boardsNow().find(o => o.id === id);
+    if (!b) throw new Error('no such board');
+    if (b.down != null && (!b.down || b.down > until)) changeBoard(id, { down: until });
+    moveGames(id, null, until, null);
+  }
+
   function saveSetting(key, value) {
     set(key, value);
     set('dirty', { ...get('dirty', {}), [key]: true });
@@ -201,7 +272,8 @@ export function createSync({ store, api, changed = () => {} }) {
   }
 
   // How many changes have not reached the Pi yet, and how many of them are games.
-  const waiting = () => get('ops', []).length + get('dartsq', []).length + Object.keys(get('dirty', {})).length
+  const waiting = () => get('ops', []).length + get('dartsq', []).length + get('boardsq', []).length + get('moves', []).length
+    + Object.keys(get('dirty', {})).length
     + Object.keys(get('pending', {})).length;
   const waitingGames = () => Object.values(get('pending', {})).filter(i => !i.quit).length;
   // Those games as history entries, each with its players' ids: what the Pi's history hasn't got
@@ -309,6 +381,28 @@ export function createSync({ store, api, changed = () => {} }) {
     }
   }
 
+  async function pushBoards() {
+    const now = id => boardsNow().find(o => o.id === id);
+    for (const id of get('boardsq', [])) {
+      const b = now(id);
+      try {
+        if (b) await api(`/boards/${id}`, 'PUT', { brand: b.brand, model: b.model, bought: b.bought, notes: b.notes, up: b.up, down: b.down, created: b.created });
+        else await api(`/boards/${id}`, 'DELETE');
+      } catch (e) {
+        if (!refused(e)) throw e;  // refused: the Pi's list puts it right
+      }
+      if (JSON.stringify(now(id)) === JSON.stringify(b)) set('boardsq', get('boardsq', []).filter(o => o !== id));
+    }
+    for (;;) {
+      const mv = get('moves', [])[0];
+      if (!mv) return;
+      try { await api(`/boards/${mv.id}/games`, 'POST', { start: mv.start, end: mv.end, only: mv.only }); } catch (e) {
+        if (!refused(e)) throw e;
+      }
+      set('moves', get('moves', []).filter(o => o.n !== mv.n));
+    }
+  }
+
   async function pushSettings() {
     for (const key of Object.keys(get('dirty', {}))) {
       const flag = on => {
@@ -341,12 +435,17 @@ export function createSync({ store, api, changed = () => {} }) {
 
   // The Pi's copy replaces ours, except for anything changed here since we sent.
   async function pull() {
-    const [players, saved, games, darts] = await Promise.all([api('/players'), api('/settings'), api('/matches?limit=8'),
-      api('/darts').catch(e => { if (refused(e)) return null; throw e; })]);  // (a Pi too old to know darts: keep ours)
+    const older = e => { if (refused(e)) return null; throw e; };  // (a Pi too old to know them: keep ours)
+    const [players, saved, games, darts, boards] = await Promise.all([api('/players'), api('/settings'), api('/matches?limit=8'),
+      api('/darts').catch(older), api('/boards').catch(older)]);
     if (!get('ops', []).length) set('players', players);
     if (darts) {
       const q = get('dartsq', []), mine = get('darts', []).filter(d => q.includes(d.id));
       set('darts', [...darts.filter(d => !q.includes(d.id)), ...mine]);
+    }
+    if (boards) {
+      const q = get('boardsq', []), mine = boardsNow().filter(b => q.includes(b.id));
+      set('boards', [...boards.filter(b => !q.includes(b.id)), ...mine].sort((a, b) => a.created - b.created || (a.id < b.id ? -1 : 1)));
     }
     const dirty = get('dirty', {});
     for (const key of ['settings', 'setup']) if (saved[key] && !dirty[key]) set(key, saved[key]);
@@ -365,6 +464,7 @@ export function createSync({ store, api, changed = () => {} }) {
       try {
         await pushPlayers(report);
         await pushDarts();
+        await pushBoards();
         await pushSettings();
         await pushMatches(report);
         if (report.pull) { await pull(); report.pulled = true; }
@@ -381,5 +481,5 @@ export function createSync({ store, api, changed = () => {} }) {
     return running;
   }
 
-  return { addPlayer, renamePlayer, removePlayer, addDarts, changeDarts, saveSetting, saveMatch, quitMatch, waiting, waitingGames, waitingSheets, recent, sheet, sync };
+  return { addPlayer, renamePlayer, removePlayer, addDarts, changeDarts, addBoard, changeBoard, removeBoard, putUp, playedBefore, wallBoard, saveSetting, saveMatch, quitMatch, waiting, waitingGames, waitingSheets, recent, sheet, sync };
 }
