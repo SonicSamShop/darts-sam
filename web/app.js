@@ -81,7 +81,8 @@ const Pi = () => account.hosted ? 'The server' : 'The Pi';
 let match = store.get('match', null);
 // The people who play: [{id, name}]. The computer's players are kept apart, so that no list of
 // players has them in it: [{id, name, bot: its level}] (see "computer players" below).
-let players = [], bots = [];
+let players = [];
+let bots = [];
 function loadPlayers() {
   const all = store.get('players', []);
   players = all.filter(p => !p.bot);
@@ -162,13 +163,16 @@ const botUp = (s = compute(match)) => s.winner == null ? match.bots?.[s.current]
 // redraws, and starts again only when something new goes into the game.
 // How long it holds off is a setting (Settings > In a game): 0 to 30 seconds, 8 unless
 // changed. At 0 there is no wait and no countdown: it throws as it does after its own dart.
-const BOT_WAIT = 2200, BOT_PACE = 1200;
-const BOT_HOLD_MAX = 30, BOT_HOLD_USUAL = 8;  // seconds
+const BOT_WAIT = 2200;
+const BOT_PACE = 1200;
+const BOT_HOLD_MAX = 30;  // seconds
+const BOT_HOLD_USUAL = 8;
 function botHoldSecs() {
   const n = Math.round(Number(settings.botHold ?? BOT_HOLD_USUAL));
   return Number.isFinite(n) ? Math.min(BOT_HOLD_MAX, Math.max(0, n)) : BOT_HOLD_USUAL;
 }
-let botTimer = 0, botTick = 0;
+let botTimer = 0;
+let botTick = 0;
 let botHold = null;  // {at: match.log.length, due: time} while waiting after a person's visit
 let botFlight = false;  // the dart about to be drawn is the computer's: show it landing
 function botSoon() {
@@ -336,7 +340,8 @@ if (location.host) fetch('version.json').then(r => r.ok ? r.json() : null)
 // version. If there is, this offers it with what has changed since this one.
 // The Pi and the hosted version never have one to offer.
 let release = null;  // {version, checked, available, download, page} from the server at home
-let releaseAsk = null, releaseDismissed = false;
+let releaseAsk = null;
+let releaseDismissed = false;
 async function loadRelease(tries = 0) {
   try { release = await api('/update', 'GET', undefined, 4000); } catch { return; }  // a Pi from before this
   if (screen === 'settings') renderSettings();  // the version shows there
@@ -562,7 +567,7 @@ function undo() {
   const gone = match.log.pop();
   tracker.undone(match.id, gone?.t === 'dart' ? gone : undefined);  // a camera dart undone may be about to be put right
   // Whatever those darts earned goes with them: it is worked out again from the darts that are left.
-  slips = slips.filter(s => s.at <= match.log.length);
+  dropSlips();
   forgetEnded(match.id);
   dropPictures();
   store.set('match', match);
@@ -587,6 +592,8 @@ function forgetEnded(id) {
   const i = endedGames.findIndex(g => g.sheet.id === id);
   if (i >= 0) endedGames.splice(i, 1);
 }
+// After Undo: the slips for darts no longer in the game.
+function dropSlips() { slips = slips.filter(s => s.at <= match.log.length); }
 function endedHere() {
   forgetEnded(match.id);
   endedGames.push({ sheet: matchSheet(match), ids: match.playerIds });
@@ -828,12 +835,12 @@ function place() {
     url = sheet.m ? gameUrl(sheet.m.game, sheet.m.opts, sheet.id) : `#/${sheet.name}/${sheet.id}`;
   }
   if (screen === 'players') {
-    Object.assign(at, { statsFor, statsGame, statsDarts, statsTab, drill });
+    Object.assign(at, { statsFor: statsFor, statsGame: statsGame, statsDarts: statsDarts, statsTab: statsTab, drill: drill });
     // A scoresheet reached through the stats has the game's own address too.
     const top = drill.at(-1), m = top?.v === 'match' && statsData && deep(statsData).matches.find(m => m.id === top.id);
     url = m ? gameUrl(m.game, m.opts, m.id) : '#/stats';
   }
-  if (screen === 'settings') { Object.assign(at, { settingsTab, settingsOpen, fromList }); url = '#/settings'; }
+  if (screen === 'settings') { Object.assign(at, { settingsTab: settingsTab, settingsOpen: settingsOpen, fromList: fromList }); url = '#/settings'; }
   if (screen === 'cameras') url = '#/cameras';
   return [at, '', url];
 }
@@ -863,7 +870,7 @@ function show(at) {
   if (at.screen === 'players') {
     // (adding and editing players was once part of the stats: an entry from then finds them in the settings)
     if (at.editing || at.statsTab === 'edit') { settingsTab = 'players'; return renderSettings(true); }
-    if ('statsFor' in at) ({ statsFor, statsGame, statsTab } = at);
+    if ('statsFor' in at) { statsFor = at.statsFor; statsGame = at.statsGame; statsTab = at.statsTab; }
     statsDarts = at.statsDarts ?? null;
     drill = (at.drill ?? []).map(level => ({ ...level }));
     return renderPlayers();
@@ -888,7 +895,7 @@ addEventListener('popstate', e => {
   dartsForm = dartsError = null;
   closeFirst();
   closeQuit();
-  if (bull) { clearTimeout(bull.timer); bull = null; }
+  dropBull();
   if (e.state?.screen) { depth = e.state.depth ?? 0; return show(e.state); }
   depth++;  // an address typed in by hand: a new entry with nothing riding along
   show(fromHash());
@@ -931,7 +938,9 @@ function open(want) {
   mark(true);
 }
 
-const icon = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+function icon(d) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+}
 // ---------- getting about ----------
 // The app's four places, a tap away from every screen but the game itself (and
 // the pages before the app: signing in, the desktop app's first questions).
@@ -1052,7 +1061,8 @@ let optHelp = null;
 // "How to play" the chosen game, opened on the menu like an option's "?". The rules are
 // web/rules.html's section for the game (its id), read once and kept, so the page and the
 // menu say the same thing and it works offline (sw.js keeps the page).
-let rulesOpen = false, rules = null;  // rules: {gameId: section html} once read, {} if it couldn't be
+let rulesOpen = false;
+let rules = null;  // rules: {gameId: section html} once read, {} if it couldn't be
 let rulesMoved = false;  // they have just been opened, or have just arrived: bring them into view
 function loadRules() {
   if (rules) return;
@@ -1220,6 +1230,10 @@ function closeBull() {
   if (screen !== 'bull') return;
   if (act === 'rematch' && match) renderGame(); else renderHome();
 }
+// Left by Back: no game starts from it.
+function dropBull() { if (bull) { clearTimeout(bull.timer); bull = null; } }
+// "Random instead": the game starts at once, in a random order.
+function bullRandom() { const { act } = bull; clearTimeout(bull.timer); bull = null; return startMatch(act, randomOrder()); }
 // bot: the dart is the computer's own. While it is the computer's throw, no other dart counts.
 function bullDart(d, bot = false) {
   const now = bullUp(bull.ids, bull.darts);
@@ -1343,7 +1357,8 @@ async function loadTotals() {
   try {
     const t = await api('/totals', 'GET', undefined, 4000);
     if (asked !== totalsAsked) return;
-    store.set('totals', totals = t);
+    totals = t;
+    store.set('totals', totals);
     showTotals();
   } catch { /* no Pi: the last figures stay */ }
 }
@@ -1855,7 +1870,9 @@ function drawSheet() {
 // ---------- number entry ----------
 // Instead of tapping each dart on the board, the whole visit can be typed in
 // as one number (games with visit() only: X01, Count Up and 121 Checkout).
-let padValue = '', padAsk = null, padError = '';
+let padValue = '';
+let padAsk = null;
+let padError = '';
 const usingPad = game => !!game.visit && settings.entry === 'pad';
 function padKey(key) {
   if (botUp()) return;
@@ -2382,7 +2399,7 @@ $app.addEventListener('click', e => {
       while (bull.darts.at(-1)?.bot) bull.darts.pop();  // the computer's dart goes with the one before it
       bull.darts.pop();
       return renderBull();
-    case 'bull-random': { const { act } = bull; clearTimeout(bull.timer); bull = null; return startMatch(act, randomOrder()); }
+    case 'bull-random': return bullRandom();
     case 'bull-start': return bullStart();
     case 'resume': renderGame(); return mark(true);
     case 'quit': return askQuit();
