@@ -11,9 +11,10 @@ import { accountPanel, feedbackBox } from './accountpanel.js';
 import { renderLanding } from './landing.js';
 import { playersPanel } from './playerspanel.js';
 import {
-  $app, BOT_HOLD_MAX, BOT_HOLD_USUAL, THEMES, account, achievementsOn, applyTheme, botHoldSecs, depth, esc, fit,
-  icon, mark, pageFoot, pageHead, photosOn, players, refreshStatus, screen, setScreen, settings, store, voice
+  $app, BOT_HOLD_MAX, BOT_HOLD_USUAL, THEMES, account, applyTheme, botHoldSecs, depth, esc, fit, icon, mark,
+  pageFoot, pageHead, players, refreshStatus, screen, setScreen, settings, store, voice
 } from '../app.js';
+import { achievementsOn, photosOn } from './earned.js';
 import { aboutPanel, appRelease } from './release.js';
 
 // A phone or a tablet (anything held upright, narrow or worked by touch), as style.css has it:

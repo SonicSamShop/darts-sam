@@ -6,7 +6,8 @@
 // next, worked out by achievements.js from their games.
 
 import { ACHIEVEMENTS, GROUPS, byId, timeline, totalOf, visitOf } from '../achievements.js';
-import { badge, connected, esc, gamesHere, loadStats, nameOf, photoUrl, pi, screen, statsPath } from '../app.js';
+import { connected, esc, loadStats, nameOf, pi, screen, statsPath } from '../app.js';
+import { badge, gamesHere, photoUrl } from './earned.js';
 import { drawPlayers, opens, statsData, statsView } from './stats.js';
 
 // ---------- the Achievements tab ----------
