@@ -24,6 +24,7 @@ import {
   pairCameras, pairing, refreshCameras, renderCameras, resetDetection, unpairCameras, usbChosen
 } from './screens/cameras.js';
 import { appleSignIn, landing, mailTo, renderLanding, sendCode, signIn } from './screens/landing.js';
+import { achTab, achievementView, achievementsPane } from './screens/achievements.js';
 
 export const $app = document.getElementById('app');
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -138,7 +139,7 @@ const botAt = () => botLevel(setup.bot ?? 5);
 const botsPlay = () => !!gameById(setup.gameId)?.bot;
 // Who is down to play, in throwing order: the computer only in a game it can play.
 const seats = () => (setup.players ?? []).filter(id => id !== BOT || botsPlay());
-const nameOf = id => id === BOT ? `Bot ${botAt().level}` : (players.find(p => p.id === id) ?? bots.find(p => p.id === id))?.name ?? '?';
+export const nameOf = id => id === BOT ? `Bot ${botAt().level}` : (players.find(p => p.id === id) ?? bots.find(p => p.id === id))?.name ?? '?';
 // The player that the computer's games at this level are kept under, made if this is its first.
 function botPlayer(level) {
   const old = bots.find(b => b.bot === level);
@@ -279,14 +280,14 @@ function redraw(draw) {
 // Stats are worked out on the Pi. Each answer is kept on this device, so the
 // last known stats can still be shown when the Pi can't be reached.
 const shelf = () => window.caches ? caches.open('dartssam-data') : Promise.reject();
-const statsPath = (id, game, set) => `/players/${id}/stats${
+export const statsPath = (id, game, set) => `/players/${id}/stats${
   game || set ? `?${new URLSearchParams({ ...(game && { game }), ...(set && { darts: set }) })}` : ''}`;
 async function freshStats(path, timeout) {
   const fresh = await api(path, 'GET', undefined, timeout);
   shelf().then(c => c.put('/api' + path, new Response(JSON.stringify({ ...fresh, saved: Date.now() })))).catch(() => {});
   return fresh;
 }
-async function loadStats(path, timeout) {
+export async function loadStats(path, timeout) {
   try { return await freshStats(path, timeout); } catch (e) {
     const kept = e.status ? null : await shelf().then(c => c.match('/api' + path)).catch(() => null);
     if (!kept) throw e;
@@ -305,7 +306,7 @@ async function warmStats() {
   warming = false;
 }
 
-let connected = false;
+export let connected = false;
 export let cameraCount = 0;
 export const setCameraCount = v => { cameraCount = v; };  // for screens/cameras.js
 export let helperLinked = false;  // hosted: the person's cameras' computer is connected to the site
@@ -592,7 +593,7 @@ function endedHere() {
   if (endedGames.length > 20) endedGames.shift();
 }
 // A player's games that are on this device and may not be in their history yet, as [{sheet, me}].
-function gamesHere(id) {
+export function gamesHere(id) {
   const seen = new Set();
   return [...data.waitingSheets(), ...endedGames]
     .filter(g => g.ids?.includes(id) && !seen.has(g.sheet.id) && seen.add(g.sheet.id))
@@ -639,7 +640,7 @@ function achieved(before, sheetBefore, after, byCamera) {
 // would leave the room (the hosted site) or the phone (its own camera scoring) the player is asked
 // first, once: until then photosOn() is null and none is taken.
 const PHOTO_WIDE = 1280, PHOTO_MOST = 400000, PHOTO_WAIT = 2000;
-const photoUrl = (id, visit) => `/api/matches/${id}/photos/${visit}`;
+export const photoUrl = (id, visit) => `/api/matches/${id}/photos/${visit}`;
 const photosOn = () => settings.photos ?? (account.hosted || phone.scoring() ? null : true);
 const taken = new Map();  // pictures kept in this game: its address -> the log's length when it was taken
 let photoAsk = false;     // a picture would have been kept, had they been asked
@@ -717,7 +718,7 @@ document.addEventListener('click', e => {
 document.addEventListener('error', e => { if (e.target.matches?.('img.shot')) e.target.remove(); }, true);
 // An achievement's badge: a round pin with its mark lettered on it, as a league's 180 badge is.
 // Not held: the outline only. blank: one kept as a surprise.
-function badge(a, size = 44, has = true, blank = false) {
+export function badge(a, size = 44, has = true, blank = false) {
   const m = blank ? '?' : a.mark, fs = m.length >= 4 ? 13 : m.length === 3 ? 16 : 20;
   return `<svg class="pin${has ? '' : ' not'}" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true">
     <circle cx="24" cy="24" r="21"/><circle class="in" cx="24" cy="24" r="17"/>
@@ -1380,7 +1381,10 @@ function addPlayer() {
 // A big screen has room for the stats and the board side by side (see .panes in style.css).
 const BIG = matchMedia('(min-width: 1100px) and (min-height: 750px)');
 const STAT_TABS = [['stats', 'Stats'], ['games', 'Games'], ['board', 'Board'], ['achievements', 'Achievements']];
-let statsFor = null, statsData = null, statsFailed = false, statsTab = 'stats';
+export let statsFor = null;
+export let statsData = null;
+let statsFailed = false;
+export let statsTab = 'stats';
 // (The list of players, to add to, rename and remove from, and their darts, is a tab of the settings: see playersPanel().)
 let removeArmed = false;  // the id of the player whose Remove has been tapped once
 let renameFailed = null;  // the id of the player whose new name was refused (formError says why)
@@ -1411,7 +1415,7 @@ async function renderPlayers(id = statsFor) {
   if (account.locked) return renderLanding();
   screen = 'players';
   statsFor = players.some(p => p.id === id) ? id : players[0]?.id ?? null;
-  achAll = null;  // (asked for again if the Achievements tab needs it)
+  achTab.all = null;  // (asked for again if the Achievements tab needs it)
   if (!setsOf(statsFor, true).some(d => d.id === statsDarts)) statsDarts = null;
   if (statsData?.player.id !== statsFor || statsData.game !== statsGame || (statsData.set ?? null) !== statsDarts) statsData = null;
   statsFailed = false;
@@ -1431,7 +1435,7 @@ async function renderPlayers(id = statsFor) {
 }
 const pct = (n, of) => of ? (n / of * 100).toFixed(1) + '%' : '–';
 // A tile with somewhere to go (`to`, a level of `drill`) can be tapped.
-const opens = to => to ? ` data-drill="${esc(JSON.stringify(to))}"` : '';
+export const opens = to => to ? ` data-drill="${esc(JSON.stringify(to))}"` : '';
 const tile = (label, value, to) =>
   `<div class="tile ${to ? 'tap' : ''}"${opens(to)}><b>${value ?? '–'}</b><span>${label}</span></div>`;
 const gameTiles = (id, d, to) => (GAME_TILES[id] ?? []).map(([name, key, unit = '']) =>
@@ -1603,82 +1607,6 @@ function drillView(st, top) {
   return m ? { title: matchTitle(m), html: () => matchHtml(m, top) } : null;
 }
 
-// ---------- the Achievements tab ----------
-// Worked out from every game the player has on record, whatever game or set of darts the page is
-// showing: so when the page's own stats are only part of that, the whole is asked for as well.
-const ACH_SINCE = Date.UTC(2026, 10, 22);  // games from before achievements existed earn them too: the tab says so
-let achAll = null;      // {id, st}: a player's stats for all games and darts (st: null if they can't be had)
-let achLoading = null;  // the player they are being fetched for
-const ACH = new WeakMap();  // what is worked out from a reply, kept while that reply is
-function achStats() {
-  if (statsFor != null && statsFor <= 0) {  // made offline: no games anywhere but here
-    if (achAll?.id !== statsFor) achAll = { id: statsFor, st: { player: { id: statsFor }, matches: [] } };
-    return achAll.st;
-  }
-  if (statsData && !statsData.game && !statsData.set && statsData.player.id === statsFor) return statsData;
-  return achAll?.id === statsFor ? achAll.st : undefined;  // undefined: not asked for yet
-}
-async function loadAchAll() {
-  const id = statsFor;
-  if (id == null || achLoading === id) return;
-  achLoading = id;
-  let st = null;
-  try { st = await loadStats(statsPath(id), connected ? 10000 : 2500); } catch { /* shown as unavailable */ }
-  achLoading = null;
-  achAll = { id, st };
-  if (screen === 'players' && statsFor === id && statsTab === 'achievements') drawPlayers();
-}
-// {entries, got, total}: the player's games oldest first, and what they earn (timeline() in achievements.js).
-function achievementsOf(st) {
-  const here = gamesHere(st.player.id), key = here.map(g => `${g.sheet.id}:${g.sheet.visits.length}:${g.sheet.winner}`).join();
-  if (ACH.get(st)?.key !== key) {
-    const ids = new Set(here.map(g => g.sheet.id));
-    const entries = [...(st.matches ?? []).filter(m => !ids.has(m.id)).map(m => ({ sheet: m, me: m.me })), ...here];
-    ACH.set(st, { key, entries, ...timeline(entries) });
-  }
-  return ACH.get(st);
-}
-const dayOf = ts => new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
-function achievementsPane(game) {
-  const st = achStats();
-  if (st === undefined) { loadAchAll(); return '<div class="p-achievements"><p class="muted">Loading…</p></div>'; }
-  if (!st) return `<div class="p-achievements"><p class="muted">Achievements are worked out from every game on record, and those
-    aren't on this device yet. They will be here once ${pi()} has been reached.</p></div>`;
-  const { got, total } = achievementsOf(st);
-  const list = ACHIEVEMENTS.filter(a => !game || a.game === game.id);
-  const line = a => {
-    const g = got.get(a.id), steps = a.steps && ACHIEVEMENTS.filter(b => b.base === a.base);
-    if (!g && steps && a !== steps.find(b => !got.has(b.id))) return '';  // of the steps not reached, only the next one
-    const hidden = a.secret && !g;
-    const far = !g && a.need > 1 ? ` · ${a.value(total).toLocaleString()} of ${a.need.toLocaleString()}` : '';
-    return `<li class="${g ? 'held' : 'not'}"${g ? opens({ v: 'achievement', id: a.id }) : ''}>${badge(a, 44, !!g, hidden)}
-      <span><b>${hidden ? 'A surprise' : esc(a.name)}</b><small>${hidden ? 'You will know it when you throw it' : esc(a.how) + far}</small></span>
-      ${g ? `<time>${dayOf(g.at)}</time>` : ''}</li>`;
-  };
-  const groups = GROUPS.map(name => {
-    const rows = list.filter(a => a.group === name).sort((a, b) => got.has(b.id) - got.has(a.id)).map(line).join('');
-    return rows ? `<h2>${name}</h2><ul class="alist">${rows}</ul>` : '';
-  }).join('');
-  const old = [...got.values()].some(g => g.at < ACH_SINCE);
-  return `<div class="p-achievements">
-    <h2 class="count">${game ? `${game.name} achievements` : 'Achievements'} · ${list.filter(a => got.has(a.id)).length} of ${list.length}</h2>
-    ${old ? '<p class="muted small">These come from every game on record, so some are from before achievements existed.</p>' : ''}
-    ${groups || '<p class="muted">This game has none of its own.</p>'}</div>`;
-}
-// One achievement that is held: its badge, when it was earned, and the way to the game it was earned in.
-function achievementView(id, d) {
-  const a = byId(id), st = achStats();
-  const all = a && st ? achievementsOf(st) : null, g = all?.got.get(id);
-  if (!g) return null;
-  return { title: esc(a.name), html: () => {
-    const at = all.entries.findIndex(e => e.sheet.id === g.match), e = all.entries[at];
-    const visit = visitOf(a, totalOf(all.entries.slice(0, at)), e.sheet, e.me);
-    const there = d.matches.some(m => m.id === g.match);  // (a game not sent yet has no scoresheet here)
-    return `<div class="achievement">${badge(a, 120)}<p>${esc(a.how)}</p><p class="muted">${esc(nameOf(statsFor))} · ${dayOf(g.at)}</p>
-      ${visit != null ? `<img class="shot" src="${photoUrl(g.match, visit)}" alt="The board when it was earned">` : ''}
-      ${there ? `<button${opens({ v: 'match', id: g.match, ...(visit != null && { at: visit }) })}>Open the game</button>` : ''}</div>`;
-  } };
-}
 const matchTitle = m => `${esc(m.name)}${m.game === 'x01' ? ` ${m.opts.start ?? 501}` : ''}`;
 function drawDrill(st, old) {
   let views;
@@ -1700,7 +1628,7 @@ function drawDrill(st, old) {
   return true;
 }
 
-function drawPlayers() {
+export function drawPlayers() {
   const st = statsData, x = st && deep(st).x01;
   const game = statsGame && gameById(statsGame);  // the one game this page is about, if any
   if (statsFor == null) return drawNoPlayers();
