@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS dart_sets (     -- a player's darts, like a runner's 
   name      TEXT NOT NULL,
   grams     REAL,                          -- weight, if given
   created   INTEGER NOT NULL,
-  retired   INTEGER NOT NULL DEFAULT 0     -- put away: off the menu, kept in the stats
+  retired   INTEGER NOT NULL DEFAULT 0,    -- put away: off the menu, kept in the stats
+  details   TEXT                           -- JSON: brand, barrel and so on (see DARTS_DETAILS); NULL if none given
 );
 CREATE TABLE IF NOT EXISTS match_players (
   match_id  TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
@@ -167,6 +168,9 @@ def prepare(path: Path):
         # From before there were computer players: everyone already here is a person.
         if "bot" not in [c["name"] for c in db.execute("PRAGMA table_info(players)")]:
             db.execute("ALTER TABLE players ADD COLUMN bot INTEGER")
+        # From before a set of darts could say more than its name and weight.
+        if "details" not in [c["name"] for c in db.execute("PRAGMA table_info(dart_sets)")]:
+            db.execute("ALTER TABLE dart_sets ADD COLUMN details TEXT")
 
 
 # ---------- players ----------
@@ -247,11 +251,52 @@ def remove_player(player_id: int):
 # (as it does a match's), so a set added with no Pi needs no renumbering later.
 DARTS_NAME_MAX = 24
 _ID = re.compile(r"^[\w-]{1,64}$")
+# What else can be said about a set, every part of it optional: each field and
+# either the choices it can take or, for words typed in, how long they can be.
+# The same list is in web/sync.js (DARTS_DETAILS), which checks the same way.
+DARTS_DETAILS = {
+    "brand": 40,
+    "tungsten": [80, 85, 90, 95, 97],  # per cent
+    "shape": ["straight", "torpedo", "bomb", "scalloped", "other"],
+    "grip": ["smooth", "light", "medium", "heavy"],
+    "shaft": ["short", "inbetween", "medium", "long"],
+    "flight": ["standard", "slim", "kite", "pear", "small", "other"],
+    "notes": 120,
+}
+
+
+def clean_details(details) -> dict | None:
+    """A set's details checked and tidied: empty fields dropped, words typed in
+    with their spaces tidied, None if nothing is left. Anything not in
+    DARTS_DETAILS, or not one of a field's choices, is refused."""
+    if details is None:
+        return None
+    if not isinstance(details, dict):
+        raise Invalid("a set's details must be a list of fields")
+    out = {}
+    for key, value in details.items():
+        rule = DARTS_DETAILS.get(key)
+        if rule is None:
+            raise Invalid(f"darts have no detail called {key}")
+        if value is None or value == "":
+            continue
+        if isinstance(rule, int):
+            value = " ".join(str(value).split())
+            if len(value) > rule:
+                raise Invalid(f"the {key} can be at most {rule} characters")
+            if value:
+                out[key] = value
+        elif value in rule and not isinstance(value, bool):
+            out[key] = value
+        else:
+            raise Invalid(f"{value!r} is not one of the choices for {key}")
+    return out or None
 
 
 def _dart_set(row) -> dict:
     return {"id": row["id"], "player": row["player_id"], "name": row["name"], "grams": row["grams"],
-            "created": row["created"], "retired": bool(row["retired"])}
+            "created": row["created"], "retired": bool(row["retired"]),
+            "details": json.loads(row["details"]) if row["details"] else None}
 
 
 def list_darts() -> list[dict]:
@@ -261,8 +306,10 @@ def list_darts() -> list[dict]:
 
 
 def save_darts(darts_id: str, d: dict) -> dict:
-    """Add a set of darts, or change one: d has player, name, grams (or None)
-    and retired. A set stays with the player it was made for."""
+    """Add a set of darts, or change one: d has player, name, grams (or None),
+    retired and details (or None: see clean_details). Without details, the
+    set keeps any it has: an older app that has not heard of them leaves them
+    alone. A set stays with the player it was made for."""
     if not _ID.match(darts_id):
         raise Invalid("a set of darts needs an id of letters, numbers, - and _")
     name = " ".join(str(d.get("name", "")).split())
@@ -271,6 +318,8 @@ def save_darts(darts_id: str, d: dict) -> dict:
     grams = d.get("grams")
     if grams is not None and not 1 <= grams <= 100:
         raise Invalid("darts weigh between 1 and 100 grams")
+    keep = "details" not in d
+    details = clean_details(d.get("details"))
     with connect() as db:
         if not db.execute("SELECT 1 FROM players WHERE id = ?", (d["player"],)).fetchone():
             raise Invalid("unknown player id")
@@ -278,9 +327,11 @@ def save_darts(darts_id: str, d: dict) -> dict:
         if old and old["player_id"] != d["player"]:
             raise Invalid("those darts belong to another player")
         db.execute(
-            "INSERT INTO dart_sets (id, player_id, name, grams, created, retired) VALUES (?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO UPDATE SET name = excluded.name, grams = excluded.grams, retired = excluded.retired",
-            (darts_id, d["player"], name, grams, int(d.get("created") or now_ms()), int(bool(d.get("retired")))))
+            "INSERT INTO dart_sets (id, player_id, name, grams, created, retired, details) VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET name = excluded.name, grams = excluded.grams, retired = excluded.retired"
+            + ("" if keep else ", details = excluded.details"),
+            (darts_id, d["player"], name, grams, int(d.get("created") or now_ms()), int(bool(d.get("retired"))),
+             json.dumps(details) if details else None))
         return _dart_set(db.execute("SELECT * FROM dart_sets WHERE id = ?", (darts_id,)).fetchone())
 
 
@@ -439,10 +490,11 @@ PLAYED_MS = "COALESCE(m.duration, MAX(0, (SELECT MAX(ts) FROM throws WHERE match
 def _matches(db, player_id: int, game_id: str | None, darts: str | None = None) -> list:
     """Every match the player took part in (of one game type, or of them all;
     with darts, only those they threw that set of darts in), oldest first, as
-    (match row, player ids in throwing order, throws in the order thrown)."""
+    (match row, player ids in throwing order, throws in the order thrown).
+    The row's my_darts is the set the player threw, or None if not said."""
     out = []
     for m in db.execute(
-            "SELECT m.* FROM matches m JOIN match_players mp ON mp.match_id = m.id "
+            "SELECT m.*, mp.darts AS my_darts FROM matches m JOIN match_players mp ON mp.match_id = m.id "
             "WHERE mp.player_id = ?" + (" AND m.game_id = ?" if game_id else "")
             + (" AND mp.darts = ?" if darts else "") + " ORDER BY m.started",
             (player_id, *([game_id] if game_id else []), *([darts] if darts else []))).fetchall():
@@ -473,9 +525,11 @@ def _history(db, player_id: int, game_id: str | None, darts: str | None = None) 
     match's players and each dart is seg * 10 + mult (T20 is 203, a miss 0).
     A visit typed in as one number has no darts to list and is
     [player, round, ts, bust, None, total, darts used].
+    "darts" is the set the player threw in it, so the app can put their sets
+    side by side.
     """
     names, bots = _names(db), _bots(db)
-    return [{**_sheet(m, ids, throws, names, bots), "me": ids.index(player_id)}
+    return [{**_sheet(m, ids, throws, names, bots), "me": ids.index(player_id), "darts": m["my_darts"]}
             for m, ids, throws in _matches(db, player_id, game_id, darts)]
 
 

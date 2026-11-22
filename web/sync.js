@@ -15,8 +15,9 @@
 //                            Pi has given them a real one. A computer player
 //                            also has bot: its level (see bot.js)
 //   ops       [{n, op: 'add'|'rename'|'remove', id, name?, bot?}]  player changes to send
-//   darts     [{id, player, name, grams, created, retired}]  every player's sets of
-//                            darts; the app makes up their ids, so none is renumbered
+//   darts     [{id, player, name, grams, created, retired, details}]  every player's sets of
+//                            darts; the app makes up their ids, so none is renumbered.
+//                            details: brand, barrel and so on (DARTS_DETAILS), or null
 //   dartsq    [id]           sets added or changed here, to send
 //   dirty     {setup?, settings?}   settings changed here since they were last sent
 //   pending   {matchId: {seq, m: match} | {seq, quit: true}}  matches to send
@@ -24,6 +25,38 @@
 import { gameById, compute, elapsed } from './engine.js';
 
 export const cleanName = name => String(name).trim().split(/\s+/).join(' ');
+
+// What else can be said about a set of darts, every part of it optional: each
+// field with either the choices it can take or, for words typed in, how long
+// they can be. The same list is in server/db.py (DARTS_DETAILS), which checks
+// the same way.
+export const DARTS_DETAILS = {
+  brand: 40,
+  tungsten: [80, 85, 90, 95, 97],  // per cent
+  shape: ['straight', 'torpedo', 'bomb', 'scalloped', 'other'],
+  grip: ['smooth', 'light', 'medium', 'heavy'],
+  shaft: ['short', 'inbetween', 'medium', 'long'],
+  flight: ['standard', 'slim', 'kite', 'pear', 'small', 'other'],
+  notes: 120,
+};
+// A set's details checked and tidied: empty fields dropped, null if nothing is left.
+// Throws on a field that isn't one, or a choice a field doesn't have.
+export function cleanDetails(details) {
+  if (details == null) return null;
+  const out = {};
+  for (const [key, value] of Object.entries(details)) {
+    const rule = DARTS_DETAILS[key];
+    if (rule === undefined) throw new Error(`darts have no detail called ${key}`);
+    if (value == null || value === '') continue;
+    if (typeof rule === 'number') {
+      const words = cleanName(value);
+      if (words.length > rule) throw new Error(`the ${key} can be at most ${rule} characters`);
+      if (words) out[key] = words;
+    } else if (rule.includes(value)) out[key] = value;
+    else throw new Error(`${value} is not one of the choices for ${key}`);
+  }
+  return Object.keys(out).length ? out : null;
+}
 const same = (a, b) => a.toLowerCase() === b.toLowerCase();
 const byName = list => list.sort((a, b) => a.name.localeCompare(b.name));
 // The Pi answered and said no (as opposed to: the Pi could not be reached).
@@ -114,19 +147,21 @@ export function createSync({ store, api, changed = () => {} }) {
     set('darts', [...get('darts', []).filter(o => o.id !== d.id), d]);
     set('dartsq', [...get('dartsq', []).filter(id => id !== d.id), d.id]);
   }
-  // A new set of darts for a player. grams: their weight, or null.
-  function addDarts(player, name, grams = null) {
+  // A new set of darts for a player. grams: their weight, or null. details: see DARTS_DETAILS.
+  function addDarts(player, name, grams = null, details = null) {
     name = checkDarts(player, name, grams);
-    const d = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), player, name, grams, created: Date.now(), retired: false };
+    details = cleanDetails(details);
+    const d = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), player, name, grams, created: Date.now(), retired: false, details };
     queueDarts(d);
     return d;
   }
-  // Change a set: {name?, grams?, retired?}. Put away (retired), it is off the menu but kept in the stats.
+  // Change a set: {name?, grams?, retired?, details?}. Put away (retired), it is off the menu but kept in the stats.
   function changeDarts(id, changes) {
     const d = get('darts', []).find(o => o.id === id);
     if (!d) throw new Error('no such darts');
     const next = { ...d, ...changes };
     next.name = checkDarts(d.player, next.name, next.grams, id);
+    next.details = cleanDetails(next.details);
     queueDarts(next);
     return next;
   }
@@ -243,7 +278,7 @@ export function createSync({ store, api, changed = () => {} }) {
       const d = now(id);
       if (d?.player < 0) continue;  // their player is still waiting for a number
       if (d) try {
-        await api(`/darts/${id}`, 'PUT', { player: d.player, name: d.name, grams: d.grams, created: d.created, retired: d.retired });
+        await api(`/darts/${id}`, 'PUT', { player: d.player, name: d.name, grams: d.grams, created: d.created, retired: d.retired, details: d.details ?? null });
       } catch (e) {
         if (!refused(e)) throw e;  // refused: the Pi's list puts it right
       }

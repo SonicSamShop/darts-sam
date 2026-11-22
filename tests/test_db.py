@@ -103,8 +103,9 @@ def main():
         assert a["matches"][0]["me"] == 1 and a["matches"][0]["visits"] == h["visits"]
         assert a["games"] == [{"game": "X01", "played": 1, "won": 0, "avg_ms": 95000, "best_ms": 95000, "total_ms": 95000}]
         expect(db.NotFound, db.stats, 999)
-        # one match on its own: the same history entry, belonging to nobody
-        assert db.match("m1") == {k: v for k, v in h.items() if k != "me"}
+        # one match on its own: the same history entry, belonging to nobody (so thrown with no one's darts)
+        assert h["darts"] is None
+        assert db.match("m1") == {k: v for k, v in h.items() if k not in ("me", "darts")}
         expect(db.NotFound, db.match, "nope")
 
         # undo after the win: the match goes back to unfinished
@@ -304,7 +305,8 @@ def main():
         # darts: each player's sets, which one was thrown in each game, and stats set by set
         assert db.stats(sam["id"])["gear"][-1]["id"] is None  # games from before: no set named
         red = db.save_darts("red", {"player": sam["id"], "name": " Red  23g ", "grams": 23, "created": 5})
-        assert red == {"id": "red", "player": sam["id"], "name": "Red 23g", "grams": 23, "created": 5, "retired": False}
+        assert red == {"id": "red", "player": sam["id"], "name": "Red 23g", "grams": 23, "created": 5, "retired": False,
+                       "details": None}
         db.save_darts("blue", {"player": sam["id"], "name": "Blue", "created": 6})
         expect(db.Invalid, db.save_darts, "blue", {"player": alex["id"], "name": "Mine now"})
         expect(db.Invalid, db.save_darts, "x", {"player": sam["id"], "name": ""})
@@ -332,6 +334,24 @@ def main():
         assert gear[None]["games"] > 0 and list(gear)[-1] is None
         assert db.stats(alex["id"])["gear"] == [g for g in db.stats(alex["id"])["gear"] if g["id"] is None]
         expect(db.NotFound, db.stats, alex["id"], None, "red")  # not her darts
+        # each match in the history says which set the player threw, so the app can put sets side by side
+        assert {m["id"]: m["darts"] for m in db.stats(sam["id"])["matches"] if m["id"] in ("g1", "g3")} == {"g1": "red", "g3": "blue"}
+        assert {m["id"]: m["darts"] for m in db.stats(alex["id"])["matches"] if m["id"] == "g1"} == {"g1": None}
+
+        # a set's details: tidied, empty fields dropped, refused when not one of the choices
+        red = db.save_darts("red", {"player": sam["id"], "name": "Red 23g", "grams": 23, "details": {
+            "brand": "  Target ", "tungsten": 90, "shape": "torpedo", "grip": "", "notes": None}})
+        assert red["details"] == {"brand": "Target", "tungsten": 90, "shape": "torpedo"}
+        assert db.list_darts()[0]["details"] == red["details"]
+        for bad in ({"colour": "red"}, {"tungsten": 50}, {"tungsten": True}, {"shape": "Torpedo"},
+                    {"brand": "x" * 41}, {"notes": "x" * 121}, "Target"):
+            expect(db.Invalid, db.save_darts, "red", {"player": sam["id"], "name": "Red", "details": bad})
+        assert db.list_darts()[0]["details"] == red["details"]  # (nothing changed by a refused save)
+        # left out (an older app that hasn't heard of details): kept; sent as nothing: cleared
+        assert db.save_darts("red", {"player": sam["id"], "name": "Red 23g", "grams": 23})["details"] == red["details"]
+        assert db.save_darts("red", {"player": sam["id"], "name": "Red 23g", "details": {"grip": ""}})["details"] is None
+        assert db.clean_details(None) is None and db.clean_details({}) is None
+
         # a game's darts can change (picked wrongly at the start): the copy sent last wins
         m = match(2, [sam["id"], alex["id"]], [throw(0, 1, 20, 1)], winner=0, game="countup")
         m["darts"] = ["blue"]  # a short list: the rest are not known
@@ -350,6 +370,23 @@ def main():
         db.prepare(a)
         db.prepare(b)
         db.prepare(a)  # twice is harmless
+        # a database from before sets had details is brought up to date, its sets kept
+        old = Path(tmp) / "old" / "darts.db"
+        old.parent.mkdir()
+        import sqlite3
+        with sqlite3.connect(old) as c:
+            c.executescript("""CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                                 created INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0, bot INTEGER);
+                               CREATE TABLE dart_sets (id TEXT PRIMARY KEY, player_id INTEGER NOT NULL, name TEXT NOT NULL,
+                                 grams REAL, created INTEGER NOT NULL, retired INTEGER NOT NULL DEFAULT 0);
+                               INSERT INTO players VALUES (1, 'Old', 1, 0, NULL);
+                               INSERT INTO dart_sets VALUES ('s', 1, 'Brass', 18, 1, 0);""")
+        c.close()
+        db.prepare(old)
+        with db.at(old):
+            assert db.list_darts() == [{"id": "s", "player": 1, "name": "Brass", "grams": 18, "created": 1,
+                                        "retired": False, "details": None}]
+            assert db.save_darts("s", {"player": 1, "name": "Brass", "details": {"grip": "heavy"}})["details"] == {"grip": "heavy"}
         before = db.list_players()
         with db.at(a):
             db.add_player("Ann")

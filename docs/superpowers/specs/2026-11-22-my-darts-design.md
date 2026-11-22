@@ -81,7 +81,7 @@ A figure is shown only once a set has enough behind it:
 - Checkout rate: at least 50 darts at a double.
 - Trebles hit: at least 300 single darts.
 
-Below that the cell says *not enough yet*, and the note under the table says how
+Below that the cell says *not yet* ("not enough yet" wrapped onto three lines on a phone), and the note under the table says how
 many more darts it needs ("Blue 21g: about 220 more X01 darts"). The table never
 names a winner or says one set is "better". It shows the figures and lets the
 player judge. Darts form changes week to week, so a crowned "best set" would
@@ -120,6 +120,14 @@ The trial already records how the app is used (`events` on the hosted site).
 Add one event, sent at most once a week per account, holding **counts only**:
 how many players have two or more sets, and how many of those sets have passed
 the "not enough yet" line. No brands, weights or details leave the account.
+
+*As built (2026-11-22):* no event. Each hosted account's games are already in
+its own database on the site, which the trial's admin page reads
+(`server/insight.py`). So it counts there instead: `sets`, and `comparing`
+(players with two or more sets that each have 300 single darts). Nothing new is
+sent from the app and nothing new is stored, so the privacy page did not need to
+change. The admin page shows a "Sets of darts" column and a "Players with 2+ sets
+to compare" tile.
 
 If, after the Christmas comp, few players have two sets with enough darts, the
 idea of dart recommendations stops there. If many do, then decide whether

@@ -752,7 +752,7 @@ $app.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   if (e.target.id === 'newplayer') addPlayer();
   if (e.target.dataset.rename) renamePlayer(+e.target.dataset.rename);
-  if (e.target.id === 'dname' || e.target.id === 'dgrams') e.target.closest('.pform').querySelector('.primary').click();
+  if (['dname', 'dgrams', 'dbrand', 'dnotes'].includes(e.target.id)) e.target.closest('.pform').querySelector('.primary').click();
   if (e.target.id === 'cam-address') addCamera();
   if (e.target.id === 'welcome-name') welcomeNamed();
   if (e.target.id === 'pair-code') pairCameras();

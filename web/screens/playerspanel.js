@@ -9,6 +9,7 @@ import {
   MAX_PLAYERS, cleanSetup, data, esc, grams, loadPlayers, nameOf, players, saveSetup, screen, setDarts, setsOf,
   setup, store
 } from '../app.js';
+import { DARTS_DETAILS } from '../sync.js';
 import { renderHome } from './home.js';
 import { renderSettings } from './settings.js';
 
@@ -21,6 +22,21 @@ export const roster = {
   dartsForm: null,  // in that card: the id of the set being changed, 'new' for one being added, or null
   dartsError: null,  // {at: a set's id or a player's id (adding), text}
 };
+
+// The choices of each detail of a set, as the form and the card say them.
+const CHOICES = {
+  tungsten: [['Tungsten', ''], ...DARTS_DETAILS.tungsten.map(t => [`${t}%`, t])],
+  shape: [['Barrel shape', ''], ['Straight', 'straight'], ['Torpedo', 'torpedo'], ['Bomb', 'bomb'], ['Scalloped', 'scalloped'], ['Other', 'other']],
+  grip: [['Grip', ''], ['Smooth', 'smooth'], ['Light grip', 'light'], ['Medium grip', 'medium'], ['Heavy grip', 'heavy']],
+  shaft: [['Shaft', ''], ['Short shaft', 'short'], ['In-between shaft', 'inbetween'], ['Medium shaft', 'medium'], ['Long shaft', 'long']],
+  flight: [['Flight', ''], ['Standard flight', 'standard'], ['Slim flight', 'slim'], ['Kite flight', 'kite'], ['Pear flight', 'pear'],
+    ['Small flight', 'small'], ['Other flight', 'other']],
+};
+const PICKED = ['tungsten', 'shape', 'grip', 'shaft', 'flight'];
+const choiceText = (key, v) => CHOICES[key].find(([, value]) => value === v)?.[0] ?? '';
+// What a set's details say, in one short line: "Target · 95% · Straight · Medium grip".
+export const detailsLine = d => d?.details
+  ? [d.details.brand, ...PICKED.map(k => d.details[k] != null && choiceText(k, d.details[k]))].filter(Boolean).join(' · ') : '';
 
 export function newPlayerRow() {
   return `<div class="player-row"><input type="text" id="newplayer" placeholder="New player name" maxlength="16">
@@ -56,10 +72,18 @@ export function addPlayer() {
 export function playersPanel() {
   if (!players.some(p => p.id === roster.open)) roster.open = roster.dartsForm = null;
   const said = d => `${esc(d.name)}${d.grams != null ? ` ${grams(d.grams)}` : ''}`;
-  // A set's name and weight, to fill in: a new set (d not given) or one being changed.
-  const form = (p, d) => `<div class="pform">
+  // A set's name and weight, to fill in: a new set (d not given) or one being changed. The rest
+  // of what can be said about it is folded away under "More details", open if any is given.
+  const pick = (key, det) => `<label class="pick"><select class="plain" id="d${key}" aria-label="${CHOICES[key][0][0]}">${CHOICES[key].map(([text, v]) =>
+    `<option value="${v}" ${v === (det[key] ?? '') ? 'selected' : ''}>${text}</option>`).join('')}</select></label>`;
+  const form = (p, d, det = d?.details ?? {}) => `<div class="pform">
       <div class="player-row"><input type="text" id="dname" value="${esc(d?.name ?? '')}" placeholder="Name, e.g. Red tungsten" maxlength="24" aria-label="Name of the darts">
         <input type="number" inputmode="decimal" id="dgrams" value="${d?.grams ?? ''}" min="1" max="100" step="0.5" placeholder="Grams" aria-label="Weight in grams"></div>
+      <details class="dmore" ${d?.details ? 'open' : ''}><summary>More details</summary>
+        <input type="text" id="dbrand" value="${esc(det.brand ?? '')}" placeholder="Brand" maxlength="${DARTS_DETAILS.brand}" aria-label="Brand">
+        <div class="picks">${PICKED.map(k => pick(k, det)).join('')}</div>
+        <input type="text" id="dnotes" value="${esc(det.notes ?? '')}" placeholder="Notes, e.g. new points in March" maxlength="${DARTS_DETAILS.notes}" aria-label="Notes">
+      </details>
       ${roster.dartsError?.at === (d?.id ?? p.id) ? `<p class="warn">${esc(roster.dartsError.text)}</p>` : ''}
       <div class="row"><button class="primary" data-act="${d ? 'savedarts' : 'adddarts'}" data-id="${d ? esc(d.id) : p.id}">${d ? 'Save' : 'Add'}</button>
         ${d ? `<button data-act="retiredarts" data-id="${esc(d.id)}" data-retired="${d.retired ? 'no' : 'yes'}">${d.retired ? 'Bring back' : 'Put away'}</button>` : ''}
@@ -75,7 +99,7 @@ export function playersPanel() {
       <h3>Darts</h3>
       ${sets.length || roster.dartsForm === 'new' ? '' : '<p class="muted small">Add the darts they throw to see stats for each set.</p>'}
       ${sets.map(d => roster.dartsForm === d.id ? form(p, d) : `<button class="pline ${d.retired ? 'away' : ''}" data-act="editdarts" data-id="${esc(d.id)}">
-        <span>${said(d)}${d.retired ? ' <small>· put away</small>' : ''}</span><u>Change</u></button>`).join('')}
+        <span>${said(d)}${d.retired ? ' <small>· put away</small>' : ''}${detailsLine(d) ? `<small class="dline">${esc(detailsLine(d))}</small>` : ''}</span><u>Change</u></button>`).join('')}
       ${roster.dartsForm === 'new' ? form(p) : '<button class="chip ghost" data-act="newdarts">+ Add darts</button>'}
       <div class="who-end"><button class="ghost danger" data-act="remove" data-id="${p.id}">${roster.removeArmed === p.id ? 'Tap again to remove' : `Remove ${esc(p.name)}`}</button>
         ${roster.removeArmed === p.id ? '<p class="muted small">They leave the lists. Their throws are kept, and adding the same name again brings them back.</p>' : ''}</div>
@@ -124,12 +148,19 @@ function dartsDone(fn, at) {
   try { fn(); setDarts(store.get('darts', [])); roster.dartsError = null; roster.dartsForm = null; data.sync(); } catch (e) { roster.dartsError = { at, text: e.message }; }
   renderSettings();
 }
-const dartsTyped = () => ({ name: document.getElementById('dname').value.trim(), grams: gramsIn(document.getElementById('dgrams')) });
+const typed = id => document.getElementById(id)?.value ?? '';
+const dartsTyped = () => ({
+  name: typed('dname').trim(), grams: gramsIn(document.getElementById('dgrams')),
+  details: {
+    brand: typed('dbrand'), notes: typed('dnotes'),
+    ...Object.fromEntries(PICKED.map(k => [k, k === 'tungsten' && typed('dtungsten') ? +typed('dtungsten') : typed(`d${k}`)])),
+  },
+});
 export function addDarts(player) {
-  const { name, grams } = dartsTyped();
+  const { name, grams, details } = dartsTyped();
   if (!name) return document.getElementById('dname').focus();
   dartsDone(() => {
-    const first = setsOf(player).length === 0, d = data.addDarts(player, name, grams);
+    const first = setsOf(player).length === 0, d = data.addDarts(player, name, grams, details);
     // Their first set: what they are throwing from now on.
     if (first) { setup.darts = { ...setup.darts, [player]: d.id }; saveSetup(); }
   }, player);

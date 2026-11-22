@@ -26,7 +26,7 @@ def main():
         db.prepare(f)
         n = insight.numbers(f, corrected=0)
         assert n == {"games": 0, "finished": 0, "darts": 0, "kept": 0, "corrected": 0, "missed": 0, "accuracy": None,
-                     "days_played": 0, "last_played": None, "played_ms": 0, "by_game": {}}
+                     "days_played": 0, "last_played": None, "played_ms": 0, "by_game": {}, "sets": 0, "comparing": 0}
 
         with db.at(f):
             pid = db.add_player("Ann")["id"]
@@ -63,6 +63,19 @@ def main():
         # more corrections recorded than hand-entered darts left (a correction later undone): never negative
         n = insight.numbers(f, corrected=5)
         assert n["missed"] == 0 and n["accuracy"] == 8 / 13
+
+        # comparing sets: a player counts once two of their sets each have ENOUGH_DARTS single darts
+        enough, typed = insight.ENOUGH_DARTS, lambda r: {**throw(r, 60, 1, "visit")}  # noqa: E731
+        with db.at(f):
+            for s in ("a", "b", "c"):
+                db.save_darts(s, {"player": pid, "name": s})
+            db.save_match("sa", {**m(13 * DAY, [throw(1, 20, 1, "tap")] * enough), "darts": ["a"]})
+            db.save_match("sb", {**m(13 * DAY, [throw(1, 20, 1, "tap")] * (enough - 1) + [typed(2)] * 5), "darts": ["b"]})
+        n = insight.numbers(f, corrected=0)
+        assert (n["sets"], n["comparing"]) == (3, 0)  # b's typed visits are not single darts
+        with db.at(f):
+            db.save_match("sb", {**m(13 * DAY, [throw(1, 20, 1, "tap")] * enough), "darts": ["b"], "seq": 2})
+        assert insight.numbers(f, corrected=0)["comparing"] == 1
 
     acc = {"id": "a"}
     none = {"kept": 0, "days_played": 0}

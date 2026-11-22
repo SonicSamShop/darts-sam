@@ -36,7 +36,12 @@ account has a database of its own instead.
 - **Darts:** add each set you own to your card under **Settings › Players and
   darts**, pick which you
   are throwing on the Play screen, and see how much each set has been thrown
-  and its stats on their own.
+  and its stats on their own. **More details** on a set keeps its brand,
+  tungsten, barrel shape, grip, shaft, flight and a note. Under **Stats ›
+  Games** the sets are side by side: 3-dart average and checkout rate (X01) and
+  trebles hit. A figure says "not yet" until the set has enough darts behind
+  it (300 for the average and trebles, 50 at a double for checkouts), and
+  nothing picks a "best" set.
 - **Achievements:** a first game of each kind, a first 180, a 170 finish and
   the like are shown and called as they happen, and listed for each player
   under **Stats › Achievements** with the game each was earned in. They are

@@ -45,6 +45,13 @@ def main():
         assert len(c.get("/api/matches", headers=A).json()) + len(c.get("/api/matches", headers=B).json()) <= 1
         assert c.get(f"/api/players/{ann['id']}/stats", headers=A).status_code == 200
         assert c.get("/api/totals", headers=A).json() == {"darts": 0, "reports": 7}
+        # a set's details go in and come back; an app that leaves them out (older than details) keeps them
+        put = lambda body: c.put("/api/darts/red", json={"player": ann["id"], "name": "Red", **body}, headers=A)  # noqa: E731
+        assert put({"details": {"brand": "Winmau", "grip": "light"}}).json()["details"] == {"brand": "Winmau", "grip": "light"}
+        assert put({"grams": 22}).json()["details"] == {"brand": "Winmau", "grip": "light"}
+        assert put({"details": {"grip": "sticky"}}).status_code == 400
+        assert put({"details": None}).json()["details"] is None
+        assert c.get("/api/darts", headers=B).json() == []
         assert c.delete("/api/matches/m1", headers=B).json()["deleted"] is False
         assert c.delete("/api/matches/m1", headers=A).json()["deleted"] is True
     print("OK")

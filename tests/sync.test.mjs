@@ -6,7 +6,7 @@
 // Offline-first saving (web/sync.js) against a pretend Pi that can be switched off.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSync } from '../web/sync.js';
+import { cleanDetails, createSync } from '../web/sync.js';
 import { newMatch } from '../web/engine.js';
 
 function rig() {
@@ -205,6 +205,37 @@ test('a game still waiting here can be shown as a scoresheet, in the shape the P
   assert.equal(data.sheet('g1'), null);
 });
 
+test('a set\'s details are tidied, and refused when not one of the choices', () => {
+  assert.equal(cleanDetails(null), null);
+  assert.equal(cleanDetails({ brand: '  ', grip: '', notes: null }), null);
+  assert.deepEqual(cleanDetails({ brand: ' Target  Power ', tungsten: 95, shaft: 'inbetween' }),
+    { brand: 'Target Power', tungsten: 95, shaft: 'inbetween' });
+  assert.throws(() => cleanDetails({ colour: 'red' }), /no detail called colour/);
+  assert.throws(() => cleanDetails({ tungsten: '95' }), /not one of the choices/);  // a number, as the server wants
+  assert.throws(() => cleanDetails({ shape: 'Torpedo' }), /not one of the choices/);
+  assert.throws(() => cleanDetails({ notes: 'x'.repeat(121) }), /at most 120/);
+});
+
+test('a set\'s details are kept offline and go to the Pi with it', async () => {
+  const { store, pi, data } = rig();
+  pi.up = true;
+  const sam = data.addPlayer('Sam');
+  await data.sync(true);
+  const red = data.addDarts(1, 'Red', 23, { brand: 'Unicorn', grip: 'heavy', notes: '' });
+  assert.deepEqual(red.details, { brand: 'Unicorn', grip: 'heavy' });
+  assert.throws(() => data.addDarts(1, 'Blue', null, { grip: 'sticky' }), /not one of the choices/);
+  assert.throws(() => data.changeDarts(red.id, { details: { grip: 'sticky' } }), /not one of the choices/);
+  await data.sync(true);
+  assert.deepEqual(pi.darts.get(red.id).details, { brand: 'Unicorn', grip: 'heavy' });
+  pi.up = false;
+  data.changeDarts(red.id, { details: { brand: '' } });  // all taken off: nothing to say
+  assert.equal(store.get('darts')[0].details, null);
+  pi.up = true;
+  await data.sync(true);
+  assert.equal(pi.darts.get(red.id).details, null);
+  assert.equal(sam.id < 0, true);
+});
+
 test('darts made offline wait for their player\'s number, then go with the games thrown in them', async () => {
   const { store, pi, data } = rig();
   const sam = data.addPlayer('Sam');
@@ -224,8 +255,8 @@ test('darts made offline wait for their player\'s number, then go with the games
   pi.up = true;
   assert.equal(await data.sync(true), true);
   assert.equal(data.waiting(), 0);
-  assert.deepEqual([...pi.darts.values()].map(d => [d.name, d.player, d.grams, d.retired]),
-    [['Red', 1, 23, false], ['Blue', 1, null, true]]);
+  assert.deepEqual([...pi.darts.values()].map(d => [d.name, d.player, d.grams, d.retired, d.details]),
+    [['Red', 1, 23, false, null], ['Blue', 1, null, true, null]]);
   assert.deepEqual(pi.matches.get('m1').darts, [red.id]);
   assert.deepEqual(pi.settings.setup.darts, { 1: red.id });  // filed under the Pi's number for Sam
   assert.deepEqual(store.get('darts').map(d => [d.name, d.player]), [['Red', 1], ['Blue', 1]]);

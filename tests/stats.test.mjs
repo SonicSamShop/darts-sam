@@ -7,7 +7,7 @@
 // out from the history the Pi sends.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith } from '../web/stats.js';
+import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith, setsSideBySide } from '../web/stats.js';
 
 const T20 = 203, S20 = 201, D20 = 202, D16 = 162, S1 = 11, MISS = 0;
 const match = (id, visits, more = {}) => ({
@@ -108,4 +108,31 @@ test('a match of several legs is split into its legs', () => {
   assert.equal(legs[1].sides[1].checkout, 40);
   const s = x01Stats([legs[0].m]);
   assert.deepEqual(['played', 'won', 'holds', 'breaks'].map(k => x01Tile(k).rows(s).length), [2, 1, 1, 1]);
+});
+
+test('sets of darts side by side: each set\'s figures, once there are enough darts behind them', () => {
+  // Sam's 12-darter thrown with red, 101 games with blue, and one with no set said.
+  const many = n => Array.from({ length: n }, (_, i) => ({ ...quick, id: `q${i}`, darts: 'red' }));
+  const blue = { ...lost, darts: 'blue' }, unsaid = { ...quick, id: 'u', darts: null };
+  let side = setsSideBySide([...many(1), blue, unsaid]);
+  assert.deepEqual([...side.keys()], ['red', 'blue', null]);
+  const red = side.get('red');
+  assert.deepEqual([red.x01Darts, red.coDarts, red.coHit, red.singles, red.trebleHits], [12, 3, 1, 12, 8]);
+  assert.deepEqual(red.need, { average: ENOUGH.average - 12, checkout: ENOUGH.checkout - 3, trebles: ENOUGH.trebles - 12 });
+  assert.deepEqual([red.average, red.checkout, red.trebles], [null, null, null]);  // not enough yet
+  // blue: only Sam's visits (Alex threw first): a typed 60 counts 3 in the average but has no single
+  // darts, and the bust's two darts count as three in the average, as the X01 tiles count them
+  const b = side.get('blue');
+  assert.deepEqual([b.x01Darts, b.singles, b.trebleHits], [6, 2, 0]);
+
+  // 17 games: 51 darts at a double (17 hit) is enough for checkouts, 204 darts is not for the rest
+  side = setsSideBySide(many(17));
+  assert.equal(side.get('red').checkout, 17 / 51 * 100);
+  assert.deepEqual([side.get('red').average, side.get('red').trebles], [null, null]);
+  // 25 games of 12 darts is 300 X01 darts and 300 single darts: everything shows
+  const r = setsSideBySide(many(25)).get('red');
+  assert.equal(r.average, 501 / 12 * 3);
+  assert.equal(r.trebles, 8 / 12 * 100);
+  assert.deepEqual(r.need, { average: 0, checkout: 0, trebles: 0 });
+  assert.deepEqual(setsSideBySide([]), new Map());
 });

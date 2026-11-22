@@ -27,6 +27,7 @@ class DartsIn(BaseModel):
     grams: float | None = None
     created: int | None = None
     retired: bool = False
+    details: dict | None = None  # brand, barrel and so on: see db.DARTS_DETAILS
 
 
 class Setting(BaseModel):
@@ -109,7 +110,8 @@ def make_router(db_file: Callable[[Request], Path | None], reports: Callable[[],
     @router.put("/api/darts/{darts_id}")
     def save_darts(request: Request, darts_id: str, body: DartsIn):
         with db.at(db_file(request)):
-            return _db(db.save_darts, darts_id, body.model_dump())
+            # (details left out, not sent as nothing: an older app keeps a set's details as they are)
+            return _db(db.save_darts, darts_id, body.model_dump(exclude={"details"} if "details" not in body.model_fields_set else None))
 
     @router.get("/api/settings")
     def get_settings(request: Request):

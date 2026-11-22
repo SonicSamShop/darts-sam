@@ -143,6 +143,13 @@ button:disabled { opacity: .4; }
 .pform { margin-bottom: 8px; padding: 10px; border: 1px solid var(--line); border-radius: var(--round); }
 .pform .player-row input[type=number] { flex: 0 0 88px; }
 .pform .row button { flex: 1; padding-left: 8px; padding-right: 8px; white-space: nowrap; }
+.dmore { margin-bottom: 10px; }
+.dmore summary { cursor: pointer; color: var(--accent); font-size: 14px; padding: 4px 0; }
+.dmore > input { width: 100%; margin-top: 8px; }
+/* one a row on a phone (two side by side cut words short in the capital-letter themes), three or four on a computer */
+.dmore .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); margin-top: 8px; }
+.dmore .picks .pick { min-width: 0; grid-area: auto; }  /* (.pick alone is a place on the menu's grid) */
+.pline .dline { display: block; margin-top: 2px; }
 .who-end { margin-top: 16px; }
 .who-end .danger { border-color: transparent; padding-left: 0; padding-right: 0; }
 .who-end p { margin: 0; }

@@ -8,7 +8,7 @@
 import { GAMES } from '../games/index.js';
 import { clock, gameById, timeSpent } from '../engine.js';
 import { buildBoard, label } from '../board.js';
-import { X01_TILES, dartTable, visitsOf, visitsWith, x01Legs, x01Stats, x01Tile } from '../stats.js';
+import { ENOUGH, X01_TILES, dartTable, setsSideBySide, visitsOf, visitsWith, x01Legs, x01Stats, x01Tile } from '../stats.js';
 import { renderLanding } from './landing.js';
 import { achTab, achievementView, achievementsPane } from './achievements.js';
 import {
@@ -59,6 +59,9 @@ export async function renderPlayers(id = statsView.player) {
   setScreen('players');
   statsView.player = players.some(p => p.id === id) ? id : players[0]?.id ?? null;
   achTab.all = null;  // (asked for again if the Achievements tab needs it)
+  // The darts side by side, while the page shows one set: start from the stats for every set if
+  // they are what was showing, or ask for them again (see sideStats).
+  Object.assign(sideBy, statsData && !statsData.set ? { key: sideKey(statsData.player.id, statsData.game), st: statsData } : { key: null, st: undefined });
   if (!setsOf(statsView.player, true).some(d => d.id === statsView.darts)) statsView.darts = null;
   if (statsData?.player.id !== statsView.player || statsData.game !== statsView.game || (statsData.set ?? null) !== statsView.darts) statsData = null;
   statsFailed = false;
@@ -329,19 +332,67 @@ export function drawPlayers() {
   if (svg) buildBoard(svg).showHeat(st.recent);
   refreshStatus();
 }
-// How much each set of darts has been thrown, like the miles on a runner's shoes.
+// Putting the sets side by side needs the games of every set. When the page shows one set
+// only, the same stats for all of them are asked for as well, and kept while the page is open.
+const sideKey = (player, game) => `${player}:${game ?? ''}`;
+const sideBy = { key: null, st: undefined };  // st: the stats for every set (null if they can't be had)
+let sideLoading = null;  // the key they are being fetched for
+function sideStats(st) {
+  if (!st.set) return st;
+  const key = sideKey(statsView.player, statsView.game);
+  if (sideBy.key === key) return sideBy.st;
+  if (sideLoading !== key) loadSide(key);
+  return undefined;  // still coming
+}
+async function loadSide(key) {
+  sideLoading = key;
+  let st = null;
+  try { st = await loadStats(statsPath(statsView.player, statsView.game), connected ? 10000 : 2500); } catch { /* shown as unavailable */ }
+  if (sideLoading !== key) return;
+  sideLoading = null;
+  Object.assign(sideBy, { key, st });
+  if (screen === 'players' && sideKey(statsView.player, statsView.game) === key && statsView.darts) drawPlayers();
+}
+// How much each set of darts has been thrown, like the miles on a runner's shoes, and how
+// the player throws with each, side by side. A figure waits until a set has ENOUGH darts
+// behind it, and nothing says which set is best: a small gap can be a good or bad week.
 // A line can be tapped to see the stats of that set alone.
 function gearHtml(st, game) {
   const gear = (st.gear ?? []).filter(g => g.games || g.id);
   if (!gear.some(g => g.id)) return '';
   const day = ts => ts ? new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short', year: '2-digit' }) : '–';
+  const side = sideStats(st), cmp = side ? setsSideBySide(deep(side).matches) : null;
+  const x01 = !game || game.id === 'x01';  // the average and checkout rate come from X01 only
+  // [heading, figure, darts it is counted from, how it is written]
+  const figs = [
+    ...(x01 ? [['Average', 'average', 'x01Darts', n => n.toFixed(1)], ['Checkout', 'checkout', 'coDarts', n => `${n.toFixed(1)}%`]] : []),
+    ['Trebles', 'trebles', 'singles', n => `${n.toFixed(1)}%`],
+  ];
+  const cell = (g, [, key, from, write]) => {
+    if (!cmp) return side === undefined ? '<span class="muted">…</span>' : '–';
+    const r = cmp.get(g.id ?? null);
+    if (!r?.[from]) return '–';
+    return r[key] == null ? '<span class="muted small" title="Not enough darts yet">not yet</span>' : write(r[key]);
+  };
+  // How far each set is from the figures it can't show yet.
+  const more = { average: n => `${n} more X01 darts for its average`, checkout: n => `${n} more darts at a double for its checkout rate`,
+    trebles: n => `${n} more darts for its trebles` };
+  const short = !cmp ? [] : gear.filter(g => g.id && !g.retired).map(g => {
+    const r = cmp.get(g.id);
+    const parts = figs.filter(([, key, from]) => r?.[from] && r[key] == null).map(([, key]) => more[key](r.need[key]));
+    return parts.length ? `${esc(g.name)}: ${parts.join(', ')}.` : '';
+  }).filter(Boolean);
   return `<h2>Darts${game ? ` · ${game.name}` : ''}</h2>
-    <table class="plain"><tr><th>Darts</th><th>Darts thrown</th><th>Games</th><th>Won (2+ players)</th><th class="wide">First used</th><th>Last used</th></tr>${gear.map(g =>
+    <table class="plain"><tr><th>Darts</th><th>Darts thrown</th><th>Games</th>${figs.map(([h]) => `<th>${h}</th>`).join('')}<th class="wide">Won (2+ players)</th>
+      <th class="wide">First used</th><th class="wide">Last used</th></tr>${gear.map(g =>
       `<tr${g.id ? ` data-gear="${esc(g.id)}"` : ''} class="${g.id === statsView.darts ? 'at' : ''}"><td>${g.id ? `<b>${esc(g.name)}</b>${
         g.grams != null ? ` <span class="muted small">${grams(g.grams)}</span>` : ''}${g.retired ? ' <span class="muted small">put away</span>' : ''}`
-        : '<span class="muted">Not named</span>'}</td><td>${g.darts.toLocaleString()}</td><td>${g.games}</td><td>${g.won}</td>
-       <td class="wide">${day(g.first)}</td><td>${day(g.last)}</td></tr>`).join('')}</table>
-    <p class="muted small">Every dart counts towards the darts thrown, typed scores too. Tap a set to see its stats on their own.</p>`;
+        : '<span class="muted">Not named</span>'}</td><td>${g.darts.toLocaleString()}</td><td>${g.games}</td>${figs.map(f => `<td>${cell(g, f)}</td>`).join('')}
+       <td class="wide">${g.won}</td><td class="wide">${day(g.first)}</td><td class="wide">${day(g.last)}</td></tr>`).join('')}</table>
+    ${short.length ? `<p class="muted small">${short.join(' ')}</p>` : ''}
+    <p class="muted small">Every dart counts towards the darts thrown, typed scores too. A figure shows (in place of "not yet") once a set has enough darts
+      behind it (${ENOUGH.average} for the average, ${ENOUGH.checkout} at a double for checkouts). Form changes from week to week,
+      so a small gap between two sets may be nothing. Tap a set to see its stats on their own.</p>`;
 }
 // Nobody to show stats for yet: say where players are made.
 function drawNoPlayers() {

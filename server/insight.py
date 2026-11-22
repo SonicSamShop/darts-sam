@@ -17,11 +17,19 @@ camera-scored dart is undone and replaced by hand. From those:
 
 Games with no camera dart at all (scored wholly by hand) say nothing about the
 cameras and are left out of "missed".
+
+Do players compare sets of darts? (The evidence asked for before any thought of
+suggesting darts to people: see docs/superpowers/specs/2026-11-22-my-darts-design.md.)
+
+  sets       sets of darts the account's players have added
+  comparing  players with two or more sets that each have ENOUGH_DARTS single
+             darts thrown: enough for the Stats page to put them side by side
 """
 from pathlib import Path
 
 from . import db
 
+ENOUGH_DARTS = 300  # the Stats page's ENOUGH.trebles (web/stats.js)
 STEPS = ["Signed up", "Paired", "Calibrated", "First camera dart", "Played 2+ days"]
 
 
@@ -44,6 +52,14 @@ def numbers(db_file: Path, corrected: int) -> dict:
             "played_ms": one(f"SELECT COALESCE(SUM({db.PLAYED_MS}), 0) FROM matches m"),
             "by_game": {r["game_id"]: r["n"] for r in
                         c.execute("SELECT game_id, COUNT(*) AS n FROM matches GROUP BY game_id ORDER BY n DESC")},
+            "sets": one("SELECT COUNT(*) FROM dart_sets"),
+            "comparing": c.execute("""
+                SELECT COUNT(*) FROM (SELECT player_id FROM (
+                  SELECT mp.player_id FROM throws t
+                  JOIN match_players mp ON mp.match_id = t.match_id AND mp.player_id = t.player_id
+                  WHERE mp.darts IS NOT NULL AND COALESCE(t.src, '') <> 'visit'
+                  GROUP BY mp.player_id, mp.darts HAVING COUNT(*) >= ?)
+                GROUP BY player_id HAVING COUNT(*) >= 2)""", (ENOUGH_DARTS,)).fetchone()[0],
         }
 
 

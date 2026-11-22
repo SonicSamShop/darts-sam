@@ -122,6 +122,53 @@ export function x01Stats(matches) {
   };
 }
 
+// ---------- sets of darts side by side ----------
+// A figure for one set is only shown once there are enough darts behind it: with
+// fewer, a set can look better or worse than another by luck alone.
+//   average   X01 darts (about 100 visits)
+//   checkout  darts thrown at a double to win
+//   trebles   single darts (typed visits have none), in any game
+export const ENOUGH = { average: 300, checkout: 50, trebles: 300 };
+
+// Each set's figures from a player's history (every match says the set they
+// threw: m.darts, null if not said), as a Map from set id (or null) to:
+//   x01Darts, average     X01 darts and the 3-dart average from them
+//   coDarts, coHit        darts at a double to win, and those that won
+//   singles, trebleHits   darts known one by one, and the trebles among them
+//   need                  for each of average, checkout and trebles: how many more
+//                         darts until it can be shown (0: it can)
+// The average, checkout rate (%) and trebles (%) are null until there are ENOUGH.
+export function setsSideBySide(matches) {
+  const groups = new Map();
+  for (const m of matches) {
+    const key = m.darts ?? null;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(m);
+  }
+  const out = new Map();
+  for (const [key, list] of groups) {
+    const x = x01Stats(list);
+    const x01Darts = x ? sum(x.legs, l => l.darts) : 0, coDarts = x?.coDarts ?? 0, coHit = x?.coHit ?? 0;
+    let singles = 0, trebleHits = 0;
+    for (const m of list) for (const v of visitsOf(m)) if (v.p === m.me && v.darts) {
+      singles += v.darts.length;
+      trebleHits += v.darts.filter(d => d.mult === 3).length;
+    }
+    const need = {
+      average: Math.max(0, ENOUGH.average - x01Darts),
+      checkout: Math.max(0, ENOUGH.checkout - coDarts),
+      trebles: Math.max(0, ENOUGH.trebles - singles),
+    };
+    out.set(key, {
+      x01Darts, coDarts, coHit, singles, trebleHits, need,
+      average: need.average ? null : x.average,
+      checkout: need.checkout ? null : coHit / coDarts * 100,
+      trebles: need.trebles ? null : trebleHits / singles * 100,
+    });
+  }
+  return out;
+}
+
 const scored = (lo, hi) => s => s.visits.filter(v => v.score >= lo && v.score <= hi);
 const wonLegs = s => s.legs.filter(l => l.won);
 const versus = first => s => s.legs.filter(l => l.finished && !l.solo && l.first === first);
