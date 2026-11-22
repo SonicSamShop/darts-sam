@@ -8,6 +8,7 @@ import json
 import sys
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 sys.modules["cv2"] = None    # the host must not need OpenCV…
@@ -170,7 +171,13 @@ def main():
             helper.send_json({"t": "hello", "cameras": 2, "calibrated": 2, "platform": "linux", "version": "h1"})
             hello = ann_ws.receive_json()
             assert hello["cameras"] == 2 and hello["helper"] is True and hello["version"]
-            assert ann.get("/api/me").json()["helper"] == {"connected": True, "cameras": 2, "platform": "linux"}
+            # the apps are told before the hello is written down: give the write a moment
+            want = {"connected": True, "cameras": 2, "platform": "linux"}
+            for _ in range(50):
+                if ann.get("/api/me").json()["helper"] == want:
+                    break
+                time.sleep(0.02)
+            assert ann.get("/api/me").json()["helper"] == want
             assert bob.get("/api/me").json()["helper"] is None
 
             dart = {"type": "dart", "seg": 20, "mult": 3, "x": 1.0, "y": 2.0}

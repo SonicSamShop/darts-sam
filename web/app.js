@@ -2422,7 +2422,7 @@ function renderSettings(jump) {
     account.hosted && account.account ? [['acct', 'Account', 'Account', esc(account.account.nickname ?? ''), accountPanel()]] : [],
     [['players', 'Players and darts', 'Players', esc(players.map(p => p.name).join(', ')) || 'Nobody yet', playersPanel()]],
     [['look', 'Theme', 'Theme', theme.name, look],
-      ['game', 'In a game', 'In a game', `${settings.voice && !voice.none() ? `Sound on${settings.eachDart ? ', each dart' : ''}` : 'Sound off'} · ${hints ? 'checkout hints on' : 'checkout hints off'}`, game]],
+      ['game', 'In game', 'In game', `${settings.voice && !voice.none() ? `Sound on${settings.eachDart ? ', each dart' : ''}` : 'Sound off'} · ${hints ? 'checkout hints on' : 'checkout hints off'}`, game]],
     [...(!account.hosted && share ? [['share', 'Sharing', 'Sharing', share.on ? 'On' : 'Off', sharePanel()]] : []),
       ...(canFeedBack() ? [['feedback', 'Send feedback', 'Feedback', '', `<div class="settings">${feedbackBox()}</div>`]] : []),
       ['about', 'About', 'About', appRelease() && `Version ${esc(appRelease())}`, aboutPanel()]],
