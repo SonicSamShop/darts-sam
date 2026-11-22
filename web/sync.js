@@ -247,7 +247,10 @@ export function createSync({ store, api, changed = () => {} }) {
   function putUp(id, since = null) {
     const at = since ?? Date.now(), was = wallBoard();
     if (was === id) return;
-    if (was) changeBoard(was, { down: at });
+    // (one that went up after `at` has no games from before it, and those since move off it:
+    // it never really stood, as with the first board a new account is given)
+    const old = boardsNow().find(b => b.id === was);
+    if (old) changeBoard(was, old.up != null && old.up > at ? { up: null, down: 0 } : { down: at });
     changeBoard(id, { up: at, down: null });
     if (since != null) moveGames(id, since, null, [was, null]);
   }

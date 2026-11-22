@@ -339,7 +339,7 @@ test('putting a board up from a date moves the games since then, here and on the
   pi.players.push({ id: 1, name: 'Sam' });
   store.set('players', [{ id: 1, name: 'Sam' }]);
   const old = data.addBoard({ brand: 'Old' });
-  data.putUp(old.id, null);
+  data.putUp(old.id, 100);
   pi.up = true;
   await data.sync(true);
   // one game already on the Pi, one waiting here, both on the old board; one from before the date
@@ -414,4 +414,14 @@ test('the Pi\'s boards come back, except ones changed here and not yet sent', as
   data.changeBoard('pb', { notes: 'turned' });
   pi.boards.get('pb').notes = 'old';
   assert.equal(store.get('boards')[0].notes, 'turned');
+});
+
+test('a board put up from before the one on the wall went up leaves that one never put up', () => {
+  const { store, data } = rig();
+  const first = data.addBoard({});
+  data.putUp(first.id, 5000);
+  const neu = data.addBoard({ brand: 'New' });
+  data.putUp(neu.id, 1000);
+  const was = store.get('boards').find(b => b.id === first.id);
+  assert.deepEqual([was.up, was.down], [null, 0]);
 });

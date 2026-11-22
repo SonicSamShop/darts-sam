@@ -11,7 +11,7 @@ import { throwAt } from '../bot.js';
 import { renderHome, startOpts } from './home.js';
 import { BOT_WAIT, gameBoard, renderGame } from './game.js';
 import {
-  $app, BOT, botAt, botPlayer, bots, cleanSetup, dartsFor, esc, fit, mark, match, nameOf, randomOrder,
+  $app, BOT, botAt, botPlayer, bots, cleanSetup, dartsFor, data, esc, fit, mark, match, nameOf, randomOrder,
   refreshStatus, saveSetup, say, screen, seats, setMatch, setScreen, setup, store
 } from '../app.js';
 
@@ -152,7 +152,7 @@ export function startMatch(act, order) {
   setMatch({
     ...newMatch(setup.gameId, ids.map(nameOf), startOpts()),
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-    playerIds: ids, darts: ids.map(dartsFor), bots: ids.map(id => bots.find(b => b.id === id)?.bot ?? null), seq: 0,
+    playerIds: ids, darts: ids.map(dartsFor), board: data.wallBoard(), bots: ids.map(id => bots.find(b => b.id === id)?.bot ?? null), seq: 0,
   });
   store.set('match', match);
   const opening = compute(match), aim = gameById(match.gameId).aim?.(opening);  // the first thing to aim at (Random Targets, Around the Clock)
