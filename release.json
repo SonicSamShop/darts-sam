@@ -1,9 +1,6 @@
 {
-  "version": "1.7.2",
-  "unreleased": [
-    "Fixed: after updating to 1.7.2 a camera could score every dart as the wrong number, with its green 20 in the wrong place. A camera lined up at another picture size is now scaled to the size in use.",
-    "Find the board now asks you to tap the 20 every time you press it, so a camera whose numbers have come out turned round is put right with one tap."
-  ],
+  "version": "1.7.3",
+  "unreleased": [],
   "notes": {
     "1.0": [
       "First release."
@@ -82,6 +79,10 @@
       "Picture size and frames a second can be set on the Cameras screen, and Find the board on all lines up every camera at once.",
       "The cameras rest after a while unused (15 minutes to start with; change it on the Cameras screen) and wake when a game starts or you open the Cameras screen.",
       "A camera that can't see the 20 can still find the board: pick a number it can see, and tap that instead."
+    ],
+    "1.7.3": [
+      "Fixed: after updating to 1.7.2 a camera could score every dart as the wrong number, with its green 20 in the wrong place. A camera lined up at another picture size is now scaled to the size in use.",
+      "Find the board now asks you to tap the 20 every time you press it, so a camera whose numbers have come out turned round is put right with one tap."
     ]
   }
 }
