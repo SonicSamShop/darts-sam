@@ -18,12 +18,27 @@
      Darts S.A.M is. -->
 <div id="app"><div class="site">
   <header class="site-head"><a class="brand" href="./"><b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></a>
-    <nav class="site-nav" aria-label="Darts S.A.M"><a href="faq.html">FAQ</a><a href="download.html">Download</a><a href="releases.html">What's new</a><a href="opensource.html">Open source</a>
+    <nav class="site-nav" aria-label="Darts S.A.M"><a href="faq.html">FAQ</a><a href="compare.html" aria-current="page">Compare</a><a href="download.html">Download</a><a href="releases.html">What's new</a><a href="opensource.html">Open source</a>
       <a href="./#signin" class="go">Sign in</a></nav></header>
   <main>
   <h1>Darts S.A.M, Autodarts and DartCounter compared</h1>
   <p class="lead">Three ways to keep score at your own board. What each one is, what it costs, and where they differ.
     What is said here about Autodarts and DartCounter is from their own websites, with a link to where they say it.</p>
+
+  <section>
+    <h2>In short</h2>
+    <!-- compareTable() in web/screens/compare.js, written out: change one, change both -->
+    <table class="ways vs">
+      <thead><tr><td></td><th scope="col">Darts S.A.M</th><th scope="col">Autodarts</th><th scope="col">DartCounter</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">What it costs</th><td data-who="Darts S.A.M">Free. No paid plan, no adverts</td><td data-who="Autodarts">Free, or Plus at £5.99 a month</td><td data-who="DartCounter">Free, or Ultimate, a subscription</td></tr>
+        <tr><th scope="row">Camera scoring</th><td data-who="Darts S.A.M">As much as you like, with two or three webcams</td><td data-who="Autodarts">Five phone-camera matches a month free, as many as you like on Plus</td><td data-who="DartCounter">Only with a Target Omni</td></tr>
+        <tr><th scope="row">Killer and 121 Checkout</th><td data-who="Darts S.A.M">Free</td><td data-who="Autodarts">On Plus</td><td data-who="DartCounter"><span class="muted">Not on their site</span></td></tr>
+        <tr><th scope="row">Playing strangers online</th><td data-who="Darts S.A.M">Not yet: Darts S.A.M is for the people round your board</td><td data-who="Autodarts">Yes, with matchmaking and tournaments</td><td data-who="DartCounter">Yes, the biggest of the three: three matches a week free</td></tr>
+        <tr><th scope="row">Open source</th><td data-who="Darts S.A.M">Yes, all of it</td><td data-who="Autodarts">No</td><td data-who="DartCounter">No</td></tr>
+      </tbody>
+    </table>
+  </section>
 
   <section>
     <h2>Autodarts</h2>

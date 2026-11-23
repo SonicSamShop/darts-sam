@@ -2,12 +2,12 @@
 // AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// How Darts S.A.M compares with Autodarts and DartCounter, in short: on the
-// welcome page (landing.js) and in Settings → About (release.js). It is the
-// short form of web/compare.html, and says only what that page says, from the
-// two products' own websites: check theirs again, and change compare.html and
-// its date, before changing a line here. web/home.html has the same table written
-// out: change one, change both. Say where they are ahead as plainly as where we are.
+// How Darts S.A.M compares with Autodarts and DartCounter, in short: in
+// Settings → About (release.js). It is the short form of web/compare.html, and
+// says only what that page says, from the two products' own websites: check
+// theirs again, and change compare.html and its date, before changing a line here.
+// web/compare.html has the same table written out at its top: change one, change
+// both. Say where they are ahead as plainly as where we are.
 
 // [what, Darts S.A.M, Autodarts, DartCounter]
 const ROWS = [

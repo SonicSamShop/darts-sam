@@ -9,7 +9,6 @@ import { GAMES } from '../games/index.js';
 import { camScreen, pairing } from './cameras.js';
 import { $app, SOURCE, THEMES, account, data, esc, liveLine, screen, setScreen, store, tracker } from '../app.js';
 import { renderWelcome } from './welcome.js';
-import { COMPARE_CHECKED, compareTable } from './compare.js';
 
 // ---------- the welcome page ----------
 // The hosted version with nobody signed in (account.locked): what the app is,
@@ -18,25 +17,18 @@ import { COMPARE_CHECKED, compareTable } from './compare.js';
 // It is a page of plain writing, in the README's words, with pictures of the app in it
 // (web/shots: taken from the app itself, and one camera's picture of a real board).
 
-// The two ways to play, where they differ: [what, tapping the board, with cameras].
-// What it claims is what web/faq.html says: change one, change the other.
 // A small number as it is written in a sentence: 8 -> "eight".
 const inWords = n => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'][n] ?? String(n);
-const WAYS = [
-  ['What you need', 'A phone, tablet, TV or computer', 'Also a Mac, Windows or Linux PC and two or three webcams'],
-  ['Scoring', 'Tap the board or type the visit', 'The cameras score each dart. Tap to put one right'],
-  ['Without the internet', 'Once on your home screen', 'Needs the internet'],
-];
 const APPLE_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>';
 const MAIL_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
 
-// Getting about before signing in: the name leads back here, then the questions, the downloads,
+// Getting about before signing in: the name leads back here, then the questions, how it compares, the downloads,
 // what is new and the source. The foot of the page has those and the rules of the games as well.
 // The same lines are written out at the top and bottom of web/faq.html, web/rules.html, web/download.html,
-// web/releases.html, web/opensource.html and web/privacy.html: change one, change them all.
-const SITE_PLACES = [['faq.html', 'FAQ'], ['download.html', 'Download'], ['releases.html', "What's new"], ['opensource.html', 'Open source']];
+// web/releases.html, web/opensource.html, web/privacy.html, web/autoscoring.html and web/compare.html: change one, change them all.
+const SITE_PLACES = [['faq.html', 'FAQ'], ['compare.html', 'Compare'], ['download.html', 'Download'], ['releases.html', "What's new"], ['opensource.html', 'Open source']];
 const FOOT_PLACES = [SITE_PLACES[0], ['rules.html', 'How to play'], ['autoscoring.html', 'How autoscoring works'],
-  ['compare.html', 'Compared with Autodarts and DartCounter'], ...SITE_PLACES.slice(1)];
+  ['compare.html', 'Compared with Autodarts and DartCounter'], ...SITE_PLACES.slice(2)];
 const BRAND = '<b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span>';
 const siteHead = () => `<header class="site-head"><a class="brand" href="./" data-act="land-home">${BRAND}</a>
       <nav class="site-nav" aria-label="Darts S.A.M">${SITE_PLACES.map(([href, name]) => `<a href="${href}">${name}</a>`).join('')}
@@ -117,20 +109,19 @@ export function renderLanding() {
         ${card}
       </div>
       <figure class="shot">${pic('game.webp', 'A game of 501 in Darts S.A.M: the scores beside the board', 1800, 1125, false)}
-        <figcaption>A game of 501: the scores chalked up beside the board, and each dart marked where it landed.</figcaption></figure>
+        <figcaption>A game of 501, each dart marked where it landed.</figcaption></figure>
     </div>
     <a class="tally" id="tally" href="faq.html#numbers" hidden></a>
     <section class="intro">
       <div>
         <h2>Scoring by camera</h2>
-        <p>USB webcams round the board watch for each dart, work out where it landed and move on to the next player when the darts are pulled out.
-          There is nothing to stick on the board: each camera finds the wires by itself, once, when you set it up.</p>
-        <p>The cameras plug into a Mac, Windows or Linux computer near the board, and every phone, tablet and TV you sign in on follows along.</p>
+        <p>Plug two or three USB webcams into a Mac, Windows or Linux computer by the board. They find the wires by themselves, with nothing to stick on,
+          and every phone, tablet and TV you sign in on follows along. <a href="autoscoring.html">How the autoscoring works</a>.</p>
         <p class="acts"><button class="primary" data-act="download">Download for Mac, Windows or Linux</button>
           <a href="faq.html#connect">How to set it up</a></p>
       </div>
       <figure class="shot">${pic('camera.webp', 'A webcam\'s picture of a dartboard, with every wire and number drawn over it in green', 1280, 720)}
-        <figcaption>What one camera sees: a real board, with its wires and numbers drawn where Darts S.A.M found them.</figcaption></figure>
+        <figcaption>What one camera sees, with the wires it found drawn in green.</figcaption></figure>
     </section>
     <section>
       <h2>${inWords(GAMES.length).replace(/^./, c => c.toUpperCase())} games</h2>
@@ -141,33 +132,20 @@ export function renderLanding() {
       <h2>Stats, the telly and your phone</h2>
       <div class="row3">
         <figure class="shot">${pic('stats.webp', 'Stats: averages, checkout rate and a heat map', 1800, 1125)}
-          <figcaption><b>Stats for every player.</b> Three-dart and first-nine averages, checkout rate, highest checkout and 180s,
-            and a heat map of where your darts land. Tap any number to see the legs behind it.</figcaption></figure>
+          <figcaption><b>Stats.</b> Averages, checkouts, 180s and a heat map of your darts.</figcaption></figure>
         <figure class="shot">${pic('tv.webp', 'TV view: the board with the scores along the bottom', 1800, 1125)}
-          <figcaption><b>TV view.</b> The board gets the screen and the scores run along the bottom, the way a match is shown on television.</figcaption></figure>
+          <figcaption><b>TV view.</b> Scores along the bottom, like a match on the telly.</figcaption></figure>
         <figure class="shot tall">${pic('game-phone.webp', 'The same game on a phone', 780, 1560)}
-          <figcaption><b>On a phone.</b> At the oche, or added to your home screen.</figcaption></figure>
+          <figcaption><b>On a phone.</b> Right at the oche.</figcaption></figure>
       </div>
       <p>Every dart is called aloud, with the visit's total and what you require for a finish. And there are ${inWords(THEMES.length)} themes to choose from,
         from the pub chalkboard to big-stage TV graphics.</p>
     </section>
     <section>
-      <h2>How it compares</h2>
-      <p>What you would pay for elsewhere is free here. Where the others are ahead, we say so.</p>
-      ${compareTable()}
-      <p class="muted small">From Autodarts' and DartCounter's own websites on ${COMPARE_CHECKED}.
-        <a href="compare.html">The full comparison, with links to where they say it</a>.</p>
-    </section>
-    <section>
-      <h2>With cameras or without</h2>
-      <table class="ways">
-        <thead><tr><td></td><th scope="col">Tapping the board</th><th scope="col">With cameras</th></tr></thead>
-        <tbody>${WAYS.map(([what, ...ways]) => `<tr><th scope="row">${what}</th>${ways.map(w => `<td>${w}</td>`).join('')}</tr>`).join('')}</tbody>
-      </table>
-      <p>Everything else is the same either way: the caller, all ${inWords(GAMES.length)} games, the stats, TV view and the themes.
-        Both are free, with no adverts.</p>
+      <h2>Free, with cameras or without</h2>
+      <p>Tap the board or let the cameras score: everything else is the same. No paid plan and no adverts.</p>
       <p class="acts"><button class="primary" data-act="land-top">Sign in to play</button>
-        <a href="faq.html">Questions first? How it connects, how it works and what is stored</a></p>
+        <a href="faq.html">Questions first? Read the FAQ</a></p>
     </section>
     </main>
     ${siteFoot()}
