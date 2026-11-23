@@ -11,6 +11,7 @@ each signs in with Google, Apple or a code sent by email and has their own playe
 no cameras and must run without OpenCV installed. See docs/hosting.md.
 """
 import argparse
+import hmac
 import ipaddress
 import json
 import re
@@ -92,6 +93,7 @@ class Hello(BaseModel):
 MATCH_MOST = 4 * 2**20  # bytes in one game sent by an install
 ACCOUNT_MOST = 256 * 2**20  # bytes one account's (or install's) games may fill; past it nothing more is saved
 REPORTS_KEPT_MS = 60 * 24 * 3600 * 1000  # problem reports are deleted after 60 days
+REVIEW_WRONG = 50  # wrong codes for the reviewers' address before it stops working until a restart
 TALLY_KEPT = 60  # seconds the welcome page's totals stand before they are counted again
 
 
@@ -126,8 +128,11 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
     Android app from Google Play, {"package": "uk.co.dartssam.app", "fingerprints":
     ["AB:CD:..."]}: the SHA-256 fingerprints of the keys it is signed with (Play
     Console, Setup > App signing), so Android opens the site in the app without an
-    address bar (left out: no /.well-known/assetlinks.json); "dev", true when run
-    on a laptop over plain http."""
+    address bar (left out: no /.well-known/assetlinks.json); "review", sign-in
+    details for app store reviewers, who cannot be sent an email, {"email": "...",
+    "code": "123456"}: that address signs in by email with that fixed code, and is
+    sent no email (left out: no such address); "dev", true when run on a laptop over
+    plain http."""
     store = hoststore.Store(folder)
     relay = Relay()
     app = FastAPI()
@@ -135,6 +140,12 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
     store.expire_reports(REPORTS_KEPT_MS)
     code_tries, pairings, emails, installs = Tries(5), Tries(20), Tries(30), Tries(10)
     send_email = send_email or mail.sender(settings)
+    review = settings.get("review") or {}
+    review_sub = hoststore.email_sub(hoststore.clean_email(str(review["email"]))) if review.get("email") else None
+    review_code = str(review.get("code") or "")
+    if review_sub and not re.fullmatch(r"\d{6}", review_code):
+        raise ValueError('"review" "code" in the settings must be 6 digits, as the sign-in page takes')
+    review_wrong = [0]  # wrong codes typed for it since the site started: after REVIEW_WRONG it stops working
     site = str(settings.get("site") or "http://localhost:8000").rstrip("/")
     home = str(settings.get("home") or "").rstrip("/") or None
     if home == site:
@@ -258,6 +269,8 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
             address = hoststore.clean_email(body.email)
         except ValueError as e:
             raise HTTPException(400, str(e))
+        if hoststore.email_sub(address) == review_sub:
+            return {"sent": True}  # the reviewers were given the code: nothing is sent
         if not emails.another():
             raise HTTPException(429, "Too many sign-in emails just now. Try again in a minute.")
         sub = hoststore.email_sub(address)
@@ -274,7 +287,18 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
     @app.post("/auth/email")
     def email_code(body: EmailCode, response: Response):
         try:
-            who = store.use_email_code(hoststore.email_sub(body.email), body.code)
+            sub = hoststore.email_sub(body.email)
+        except ValueError:
+            sub = None
+        if sub is not None and sub == review_sub:
+            typed = "".join(ch for ch in body.code if ch.isdigit())
+            if review_wrong[0] < REVIEW_WRONG and code_tries.another("review") \
+                    and hmac.compare_digest(typed, review_code):
+                return enter(sub, None, False, response)
+            review_wrong[0] += 1
+            raise HTTPException(401, "That code isn't right, or it has run out. Check the email, or ask for a new one.")
+        try:
+            who = store.use_email_code(sub, body.code) if sub is not None else None
         except ValueError:
             who = None
         if who is None:

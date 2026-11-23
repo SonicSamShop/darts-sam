@@ -106,13 +106,32 @@ on the dashboard, with these answers.
 ### Privacy policy
 `https://app.dartssam.co.uk/privacy.html`
 
-### App access
-"All or some functionality is restricted". Instructions:
+### App access (now called "Sign in details")
+"Yes", some of the app is restricted. Google's reviewers won't make an account
+and can't be emailed a code, so the site keeps one email address that signs in
+with a fixed code and is sent nothing.
 
-> Sign in is needed. Use "Continue with Google" with any Google account, or
-> "Continue with email" with any email address (a code is emailed to it).
-> The account is made the first time you sign in. To try a game without a
-> dartboard, press Start, then tap the board where a dart landed.
+1. Pick an address for the reviewers (one you own, say a new
+   `+play` alias of your email) and any 6 digits. Keep both out of this repo.
+2. On the server, in `/etc/dartssam/host.json`, add:
+
+   ```json
+   "review": {"email": "the address", "code": "the 6 digits"},
+   ```
+
+   and restart the site: `systemctl restart dartssam-host`.
+3. Check it on your phone: **Continue with email**, the address, then the
+   6 digits. (After 50 wrong codes it stops working until the site restarts.)
+4. In Play Console, **Add details**:
+   - Instruction name: `Email sign-in`
+   - Username: the address. Password: the 6 digits.
+   - Any other information:
+
+     > Press "Continue with email", enter the username and press "Email me a code". No
+     > email arrives: type the password as the code and press Sign in. If the
+     > app asks for a name, type any name. To try a game without a dartboard,
+     > press Start, then tap the board where each dart landed.
+   - Tick "No other information is required to access my app".
 
 ### Ads
 No.

@@ -8,6 +8,7 @@
   "google_analytics_id": "",
   "analytics_skip_ips": [],
   "android": {"package": "uk.co.dartssam.app", "fingerprints": []},
+  "review": {"email": "", "code": ""},
   "admins": ["you@example.com"],
   "dev": false
 }

@@ -453,7 +453,36 @@ def main():
         assert mal.post("/auth/email/start", json={"email": "down@example.com"}).status_code == 502
         assert mal.post("/auth/email/start", json={"email": "down@example.com"}).status_code == 502
     analytics()
+    reviewers()
     print("OK")
+
+
+def reviewers():
+    """App store reviewers: one address signs in with a fixed code, and is sent nothing."""
+    post = []
+    with tempfile.TemporaryDirectory() as tmp:
+        base = {"google_client_id": "client-123", "dev": True}
+        try:
+            host.create(Path(tmp) / "x", {**base, "review": {"email": "play@example.com", "code": "12345"}})
+            raise AssertionError("took a 5-digit code")
+        except ValueError:
+            pass
+        app = host.create(Path(tmp), {**base, "review": {"email": "Play@Example.com", "code": "424242"}},
+                          check_google=check, send_email=lambda to, m: post.append(to))
+        rev, mal = TestClient(app), TestClient(app)
+        assert rev.post("/auth/email/start", json={"email": "play@example.com"}).json() == {"sent": True}
+        assert rev.post("/auth/email/start", json={"email": "play@example.com"}).json() == {"sent": True}  # no minute's wait
+        assert post == []
+        assert mal.post("/auth/email", json={"email": "play@example.com", "code": "000000"}).status_code == 401
+        r = rev.post("/auth/email", json={"email": " PLAY@example.com", "code": "424 242"})
+        assert r.status_code == 200 and r.json()["new"] is True and r.json()["account"]["admin"] is False
+        r = rev.post("/auth/email", json={"email": "play@example.com", "code": "424242"})  # good again, the same account
+        assert r.json()["new"] is False
+        assert mal.post("/auth/email", json={"email": "bad", "code": "424242"}).status_code == 401
+        # someone guessing: the code stops working
+        for _ in range(host.REVIEW_WRONG):
+            mal.post("/auth/email", json={"email": "play@example.com", "code": "111111"})
+        assert rev.post("/auth/email", json={"email": "play@example.com", "code": "424242"}).status_code == 401
 
 
 def analytics():

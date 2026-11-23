@@ -244,6 +244,10 @@ names the app's signing keys, at `/.well-known/assetlinks.json`. Add
 `/etc/dartssam/host.json`: [android.md](android.md), step 3, says where the
 fingerprints come from. Left out, that address answers 404.
 
+App store reviewers can't be emailed a sign-in code, so `"review": {"email":
+"...", "code": "123456"}` lets that one address sign in with that fixed code
+(and sends it nothing): [android.md](android.md), "App access", has the rest.
+
 ## 4. Start it
 
 ```bash
