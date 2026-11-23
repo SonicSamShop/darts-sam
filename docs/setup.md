@@ -224,7 +224,8 @@ tried:** real USB cameras with the built program.
 
 ## 4. Cameras
 
-USB cameras are found by themselves, on a Pi, a Mac or Windows. A camera you
+USB cameras are found by themselves, on a Pi, a Mac or Windows (where they
+are opened through DirectShow, so several can share one USB hub). A camera you
 don't want used (a laptop's own webcam) can be switched off on the app's
 **Cameras** screen. On a Pi a camera that comes back under another number
 after being replugged shows **No picture**: press **Look again**. Its

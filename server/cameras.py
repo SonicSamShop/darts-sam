@@ -11,6 +11,20 @@ import time
 import cv2
 
 
+def backend() -> int:
+    """Which OpenCV camera system opens USB cameras. V4L2 is Linux's (the
+    Raspberry Pi). On Windows it is DirectShow, not OpenCV's default Media
+    Foundation: Media Foundation starts each camera uncompressed before MJPG
+    can be asked for, and two uncompressed cameras sharing one USB hub don't
+    fit, so the second won't open and only one camera ever shows a picture.
+    DirectShow takes MJPG. On a Mac let OpenCV pick."""
+    if sys.platform == "linux":
+        return cv2.CAP_V4L2
+    if sys.platform == "win32":
+        return cv2.CAP_DSHOW
+    return cv2.CAP_ANY
+
+
 class Camera:
     def __init__(self, cam_id: int, device, width: int, height: int, fps: int):
         self.id = cam_id
@@ -28,13 +42,15 @@ class Camera:
             # A network stream, e.g. a phone running an "IP webcam" app:
             # http://192.168.1.50:8080/video. The phone decides size and rate.
             return cv2.VideoCapture(self.device)
-        # A USB camera. V4L2 is the Linux (Raspberry Pi) camera system; on a
-        # Mac or Windows laptop let OpenCV pick.
-        cap = cv2.VideoCapture(self.device, cv2.CAP_V4L2 if sys.platform == "linux" else cv2.CAP_ANY)
-        # MJPG is essential: three raw (YUYV) 720p streams won't fit on one USB bus.
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+        cap = cv2.VideoCapture(self.device, backend())
+        # MJPG is essential: three raw (YUYV) 720p streams won't fit on one USB
+        # bus. Asked for again after the size, as DirectShow can drop it when
+        # the size changes.
+        mjpg = cv2.VideoWriter_fourcc(*"MJPG")
+        cap.set(cv2.CAP_PROP_FOURCC, mjpg)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
+        cap.set(cv2.CAP_PROP_FOURCC, mjpg)
         cap.set(cv2.CAP_PROP_FPS, fps)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         return cap
@@ -73,7 +89,8 @@ def discover(max_index: int = 10) -> list[int]:
     linux = sys.platform == "linux"
     misses = 0
     for i in range(max_index):
-        cap = cv2.VideoCapture(i, cv2.CAP_V4L2 if linux else cv2.CAP_ANY)
+        # The same camera system as Camera uses, so the numbers match.
+        cap = cv2.VideoCapture(i, backend())
         if cap.isOpened() and cap.read()[0]:
             found.append(i)
             misses = 0

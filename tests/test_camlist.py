@@ -34,6 +34,46 @@ def discover_off_the_pi():
         cameras.cv2.VideoCapture, cameras.sys.platform = real
 
 
+def windows_uses_directshow():
+    """On Windows OpenCV's default (Media Foundation) starts each camera
+    uncompressed, so only one fits through a USB hub: DirectShow takes MJPG.
+    Finding and opening must use the same system, or the numbers differ."""
+    from server import cameras
+
+    class Cap:
+        used = []
+
+        def __init__(self, index, backend=None):
+            Cap.used.append(backend)
+
+        def isOpened(self):
+            return False
+
+        def read(self):
+            return False, None
+
+        def set(self, *a):
+            return True
+
+        def release(self):
+            pass
+
+    real = cameras.cv2.VideoCapture, cameras.sys.platform
+    cameras.cv2.VideoCapture, cameras.sys.platform = Cap, "win32"
+    try:
+        cameras.discover()
+        cam = cameras.Camera.__new__(cameras.Camera)  # without its thread
+        cam.device, cam._size = 0, (1280, 720, 15)
+        cam._open()
+        assert Cap.used and set(Cap.used) == {cameras.cv2.CAP_DSHOW}
+        cameras.sys.platform = "linux"
+        assert cameras.backend() == cameras.cv2.CAP_V4L2
+        cameras.sys.platform = "darwin"
+        assert cameras.backend() == cameras.cv2.CAP_ANY
+    finally:
+        cameras.cv2.VideoCapture, cameras.sys.platform = real
+
+
 def main():
     assert camlist.name(2) == "usb:2"
     assert camlist.name("http://192.168.1.50:8080/video") == "http://192.168.1.50:8080/video"
@@ -71,6 +111,7 @@ def main():
     cal = {"0": "old", "usb:0": "new"}
     assert camlist.adopt(cal, ["usb:0"]) is False and cal == {"0": "old", "usb:0": "new"}
     discover_off_the_pi()
+    windows_uses_directshow()
     print("OK")
 
 
