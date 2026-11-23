@@ -7,6 +7,7 @@
   "analytics_token": "",
   "google_analytics_id": "",
   "analytics_skip_ips": [],
+  "android": {"package": "uk.co.dartssam.app", "fingerprints": []},
   "admins": ["you@example.com"],
   "dev": false
 }

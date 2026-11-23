@@ -119,7 +119,11 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
     "google_analytics_id", the G-... measurement ID of Google Analytics (left out: no
     Google Analytics; when set, each page asks before counting: web/consent.js);
     "analytics_skip_ips", addresses (or ranges, like "2a00:1:2:3::/64") whose visits
-    are not counted: pages sent to them carry neither counter; "dev", true when run
+    are not counted: pages sent to them carry neither counter; "android", the
+    Android app from Google Play, {"package": "uk.co.dartssam.app", "fingerprints":
+    ["AB:CD:..."]}: the SHA-256 fingerprints of the keys it is signed with (Play
+    Console, Setup > App signing), so Android opens the site in the app without an
+    address bar (left out: no /.well-known/assetlinks.json); "dev", true when run
     on a laptop over plain http."""
     store = hoststore.Store(folder)
     relay = Relay()
@@ -595,6 +599,26 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
         return Response(json.dumps({"version": web_version(WEB), "release": b["version"], "build": b["build"],
                                     "commit": b["commit"]}), media_type="application/json",
                         headers={"Cache-Control": "no-cache"})
+
+    # ---------- the Android app proving the site is its own (no signing in needed) ----------
+    android = settings.get("android") or {}
+    android_package = str(android.get("package") or "")
+    android_keys = [str(f).upper() for f in android.get("fingerprints") or []]
+    for f in android_keys:
+        if not re.fullmatch(r"([0-9A-F]{2}:){31}[0-9A-F]{2}", f):
+            raise ValueError(f'"android" "fingerprints" in the settings: {f!r} is not a SHA-256 fingerprint (AB:CD:... 32 pairs)')
+    if android_keys and not re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+", android_package):
+        raise ValueError(f'"android" "package" in the settings: {android_package!r} is not an Android package name')
+
+    @app.get("/.well-known/assetlinks.json")
+    def assetlinks():
+        """Digital Asset Links: the Android app (a Trusted Web Activity, see
+        android/README.md) shows the site full screen only when the site names it here."""
+        if not android_keys:
+            raise HTTPException(404, "No Android app.")
+        return [{"relation": ["delegate_permission/common.handle_all_urls"],
+                 "target": {"namespace": "android_app", "package_name": android_package,
+                            "sha256_cert_fingerprints": android_keys}}]
 
     vision_files(app)
     app.mount("/", WebFiles(directory=WEB, html=True, head=page_head), name="web")

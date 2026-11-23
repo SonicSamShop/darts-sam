@@ -107,6 +107,7 @@ that are plugged in, and runs happily with none.
 | [How a dart is found](docs/detection.md) | From a camera's picture to "treble 20", problem reports, and the numbers to tune. |
 | [How the code is laid out](docs/architecture.md) | Which file does what, and how a dart gets to the screen. |
 | [Running the hosted site](docs/hosting.md) | A site of your own: a server from nothing to running, backups, the admin pages. |
+| [The Android app](docs/android.md) | Making the Google Play app, the site's link to it, and the Play Console answers. |
 | [Releasing a new version](docs/releasing.md) | Version numbers, the builds, signed updates. |
 | [Contributing](CONTRIBUTING.md) | Getting it running, the tests, how the code is written. |
 

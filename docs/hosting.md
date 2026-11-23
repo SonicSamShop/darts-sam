@@ -225,6 +225,14 @@ site's pages (`/faq.html`, `/download.html`) and the app's screens (`/menu`,
 `/stats`, `/settings/players`, `/game/501`, `/cameras`); `/` is the welcome
 page. Only the kind of screen is sent, never names, scores or which game.
 
+### The Android app
+
+The Google Play app opens this site without an address bar only once the site
+names the app's signing keys, at `/.well-known/assetlinks.json`. Add
+`"android": {"package": "uk.co.dartssam.app", "fingerprints": [...]}` to
+`/etc/dartssam/host.json`: [android.md](android.md), step 3, says where the
+fingerprints come from. Left out, that address answers 404.
+
 ## 4. Start it
 
 ```bash

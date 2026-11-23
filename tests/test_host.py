@@ -32,6 +32,27 @@ def check(credential, client_id):
     return PEOPLE[credential]
 
 
+def android_links():
+    """The Android app's link to the site: only when set up, and only good fingerprints."""
+    key = ":".join(["ab"] * 32)
+    with tempfile.TemporaryDirectory() as tmp:
+        base = {"google_client_id": "client-123", "dev": True}
+        app = host.create(Path(tmp), {**base, "android": {"package": "uk.co.dartssam.app", "fingerprints": [key]}},
+                          check_google=check)
+        r = TestClient(app).get("/.well-known/assetlinks.json")
+        assert r.status_code == 200 and r.headers["content-type"] == "application/json", r
+        assert r.json() == [{"relation": ["delegate_permission/common.handle_all_urls"],
+                             "target": {"namespace": "android_app", "package_name": "uk.co.dartssam.app",
+                                        "sha256_cert_fingerprints": [key.upper()]}}], r.json()
+        for bad in ({"package": "uk.co.dartssam.app", "fingerprints": ["AB:CD"]},
+                    {"package": "not a package", "fingerprints": [key]}):
+            try:
+                host.create(Path(tmp), {**base, "android": bad}, check_google=check)
+            except ValueError:
+                continue
+            raise AssertionError(f"took {bad}")
+
+
 def main():
     with tempfile.TemporaryDirectory() as tmp:
         settings = {"google_client_id": "client-123", "admins": ["bob@example.com", "eve@example.com"], "dev": True,
@@ -59,6 +80,7 @@ def main():
         assert nobody.patch("/api/me", json={"nickname": "x"}).status_code == 401
         assert nobody.delete("/api/me").status_code == 401
         assert nobody.get("/version.json").status_code == 200
+        assert nobody.get("/.well-known/assetlinks.json").status_code == 404  # no Android app set up here
         assert "<html" in nobody.get("/").text.lower()
         # the apps to download: only what has been put in the folder, and only by the names the page knows
         assert nobody.get("/api/downloads").json() == {"downloads": []}
@@ -479,3 +501,4 @@ def analytics():
 
 if __name__ == "__main__":
     main()
+    android_links()

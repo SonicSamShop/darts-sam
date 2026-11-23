@@ -10,8 +10,11 @@ host.json
 data/
 downloads/
 
-# https certificates and keys
+# https certificates and keys, and the Android app's signing key (docs/android.md)
 *.pem
+*.keystore
+*.jks
+signing-key-info.txt
 
 # What building the desktop app leaves behind
 build/
