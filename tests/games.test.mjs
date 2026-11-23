@@ -390,9 +390,11 @@ test('121 checkout: an attempt ends as soon as it cannot be finished', () => {
   const M = D(0, 0);
   let s = play('c121', ['A'], o, [D(20, 3), D(20)]);             // 41 left with one dart: no way out
   assert.deepEqual(s.results[0], [{ target: 121, ok: false, darts: 3 }]);
-  assert.equal(s.bust, 0); assert.equal(s.turn.length, 0); assert.equal(s.left[0], 121);
+  // Not a bust: it is called "Can't check out", and the darts thrown still count.
+  assert.equal(s.noOut, 0); assert.equal(s.bust, null); assert.equal(s.turn.length, 0); assert.equal(s.left[0], 121);
+  assert.ok(s.throws.every(t => !t.bust));
   s = play('c121', ['A'], o, [M]);                               // 121 with two darts
-  assert.equal(s.results[0].length, 1); assert.equal(s.bust, 0);
+  assert.equal(s.results[0].length, 1); assert.equal(s.noOut, 0);
   s = play('c121', ['A'], o, [D(20, 3), D(1)]);                  // 60 left: still not one dart
   assert.equal(s.results[0].length, 1);
   s = play('c121', ['A'], o, [D(20, 3), D(11)]);                 // 50 left: the bull is on
@@ -402,7 +404,9 @@ test('121 checkout: an attempt ends as soon as it cannot be finished', () => {
   s = play('c121', ['A'], { ...o, darts: 6 }, [M, M, M, D(20, 3), D(20)]);  // the last visit of two
   assert.deepEqual(s.results[0], [{ target: 121, ok: false, darts: 6 }]);
   s = play('c121', ['A', 'B'], o, [D(20, 3), D(20)]);            // straight on to the next player
-  assert.equal(s.current, 1); assert.equal(s.bust, 0);
+  assert.equal(s.current, 1); assert.equal(s.noOut, 0);
+  s = play('c121', ['A'], o, [D(20, 3), D(20, 3)]);              // going over is still a bust
+  assert.equal(s.bust, 0); assert.equal(s.noOut, null);
 });
 
 test('match clock: runs until the winning dart, then stops', () => {

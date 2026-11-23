@@ -108,7 +108,7 @@ export default {
       settle(s, true);
       if (s.winner == null) s.turnOver = true;  // pull the darts before the next target
     } else if (!stillOn(s) && s.turn.length < 3) {
-      s.note = 'BUST';  // no way out with the darts in hand: the visit ends here
+      s.note = 'NO_OUT';  // no way out with the darts in hand: the visit ends here (not a bust: they scored)
     }
   },
 

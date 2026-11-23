@@ -1,6 +1,8 @@
 {
   "version": "1.7.3",
-  "unreleased": [],
+  "unreleased": [
+    "121 Checkout now says \"Can't check out\" when the darts you have left can't finish what's left, instead of \"Bust\", and those darts still count."
+  ],
   "notes": {
     "1.0": [
       "First release."

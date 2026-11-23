@@ -456,6 +456,8 @@ svg.heat .b-num { fill: #d9dce3; }
 .vflash.bust { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, var(--panel)); }
 .vflash.bust .name, .vflash.bust .big { color: var(--warn); }
 .flash.bust { color: var(--warn); }
+.vflash.noout .big { font-size: 56px; }
+.flash.noout { font-size: 0.5em; }
 .turn { display: grid; grid-template-columns: repeat(3, 1fr) 1.1fr; gap: 8px; }
 .slot { background: var(--panel); border-radius: var(--round); text-align: center; padding: 12px 4px; font-family: var(--display); font-size: 26px; font-weight: 700; min-height: 62px; }
 .slot.empty { color: var(--line); }

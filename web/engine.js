@@ -153,6 +153,14 @@ function throwDart(game, s, ev) {
     s.bust = who;
     return true;
   }
+  if (s.note === 'NO_OUT') {
+    // The darts in hand can't finish what is left (121 Checkout): the visit
+    // ends there like a bust, but what was thrown still counts.
+    const who = s.current;
+    advance(game, s);
+    s.noOut = who;
+    return true;
+  }
   if (s.newLeg && s.winner == null) {
     // The leg is won but not the match: straight on to whoever starts the
     // next leg. The winning darts stay on show as the last visit.
@@ -178,6 +186,7 @@ export function compute(match) {
     players: match.players, opts: match.opts,
     current: 0, round: 1, turn: [], turnOver: false, winner: null, note: '', throws: [],
     bust: null,  // who just went bust, while that is still the last thing that happened
+    noOut: null, // who just couldn't check out with the darts left (121 Checkout), likewise
     // {player, total} of a typed visit, or {player, total, darts, auto} of three
     // darts, while that is still the last thing. auto: play moved on by itself.
     lastVisit: null,
@@ -190,6 +199,7 @@ export function compute(match) {
     if (s.winner != null) break;
     const movedOn = s.lastVisit?.auto;
     s.bust = null;
+    s.noOut = null;
     s.lastVisit = null;
     s.legWon = null;
     if (ev.t === 'next') {

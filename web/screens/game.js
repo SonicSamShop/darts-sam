@@ -90,17 +90,18 @@ export const flashOn = () => settings.visitFlash !== false;
 function visitFlash(game, before, after) {
   if (!flashOn() || game.showTotal === false || after.winner != null) return null;
   if (after.bust != null) return { player: after.bust, text: 'Bust', bust: true };
+  if (after.noOut != null) return { player: after.noOut, text: "Can't check out", bust: true, noOut: true };
   if (after.lastVisit) return { player: after.lastVisit.player, text: after.lastVisit.total };
   if (after.turnOver && !before.turnOver) return { player: after.current, text: after.turn.reduce((t, d) => t + value(d), 0) };
   return null;
 }
 // What player i's score on the TV scoreboard shows just now: the visit's flash, or their score as usual.
 const bigOf = (i, usual) => flash?.player === i
-  ? `<span class="flash${flash.bust ? ' bust' : ''}">${flash.text}</span>` : usual;
+  ? `<span class="flash${flash.bust ? ' bust' : ''}${flash.noOut ? ' noout' : ''}">${flash.text}</span>` : usual;
 // The panel that stands in for the player cards while the flash is on.
-const flashHtml = s => `<div class="vflash${flash.bust ? ' bust' : ''}" role="status">
+const flashHtml = s => `<div class="vflash${flash.bust ? ' bust' : ''}${flash.noOut ? ' noout' : ''}" role="status">
   ${s.players.length > 1 ? `<div class="name">${esc(s.players[flash.player])}</div>` : ''}
-  <div class="big">${flash.text}</div><div class="small">${flash.bust ? 'Scores nothing' : 'Scored this visit'}</div></div>`;
+  <div class="big">${flash.text}</div><div class="small">${flash.noOut ? 'Not enough darts left' : flash.bust ? 'Scores nothing' : 'Scored this visit'}</div></div>`;
 
 // ---------- match actions ----------
 export function push(ev) {
@@ -135,6 +136,8 @@ export function push(ev) {
     rest = [`Game shot, and the ${after.legWon.set ? 'set' : 'leg'}, ${after.players[after.legWon.player]}`, require];
   } else if (after.bust != null) {
     rest = ['Bust', require];  // play has already moved on
+  } else if (after.noOut != null) {
+    rest = ["Can't check out", require];
   } else if (after.lastVisit) {
     // Play has already moved on. Games where the sum means nothing skip the total.
     rest = [game.showTotal === false ? '' : after.lastVisit.total, require];
@@ -336,6 +339,8 @@ export function renderGame() {
   else if (s.legWon) banner = `<div class="banner win">${s.legWon.set ? 'Set' : 'Leg'} to ${esc(s.players[s.legWon.player])}!${
     s.players.length > 1 ? ` ${esc(s.players[s.current])} throws first` : ''}</div>`;
   else if (s.bust != null) banner = `<div class="banner bust">Bust!${s.players.length > 1
+    ? ` ${esc(s.players[s.current])} to throw` : ''}</div>`;
+  else if (s.noOut != null) banner = `<div class="banner bust">Can't check out!${s.players.length > 1
     ? ` ${esc(s.players[s.current])} to throw` : ''}</div>`;
 
   document.querySelector('.side').innerHTML = `
