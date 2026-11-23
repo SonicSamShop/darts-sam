@@ -51,9 +51,11 @@ def old_database(path: Path, settings: dict | None):
         db.save_match("old2", match(1, [sam["id"]], [throw(0, 1, 20, 1)], started=9000))
         if settings is not None:
             db.set_setting("settings", settings)
-    with sqlite3.connect(path) as c:  # back to before boards
+    c = sqlite3.connect(path)
+    with c:  # back to before boards
         c.execute("DROP TABLE boards")
         c.execute("ALTER TABLE matches DROP COLUMN board")
+    c.close()  # `with` only commits; an open file can't be deleted on Windows
 
 
 def test_first_board_from_settings(tmp):
