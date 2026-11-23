@@ -1,6 +1,8 @@
 {
   "version": "1.7.1",
-  "unreleased": [],
+  "unreleased": [
+    "A camera you switched off can be switched back on while other cameras are running: Add a camera lists it with Use this camera. Before, the app said no new camera was found."
+  ],
   "notes": {
     "1.0": [
       "First release."

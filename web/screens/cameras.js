@@ -150,6 +150,7 @@ function camSetup(status, cam) {
         <button class="game-card" data-act="cam-usb"><b>USB camera</b><span>A webcam plugged in by the board. What most people use.</span></button>
         ${status.fixed ? '' : '<button class="game-card" data-act="cam-phone"><b>Phone or network camera</b><span>A phone running an IP-webcam app, on the same Wi-Fi.</span></button>'}
       </div>
+      ${cam ? `${offRows('usb')}${offRows('added')}` : ''}
       ${cam ? '' : '<p class="camskip"><button class="ghost" data-act="home">No camera: score by tapping the board</button></p>'}
       ${!cam && account.hosted && account.helper ? `<div class="row camlink">${unpairButton()}</div>` : ''}`;
   return `<div class="camsetup fill">${back ? `<div class="row">${back}</div>` : ''}<div class="camwizard">${step}</div></div>`;
@@ -179,7 +180,11 @@ export async function usbChosen() {
   if (camScreen.first) { camScreen.first = false; return void changeCameras('/cameras/refresh'); }
   const now = await changeCameras('/cameras/refresh');
   if (now && now.cameras.length <= had && onCamerasTab()) {
-    camScreen.note = 'No new camera found. Check it is plugged in, then try Add a camera again.';
+    // A camera that was switched off isn't new: stay on Add a camera, which lists them to switch back on.
+    const off = (now.off ?? []).some(o => o.kind !== 'added');
+    camScreen.adding = off;
+    camScreen.note = off ? 'No new camera found. Is it one you switched off? Press Use this camera to have it back.'
+      : 'No new camera found. Check it is plugged in, then try Add a camera again.';
     drawCameras(now);
   }
 }
