@@ -42,9 +42,11 @@ def windows_uses_directshow():
 
     class Cap:
         used = []
+        params = []
 
-        def __init__(self, index, backend=None):
+        def __init__(self, index, backend=None, params=None):
             Cap.used.append(backend)
+            Cap.params.append(params)
 
         def isOpened(self):
             return False
@@ -66,6 +68,10 @@ def windows_uses_directshow():
         cam.device, cam._size = 0, (1280, 720, 15)
         cam._open()
         assert Cap.used and set(Cap.used) == {cameras.cv2.CAP_DSHOW}
+        # MJPG, size and rate go in the open call: DirectShow ignores them set after.
+        cv2 = cameras.cv2
+        assert [cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"), cv2.CAP_PROP_FRAME_WIDTH, 1280,
+                cv2.CAP_PROP_FRAME_HEIGHT, 720, cv2.CAP_PROP_FPS, 15] in Cap.params
         cameras.sys.platform = "linux"
         assert cameras.backend() == cameras.cv2.CAP_V4L2
         cameras.sys.platform = "darwin"

@@ -17,12 +17,38 @@ def backend() -> int:
     Foundation: Media Foundation starts each camera uncompressed before MJPG
     can be asked for, and two uncompressed cameras sharing one USB hub don't
     fit, so the second won't open and only one camera ever shows a picture.
-    DirectShow takes MJPG. On a Mac let OpenCV pick."""
+    DirectShow takes MJPG (see open_usb). On a Mac let OpenCV pick."""
     if sys.platform == "linux":
         return cv2.CAP_V4L2
     if sys.platform == "win32":
         return cv2.CAP_DSHOW
     return cv2.CAP_ANY
+
+
+def open_usb(index: int, w: int, h: int, fps: int):
+    """Open a USB camera in MJPG at w x h. MJPG is essential: three raw (YUYV)
+    720p streams won't fit on one USB bus.
+
+    On Windows DirectShow only takes MJPG, size and rate when they are passed
+    in the open call: set afterwards, each camera has already started
+    uncompressed, so behind one USB 2 hub only one of three gives pictures.
+    If a camera won't open that way, it is opened plainly and asked after."""
+    mjpg = cv2.VideoWriter_fourcc(*"MJPG")
+    if sys.platform == "win32":
+        params = [cv2.CAP_PROP_FOURCC, mjpg, cv2.CAP_PROP_FRAME_WIDTH, w,
+                  cv2.CAP_PROP_FRAME_HEIGHT, h, cv2.CAP_PROP_FPS, fps]
+        cap = cv2.VideoCapture(index, backend(), params)
+        if cap.isOpened():
+            return cap
+        cap.release()
+    cap = cv2.VideoCapture(index, backend())
+    cap.set(cv2.CAP_PROP_FOURCC, mjpg)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
+    cap.set(cv2.CAP_PROP_FOURCC, mjpg)  # DirectShow can drop it when the size changes
+    cap.set(cv2.CAP_PROP_FPS, fps)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    return cap
 
 
 class Camera:
@@ -42,18 +68,7 @@ class Camera:
             # A network stream, e.g. a phone running an "IP webcam" app:
             # http://192.168.1.50:8080/video. The phone decides size and rate.
             return cv2.VideoCapture(self.device)
-        cap = cv2.VideoCapture(self.device, backend())
-        # MJPG is essential: three raw (YUYV) 720p streams won't fit on one USB
-        # bus. Asked for again after the size, as DirectShow can drop it when
-        # the size changes.
-        mjpg = cv2.VideoWriter_fourcc(*"MJPG")
-        cap.set(cv2.CAP_PROP_FOURCC, mjpg)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
-        cap.set(cv2.CAP_PROP_FOURCC, mjpg)
-        cap.set(cv2.CAP_PROP_FPS, fps)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        return cap
+        return open_usb(self.device, w, h, fps)
 
     def _run(self):
         cap = None
@@ -79,7 +94,7 @@ class Camera:
         self._thread.join(timeout)
 
 
-def discover(max_index: int = 10) -> list[int]:
+def discover(max_index: int = 10, size: tuple = (1280, 720, 15)) -> list[int]:
     """Find the camera numbers that deliver pictures. On Linux (the Pi) each
     UVC camera usually exposes two /dev/video nodes, only one of which does, so
     every number is tried. On a Mac or Windows cameras are numbered from 0
@@ -89,8 +104,10 @@ def discover(max_index: int = 10) -> list[int]:
     linux = sys.platform == "linux"
     misses = 0
     for i in range(max_index):
-        # The same camera system as Camera uses, so the numbers match.
-        cap = cv2.VideoCapture(i, backend())
+        # The same camera system as Camera uses, so the numbers match. On
+        # Windows opened just as Camera opens it, so a camera that only gives
+        # pictures in MJPG isn't missed.
+        cap = open_usb(i, *size) if sys.platform == "win32" else cv2.VideoCapture(i, backend())
         if cap.isOpened() and cap.read()[0]:
             found.append(i)
             misses = 0
