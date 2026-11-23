@@ -225,6 +225,17 @@ site's pages (`/faq.html`, `/download.html`) and the app's screens (`/menu`,
 `/stats`, `/settings/players`, `/game/501`, `/cameras`); `/` is the welcome
 page. Only the kind of screen is sent, never names, scores or which game.
 
+### Search engines
+
+Nothing to set. With `"home"` and `"site"` at different addresses, search
+engines are asked to list the home address only: everything at the app's
+address says `X-Robots-Tag: noindex`, each page names its home-address copy
+(`<link rel="canonical">`), and `/robots.txt` points to `/sitemap.xml` at the
+home address. Every page carries a preview card for links shared in chats and
+posts, with the picture `web/shots/share.jpg` (all in `server/seo.py`).
+[search.md](search.md) is what to do outside the site to be found:
+Search Console, the store listings, links.
+
 ### The Android app
 
 The Google Play app opens this site without an address bar only once the site
@@ -262,18 +273,25 @@ Caddy fetches the https certificate by itself within a minute. Open
 Everything the site keeps is in `/var/lib/dartssam`: `host.db` (accounts and
 sign-ins), `accounts/<id>/darts.db` (each account's games) and
 `reports/<id>/` (the problem reports people sent). The backup is of the
-databases. It leaves the reports out: they are big, and deleted after 60 days.
+databases and the board pictures kept beside them (`accounts/<id>/darts.photos/`,
+taken when a dart earns an achievement). It leaves the reports out: they are
+big, and deleted after 60 days.
 
 ```bash
-runuser -u dartssam -- /opt/dartssam/tools/backup.sh      # prints the file it made
+runuser -u dartssam -- /opt/dartssam/tools/backup.sh
+# /var/backups/dartssam/dartssam-2026-11-23_031500.tar.gz: 12 databases checked, 4 pictures
 ```
 
 It writes a dated `.tar.gz` to `/var/backups/dartssam` and keeps the newest 14.
-Run it every night:
+Each new file is unpacked again and every database in it checked, so a backup
+that couldn't be restored is found the night it is made; anything wrong and it
+stops with a message. Run it every night, its messages going to the system log:
 
 ```bash
-echo '15 3 * * * dartssam /opt/dartssam/tools/backup.sh >/dev/null' | tee /etc/cron.d/dartssam-backup
+echo '15 3 * * * dartssam /opt/dartssam/tools/backup.sh 2>&1 | logger -t dartssam-backup' | tee /etc/cron.d/dartssam-backup
 ```
+
+`journalctl -t dartssam-backup` shows what each night's run said.
 
 **A backup that only exists on the server is lost with the server.** After
 making the file the script runs `/etc/dartssam/after-backup`, if there is one,
@@ -287,6 +305,12 @@ chmod 755 /etc/dartssam/after-backup
 
 ### Restoring
 
+Check the file first (any backup, including one fetched back from elsewhere):
+
+```bash
+/opt/dartssam/tools/backup.sh --check /var/backups/dartssam/dartssam-DATE.tar.gz
+```
+
 ```bash
 systemctl stop dartssam-host
 mv /var/lib/dartssam /var/lib/dartssam.old
@@ -297,6 +321,45 @@ systemctl start dartssam-host
 
 (The archive holds one folder called `dartssam`, so unpacking it in `/var/lib`
 puts it back where it was.)
+
+### Being told
+
+Two free services email you when something is wrong, so you don't have to look.
+
+**The site is down, or its disk nearly full.** `https://app.dartssam.co.uk/api/health`
+answers `{"ok":true}` while all is well, and fails (503) when the disk has less
+than 2 GB free or the accounts' database won't open. A full disk stops games
+being saved and backups being made. (`"disk_low_mb"` in `host.json` moves the
+line; it is 2048 if left out.) Have a checker look at it every few minutes:
+
+1. Make a free account at [uptimerobot.com](https://uptimerobot.com).
+2. **New monitor**: type **HTTP(s)**, URL `https://app.dartssam.co.uk/api/health`,
+   every 5 minutes, alerts to your email.
+3. It shows **Up** within a few minutes. It emails when the site stops
+   answering, or answers 503, and again when it is back.
+
+If it emails about the disk, `df -h /var/lib/dartssam` and
+`du -sh /var/lib/dartssam/* /var/backups/dartssam` show what has filled it.
+
+**A night's backup failed, or never ran.** The backup script tells
+[healthchecks.io](https://healthchecks.io) each time it finishes with nothing wrong
+(after `after-backup`, if there is one, has sent the file away too). Healthchecks
+emails when a day goes by without hearing from it.
+
+1. Make a free account at healthchecks.io. Add a check called `Darts S.A.M backup`:
+   **Period** 1 day, **Grace time** 2 hours.
+2. Copy its ping address (`https://hc-ping.com/` and a long code). It is like a
+   password: whoever has it could say a backup went well.
+3. On the server, put it in a file only the site's user can read, and run a backup:
+
+   ```bash
+   install -o dartssam -g dartssam -m 600 /dev/null /etc/dartssam/backup-ping
+   nano /etc/dartssam/backup-ping      # paste the address, Ctrl+O, Enter, Ctrl+X
+   runuser -u dartssam -- /opt/dartssam/tools/backup.sh
+   ```
+
+   The check on healthchecks.io turns green. If it emails later, `journalctl -t
+   dartssam-backup` says what the last run said.
 
 ## 6. Updating
 

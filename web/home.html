@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b1b11">
+<meta name="description" content="Darts S.A.M is a free darts autoscorer: two or three webcams score every dart, or tap the board instead. Open source, no adverts, on any phone, tablet or TV.">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon.png">
+<script src="theme.js"></script>  <!-- the saved look, and a head start on its lettering -->
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="themes.css">
+<title>Darts S.A.M · free darts autoscorer with webcams</title>
+</head>
+<body data-front>
+<!-- The home page at its own address (dartssam.co.uk): the server sends this for / there
+     (server/seo.py). It is the welcome page of renderLanding (web/screens/landing.js) written out
+     as plain HTML, so search engines and link previews can read it without running the app:
+     change one, change the other. "Fourteen games" and "five themes" are GAMES (web/games/index.js)
+     and THEMES (web/app.js) counted. There is no app here and no service worker: "Open the app"
+     goes to "play", which the server sends on to the app's address. -->
+<div id="app"><div class="site">
+  <header class="site-head"><a class="brand" href="./"><b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span></a>
+    <nav class="site-nav" aria-label="Darts S.A.M"><a href="faq.html">FAQ</a><a href="download.html">Download</a><a href="releases.html">What's new</a><a href="opensource.html">Open source</a>
+      <a href="play" class="go">Sign in</a></nav></header>
+  <main>
+  <div class="intro">
+    <div>
+      <h1>A free darts autoscorer that uses the webcams you have</h1>
+      <p class="lead">Point two or three webcams at the board and Darts S.A.M sees where each dart lands. No cameras? Tap the board instead.
+        Either way it calls every dart, does the adding up and keeps your stats.</p>
+      <div class="signin-box" id="signin">
+        <h2>Play in your browser. It's free.</h2>
+        <form action="play"><button class="primary start">Open the app</button></form>
+        <p class="muted small">Signing in takes one tap: no forms to fill in.
+          <a href="privacy.html">What is stored about you</a></p>
+      </div>
+    </div>
+    <figure class="shot"><img src="shots/game.webp" alt="A game of 501 in Darts S.A.M: the scores beside the board" width="1800" height="1125">
+      <figcaption>A game of 501: the scores chalked up beside the board, and each dart marked where it landed.</figcaption></figure>
+  </div>
+  <a class="tally" id="tally" href="faq.html#numbers" hidden></a>
+  <section class="intro">
+    <div>
+      <h2>Scoring by camera</h2>
+      <p>USB webcams round the board watch for each dart, work out where it landed and move on to the next player when the darts are pulled out.
+        There is nothing to stick on the board: each camera finds the wires by itself, once, when you set it up.</p>
+      <p>The cameras plug into a Mac, Windows or Linux computer near the board, and every phone, tablet and TV you sign in on follows along.
+        <a href="autoscoring.html">How the autoscoring works, and what you need</a>.</p>
+      <div class="acts"><form action="download.html"><button class="primary">Download for Mac, Windows or Linux</button></form>
+        <a href="faq.html#connect">How to set it up</a></div>
+    </div>
+    <figure class="shot"><img src="shots/camera.webp" alt="A webcam's picture of a dartboard, with every wire and number drawn over it in green" width="1280" height="720" loading="lazy">
+      <figcaption>What one camera sees: a real board, with its wires and numbers drawn where Darts S.A.M found them.</figcaption></figure>
+  </section>
+  <section>
+    <h2>Fourteen games</h2>
+    <p>Including X01, Cricket, Killer, Around the Clock and Bob's 27, for a match with friends or practice on your own.
+      <a href="rules.html">See them all and how to play each one</a>.</p>
+  </section>
+  <section>
+    <h2>Stats, the telly and your phone</h2>
+    <div class="row3">
+      <figure class="shot"><img src="shots/stats.webp" alt="Stats: averages, checkout rate and a heat map" width="1800" height="1125" loading="lazy">
+        <figcaption><b>Stats for every player.</b> Three-dart and first-nine averages, checkout rate, highest checkout and 180s,
+          and a heat map of where your darts land. Tap any number to see the legs behind it.</figcaption></figure>
+      <figure class="shot"><img src="shots/tv.webp" alt="TV view: the board with the scores along the bottom" width="1800" height="1125" loading="lazy">
+        <figcaption><b>TV view.</b> The board gets the screen and the scores run along the bottom, the way a match is shown on television.</figcaption></figure>
+      <figure class="shot tall"><img src="shots/game-phone.webp" alt="The same game on a phone" width="780" height="1560" loading="lazy">
+        <figcaption><b>On a phone.</b> At the oche, or added to your home screen.</figcaption></figure>
+    </div>
+    <p>Every dart is called aloud, with the visit's total and what you require for a finish. And there are five themes to choose from,
+      from the pub chalkboard to big-stage TV graphics.</p>
+  </section>
+  <section>
+    <h2>With cameras or without</h2>
+    <table class="ways">
+      <thead><tr><td></td><th scope="col">Tapping the board</th><th scope="col">With cameras</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">What you need</th><td>A phone, tablet, TV or computer</td><td>Also a Mac, Windows or Linux PC and two or three webcams</td></tr>
+        <tr><th scope="row">Scoring</th><td>Tap the board or type the visit</td><td>The cameras score each dart. Tap to put one right</td></tr>
+        <tr><th scope="row">Without the internet</th><td>Once on your home screen</td><td>Needs the internet</td></tr>
+      </tbody>
+    </table>
+    <p>Everything else is the same either way: the caller, all fourteen games, the stats, TV view and the themes.
+      Both are free, with no adverts. If you are weighing it up against the others, here is
+      <a href="compare.html">how it compares with Autodarts and DartCounter</a>.</p>
+    <div class="acts"><form action="play"><button class="primary">Sign in to play</button></form>
+      <a href="faq.html">Questions first? How it connects, how it works and what is stored</a></div>
+  </section>
+  </main>
+  <footer class="site-foot">
+    <p>Darts S.A.M is free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>.
+      Copyright © 2026 Sam Cramphorn. <a href="https://github.com/SonicSamShop/darts-sam" target="_blank" rel="noopener">The source code is on GitHub</a>.</p>
+    <p><a href="faq.html">FAQ</a> · <a href="rules.html">How to play</a> · <a href="autoscoring.html">How autoscoring works</a> · <a href="compare.html">Compared with Autodarts and DartCounter</a> · <a href="download.html">Download</a> · <a href="releases.html">What's new</a> · <a href="opensource.html">Open source</a> · <a href="privacy.html">What is stored about you</a></p>
+  </footer>
+</div></div>
+<script>
+// "Sign in" on the other pages leads to ./#signin: here that means the app's own sign-in.
+if (location.hash === '#signin') location.replace('play');
+
+// Everyone's darts between them, as the site counts them (GET /api/tally).
+fetch('api/tally').then(r => r.ok ? r.json() : null).then(t => {
+  if (!t?.darts) return;
+  const el = document.getElementById('tally');
+  const n = v => v.toLocaleString();
+  el.innerHTML = `<b>${n(t.darts)}</b> darts thrown on Darts S.A.M so far, in <b>${n(t.games)}</b> ${t.games === 1 ? 'game' : 'games'}`
+    + (t.users ? `, by <b>${n(t.users)}</b> ${t.users === 1 ? 'user' : 'users'} registered` : '');
+  el.hidden = false;
+}, () => {});
+</script>
+</body>
+</html>

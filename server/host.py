@@ -14,6 +14,8 @@ import argparse
 import ipaddress
 import json
 import re
+import shutil
+import sqlite3
 import sys
 import time
 from pathlib import Path
@@ -24,7 +26,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response, WebSocket,
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from . import admin, auth, build, data_api, db, hoststore, limits, mail, reportsync
+from . import admin, auth, build, data_api, db, hoststore, limits, mail, reportsync, seo
 from .relay import FORGOTTEN, NoHelper, Relay, TimedOut
 from .version import WebFiles, vision_files, web_version
 
@@ -113,7 +115,8 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
     button); "email" and "site", for signing in by email (see mail.py; left out: no
     such button), "site" being the address of the app, where the email's link leads;
     "home", the address of the home page when that is a different one (there the
-    welcome page is always shown, and it sends people to "site" to sign in); "admins", the
+    welcome page is always shown, and it sends people to "site" to sign in; search
+    engines are asked to list that address only: seo.py); "admins", the
     email addresses whose accounts may see the admin pages; "analytics_token", the
     site token of Cloudflare Web Analytics (left out: no visitor counter on the pages);
     "google_analytics_id", the G-... measurement ID of Google Analytics (left out: no
@@ -591,6 +594,23 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
             raise HTTPException(404, "No such download.")
         return FileResponse(downloads / file, filename=file, media_type="application/octet-stream")
 
+    # ---------- for an uptime checker (no signing in needed; see docs/hosting.md, "Being told") ----------
+    disk_low = int(settings.get("disk_low_mb", 2048)) * 2**20  # less free than this and the site says so
+
+    @app.api_route("/api/health", methods=["GET", "HEAD"])
+    def health():
+        """200 while the site can keep what people send it; 503 when its disk is
+        nearly full or the accounts' database won't open. Says nothing more,
+        since anyone can ask."""
+        try:
+            with store.connect() as c:
+                c.execute("SELECT 1 FROM accounts LIMIT 1").fetchall()
+        except sqlite3.Error:
+            return JSONResponse({"ok": False, "problem": "database"}, status_code=503, headers={"Cache-Control": "no-store"})
+        if shutil.disk_usage(folder).free < disk_low:
+            return JSONResponse({"ok": False, "problem": "disk"}, status_code=503, headers={"Cache-Control": "no-store"})
+        return JSONResponse({"ok": True}, headers={"Cache-Control": "no-store"})
+
     @app.get("/version.json")
     def version():
         """version: the stamp for the app's files (web/update.js). release, build,
@@ -620,8 +640,10 @@ def create(folder: Path, settings: dict, check_google=auth.check_google, check_a
                  "target": {"namespace": "android_app", "package_name": android_package,
                             "sha256_cert_fingerprints": android_keys}}]
 
+    search = seo.Search(WEB, site, home)  # robots.txt, the sitemap, and which address is listed
+    search.install(app)
     vision_files(app)
-    app.mount("/", WebFiles(directory=WEB, html=True, head=page_head), name="web")
+    app.mount("/", WebFiles(directory=WEB, html=True, head=lambda scope: page_head(scope) + search.head(scope)), name="web")
     return app
 
 
