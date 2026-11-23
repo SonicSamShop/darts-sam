@@ -7,7 +7,6 @@
 
 import { renderSettings } from './settings.js';
 import { SOURCE, api, appBuild, esc, match, pi, screen } from '../app.js';
-import { COMPARE_CHECKED, compareTable } from './compare.js';
 
 // ---------- a newer desktop app (server/release.py) ----------
 // The desktop app asks the site once, when it starts, whether there is a newer
@@ -32,11 +31,7 @@ export function aboutPanel() {
     ${v ? `<p>Darts S.A.M version ${esc(v)}${extra ? ` <span class="muted">(${esc(extra)})</span>` : ''}</p>` : ''}
     <p class="muted small">Free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>:
       <a href="${SOURCE}" target="_blank" rel="noopener">source code</a>.</p>
-    <p class="muted small"><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
-    <h3>How Darts S.A.M compares</h3>
-    ${compareTable()}
-    <p class="muted small">From Autodarts' and DartCounter's own websites on ${COMPARE_CHECKED}.
-      <a href="compare.html" target="_blank" rel="noopener">The full comparison</a></p></div>`;
+    <p class="muted small"><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p></div>`;
 }
 const MB = n => `${Math.round(n / 1e6)} MB`;
 function releaseDone(d) {
