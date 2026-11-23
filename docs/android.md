@@ -203,7 +203,10 @@ No to each.
 **App icon:** `web/icon-512.png`
 **Feature graphic:** `docs/play/feature-graphic.png` (1024×500)
 **Phone screenshots:** `docs/play/phone-*.jpg` (1080×2160), in their number
-order. Retake them if the screens change (see the screenshots recipe used for
+order.
+**7-inch and 10-inch tablet screenshots:** `docs/play/tablet-*.jpg`, and
+**Chromebook screenshots:** `docs/play/chromebook-*.jpg` (all 1920×1080, the
+Chalk theme like the phone ones). Retake them all if the screens change (see the screenshots recipe used for
 `web/shots`).
 
 **Category:** Sports. **Contact email:** sonicsamshop@gmail.com. **Website:**
