@@ -650,6 +650,11 @@ table.cricket tr.dead { opacity: .35; }
 .ways th, .ways td { padding: 10px 16px 10px 0; text-align: left; vertical-align: top; border-top: 1px solid var(--line); }
 .ways thead :is(th, td) { border-top: 0; color: var(--muted); font-weight: 400; }
 .ways tbody th { width: 26%; font-weight: 700; }
+/* Darts S.A.M beside Autodarts and DartCounter (screens/compare.js): our column first and in full colour */
+.vs { max-width: 62em; font-size: 16px; }
+.vs tbody th { width: 19%; }
+.vs thead th:first-of-type { color: inherit; font-weight: 700; }
+.settings .vs { margin: 6px 0 4px; }
 .signin { display: flex; flex-direction: column; gap: 10px; align-items: start; min-height: 44px; margin-bottom: 14px; }
 .signin p { margin: 0; }
 .signin, .signin button.apple { text-transform: none; letter-spacing: normal; }  /* theirs to letter, not the theme's */
@@ -702,6 +707,13 @@ button.apple {
   .row3 > .shot.tall { max-width: 230px; }
   .ways { font-size: 16px; }
   .ways th, .ways td { padding-right: 10px; }
+  /* a phone: each question in turn, with a line for each of the three */
+  .vs, .vs tbody, .vs tr, .vs th, .vs td { display: block; }
+  .vs thead { display: none; }
+  .vs tbody th { width: auto; padding: 14px 0 4px; }
+  .vs td { display: grid; grid-template-columns: 8.5em 1fr; gap: 12px; padding: 3px 0; border-top: 0; }
+  .vs td::before { content: attr(data-who); color: var(--muted); }
+  .vs td:first-of-type::before { color: inherit; font-weight: 700; }
   .dl-row button { width: 100%; }
 }
 .settings a { color: inherit; }

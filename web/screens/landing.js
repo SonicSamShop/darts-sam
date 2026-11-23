@@ -9,6 +9,7 @@ import { GAMES } from '../games/index.js';
 import { camScreen, pairing } from './cameras.js';
 import { $app, SOURCE, THEMES, account, data, esc, liveLine, screen, setScreen, store, tracker } from '../app.js';
 import { renderWelcome } from './welcome.js';
+import { COMPARE_CHECKED, compareTable } from './compare.js';
 
 // ---------- the welcome page ----------
 // The hosted version with nobody signed in (account.locked): what the app is,
@@ -149,6 +150,13 @@ export function renderLanding() {
       </div>
       <p>Every dart is called aloud, with the visit's total and what you require for a finish. And there are ${inWords(THEMES.length)} themes to choose from,
         from the pub chalkboard to big-stage TV graphics.</p>
+    </section>
+    <section>
+      <h2>How it compares</h2>
+      <p>What you would pay for elsewhere is free here. Where the others are ahead, we say so.</p>
+      ${compareTable()}
+      <p class="muted small">From Autodarts' and DartCounter's own websites on ${COMPARE_CHECKED}.
+        <a href="compare.html">The full comparison, with links to where they say it</a>.</p>
     </section>
     <section>
       <h2>With cameras or without</h2>

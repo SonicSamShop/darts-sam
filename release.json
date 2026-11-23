@@ -1,6 +1,8 @@
 {
   "version": "1.7",
-  "unreleased": [],
+  "unreleased": [
+    "Settings, About now shows how Darts S.A.M compares with Autodarts and DartCounter: what each costs, camera scoring, games and playing online."
+  ],
   "notes": {
     "1.0": [
       "First release."
