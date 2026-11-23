@@ -4,9 +4,10 @@
 
 """Looking for the cameras again without a restart (POST /api/cameras/refresh).
 Run: python -m tests.test_refresh"""
+import numpy as np
 from fastapi import HTTPException
 
-from server import app
+from server import app, board
 
 
 PTS = [[0, 0], [100, 0], [100, 100], [0, 100]]
@@ -251,6 +252,32 @@ def main():
     refused(400, app.camera_settings, app.CameraSettings(width=1000, height=500, fps=30, standby=0))
     refused(400, app.camera_settings, app.CameraSettings(width=1920, height=1080, fps=60, standby=0))
     app.camera_settings(app.CameraSettings(width=1280, height=720, fps=15, standby=15))
+
+    # A board found at another size (before 1.7.2 a camera's pictures came at whatever
+    # size it gave) is scaled to the size asked for when the cameras start: used as it
+    # was, its 20 is somewhere else and every dart lands on the wrong number.
+    cal_at = lambda s: [[320 * s + 0.8 * s * x, 180 * s - 0.8 * s * y] for x, y in (p["xy"] for p in board.CALIBRATION_POINTS)]
+    app.config["calibration"] = {"usb:0": {"points": cal_at(1), "lens": 0.0, "size": [640, 360]},
+                                 "http://gone/video": {"points": cal_at(1), "lens": 0.0, "size": [640, 360]}}
+    app.refresh_cameras()
+    usb0 = next(c for c in app.cams.values() if app.key(c.id) == "usb:0")
+    assert app.config["calibration"]["usb:0"] == {"points": cal_at(2), "lens": 0.0, "size": [1280, 720]}
+    assert app.config["calibration"]["http://gone/video"]["size"] == [640, 360]  # not running: left alone
+    # Finding the board again without a tap goes by the old 20, on this picture at this
+    # picture's size: (0, 130) mm is (320, 76) px at 640 x 360, so (640, 152) here.
+    seen, real_detect = {}, app.autocalib.detect
+
+    def detect(img, twenty, number=20):
+        seen["twenty"] = twenty
+        raise app.autocalib.Failed("enough")
+    app.autocalib.detect = detect
+    try:
+        usb0.frame = np.zeros((720, 1280, 3), np.uint8)
+        app.config["calibration"]["usb:0"] = {"points": cal_at(1), "lens": 0.0, "size": [640, 360]}
+        refused(422, app.autocalibrate, usb0.id, app.AutoCalibration())
+        assert np.allclose(seen["twenty"], [640, 152]), seen
+    finally:
+        app.autocalib.detect, usb0.frame = real_detect, None
 
     # resting: wanted wakes them
     app.resting = True

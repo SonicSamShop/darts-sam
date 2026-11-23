@@ -1,6 +1,9 @@
 {
   "version": "1.7.2",
-  "unreleased": [],
+  "unreleased": [
+    "Fixed: after updating to 1.7.2 a camera could score every dart as the wrong number, with its green 20 in the wrong place. A camera lined up at another picture size is now scaled to the size in use.",
+    "Find the board now asks you to tap the 20 every time you press it, so a camera whose numbers have come out turned round is put right with one tap."
+  ],
   "notes": {
     "1.0": [
       "First release."

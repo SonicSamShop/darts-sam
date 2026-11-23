@@ -127,9 +127,34 @@ def start_cameras():
     resting, wanted = False, time.time()
     cams = {i: cameras.Camera(i, dev, config["width"], config["height"], config["fps"])
             for i, dev in enumerate(devices)}
-    if camlist.adopt(config["calibration"], [camlist.name(dev) for dev in devices]):
-        save_config()  # calibration from before cameras had names
+    moved = camlist.adopt(config["calibration"], [camlist.name(dev) for dev in devices])  # from before cameras had names
+    if resize_calibration(devices) or moved:
+        save_config()
     rebuild_tracker()
+
+
+def fit_to(saved, size):
+    """A found calibration (which knows the picture size it was made at) moved to
+    pictures of `size` [w, h]. Anything else is returned as it is."""
+    if isinstance(saved, dict) and saved.get("size") and list(saved["size"]) != list(size):
+        return calib.rescale(saved, saved["size"], size)
+    return saved
+
+
+def resize_calibration(devices) -> bool:
+    """Every USB camera's picture is the size in config.json (cameras.Camera
+    resizes one that gives another), so a calibration found at another size is
+    scaled to it. Before 1.7.2 a camera's pictures came at whatever size it gave,
+    and a line-up found then, used unscaled, puts the 20 somewhere else and every
+    dart on the wrong number. Whether any changed."""
+    size, changed = [config["width"], config["height"]], False
+    for name in map(camlist.name, devices):
+        saved = config["calibration"].get(name)
+        if camlist.kind(name) == "usb" and fit_to(saved, size) is not saved:
+            print(f"calibration: {name} scaled from {saved['size'][0]}x{saved['size'][1]} to {size[0]}x{size[1]}")
+            config["calibration"][name] = fit_to(saved, size)
+            changed = True
+    return changed
 
 
 def fixed() -> bool:
@@ -465,6 +490,8 @@ def autocalibrate(cam_id: int, body: AutoCalibration):
         old = config["calibration"].get(key(cam_id))
         if not old:
             raise HTTPException(400, "Tap the 20 segment first.")
+        # where the old line-up's 20 is on this picture, at this picture's size
+        old = fit_to(old, [img.shape[1], img.shape[0]])
         twenty = calib.view(old).to_picture([board.polar(0, 130)])[0].tolist()
     if body.number not in board.SEGMENTS:
         raise HTTPException(400, "Not a number on the board.")

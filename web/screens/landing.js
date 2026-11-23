@@ -15,7 +15,7 @@ import { renderWelcome } from './welcome.js';
 // and the buttons to sign in with. There is no sign-up form: the first sign-in
 // makes the account, called by the person's first name, with a player of that name.
 // It is a page of plain writing, in the README's words, with pictures of the app in it
-// (web/shots: taken from the app itself, and one camera's picture of a real board).
+// (web/shots: taken from the app itself; cameras.webp is two cameras' pictures of Sam's own board).
 
 // A small number as it is written in a sentence: 8 -> "eight".
 const inWords = n => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'][n] ?? String(n);
@@ -112,16 +112,14 @@ export function renderLanding() {
         <figcaption>A game of 501, each dart marked where it landed.</figcaption></figure>
     </div>
     <a class="tally" id="tally" href="faq.html#numbers" hidden></a>
-    <section class="intro">
-      <div>
-        <h2>Scoring by camera</h2>
-        <p>Plug two or three USB webcams into a Mac, Windows or Linux computer by the board. They find the wires by themselves, with nothing to stick on,
-          and every phone, tablet and TV you sign in on follows along. <a href="autoscoring.html">How the autoscoring works</a>.</p>
-        <p class="acts"><button class="primary" data-act="download">Download for Mac, Windows or Linux</button>
-          <a href="faq.html#connect">How to set it up</a></p>
-      </div>
-      <figure class="shot">${pic('camera.webp', 'A webcam\'s picture of a dartboard, with every wire and number drawn over it in green', 1280, 720)}
-        <figcaption>What one camera sees, with the wires it found drawn in green.</figcaption></figure>
+    <section>
+      <h2>Scoring by camera</h2>
+      <p>Plug two or three USB webcams into a Mac, Windows or Linux computer by the board. They find the wires by themselves, with nothing to stick on,
+        and every phone, tablet and TV you sign in on follows along. <a href="autoscoring.html">How the autoscoring works</a>.</p>
+      <figure class="shot">${pic('cameras.webp', "Two webcams' pictures of a dartboard from either side, each with the wires it found drawn in green", 1600, 468)}
+        <figcaption>Two webcams, one each side of the board, with the wires each one found drawn in green.</figcaption></figure>
+      <p class="acts"><button class="primary" data-act="download">Download for Mac, Windows or Linux</button>
+        <a href="faq.html#connect">How to set it up</a></p>
     </section>
     <section>
       <h2>${inWords(GAMES.length).replace(/^./, c => c.toUpperCase())} games</h2>

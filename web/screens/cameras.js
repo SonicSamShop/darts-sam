@@ -88,7 +88,7 @@ function camGrid(status, cams) {
       <button class="camshot" data-showcam="${c.id}" title="Open this camera by itself">${c.ok
         ? `<img data-live="${c.id}" src="/api/cameras/${c.id}/snapshot.jpg?overlay=1&t=${Date.now()}" alt="${esc(c.label)}">`
         : '<span class="dim">No picture</span>'}</button>
-      <div class="camtilebar">${place(c)}${c.ok && !calibBusy ? `<button data-autocal="${c.id}" ${c.points ? 'data-has="1"' : ''}>Find the board</button>` : ''}</div>
+      <div class="camtilebar">${place(c)}${c.ok && !calibBusy ? `<button data-autocal="${c.id}">Find the board</button>` : ''}</div>
       <p class="dim">${text}</p></div>`;
   };
   const set = status.settings, ch = status.choices;
@@ -171,7 +171,7 @@ function camPanel(status, cams, cam) {
   const wantTwenty = camScreen.autoCal === cam.id;
   const lined = !!cam.points;
   const another = cams.find(c => c.id !== cam.id && c.ok && !c.points);  // one still to be lined up
-  const auto = (label, cls = '') => `<button class="${cls}" data-autocal="${cam.id}" ${lined ? 'data-has="1"' : ''}>${label}</button>`;
+  const auto = (label, cls = '') => `<button class="${cls}" data-autocal="${cam.id}">${label}</button>`;
   const byHand = `<button data-calib="${cam.id}">Mark it by hand</button>`;
   // [how it looks, the headline, what to do, the buttons]: the first that applies
   const [look, head, text, acts] =

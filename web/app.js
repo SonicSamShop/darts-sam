@@ -657,8 +657,11 @@ $app.addEventListener('click', e => {
     delete camScreen.calib[id];
     if (camScreen.autoCal === id) { camScreen.autoCal = null; return renderCameras(); }
     camScreen.shown = id;
-    if (b.dataset.has) return autoCalibrate(id);
-    camScreen.one = true;  // a tap on its 20 first, on the picture large
+    // A tap on its 20 first, on the picture large, even for a camera lined up before: found
+    // without one, the old line-up says where the 20 is, and a wrong one would never come right.
+    // (Finding the board on all, and as the app opens, go by the old line-up.)
+    camScreen.one = true;
+    camScreen.number = 20;  // "another number" is for one camera that can't see the 20, not the next
     camScreen.autoCal = id; camScreen.calibNote = ''; camScreen.calibFailed = false;
     return renderCameras();
   }
