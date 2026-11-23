@@ -1,13 +1,6 @@
 {
-  "version": "1.7.1",
-  "unreleased": [
-    "A camera you switched off can be switched back on while other cameras are running: Add a camera lists it with Use this camera. Before, the app said no new camera was found.",
-    "The Cameras screen now shows every camera side by side, each with its green lines and an edge that says whether it is ready. Tap a picture to open that camera by itself.",
-    "Choose which camera goes in each place from the list under its picture, or switch one off there. Handy when a computer numbers its cameras differently after they are plugged in again.",
-    "Picture size and frames a second can be set on the Cameras screen, and Find the board on all lines up every camera at once.",
-    "The cameras rest after a while unused (15 minutes to start with; change it on the Cameras screen) and wake when a game starts or you open the Cameras screen.",
-    "A camera that can't see the 20 can still find the board: pick a number it can see, and tap that instead."
-  ],
+  "version": "1.7.2",
+  "unreleased": [],
   "notes": {
     "1.0": [
       "First release."
@@ -78,6 +71,14 @@
     "1.7.1": [
       "Settings, About now shows how Darts S.A.M compares with Autodarts and DartCounter: what each costs, camera scoring, games and playing online.",
       "Windows: three USB cameras through one USB hub now all show a picture. With 1.7 some computers still showed only one."
+    ],
+    "1.7.2": [
+      "A camera you switched off can be switched back on while other cameras are running: Add a camera lists it with Use this camera. Before, the app said no new camera was found.",
+      "The Cameras screen now shows every camera side by side, each with its green lines and an edge that says whether it is ready. Tap a picture to open that camera by itself.",
+      "Choose which camera goes in each place from the list under its picture, or switch one off there. Handy when a computer numbers its cameras differently after they are plugged in again.",
+      "Picture size and frames a second can be set on the Cameras screen, and Find the board on all lines up every camera at once.",
+      "The cameras rest after a while unused (15 minutes to start with; change it on the Cameras screen) and wake when a game starts or you open the Cameras screen.",
+      "A camera that can't see the 20 can still find the board: pick a number it can see, and tap that instead."
     ]
   }
 }
