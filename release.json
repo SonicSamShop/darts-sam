@@ -1,7 +1,8 @@
 {
   "version": "1.6",
   "unreleased": [
-    "Keep more than one board, and see your stats on each one side by side: Settings › Players, darts and boards lists your boards with the one on the wall, and Stats has a Board picker beside Darts."
+    "Keep more than one board, and see your stats on each one side by side: Settings › Players, darts and boards lists your boards with the one on the wall, and Stats has a Board picker beside Darts.",
+    "The website has two new pages: how autoscoring with webcams works and what to buy, and how Darts S.A.M compares with Autodarts and DartCounter. Links shared in chats now show a picture of the app."
   ],
   "notes": {
     "1.0": [

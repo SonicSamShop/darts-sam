@@ -13,8 +13,9 @@ welcome page written out in plain HTML, not the app.
 
 Every page also gets a preview card (og: and twitter: lines, taken from its own
 <title> and description, with the picture web/shots/share.jpg), and the home
-page a short description of the app for Google (JSON-LD), so a result can say
-it is free. Addresses come from the settings, never from the files: a site of
+page a short description of the app for Google (JSON-LD): what it is, and
+that it is free. (Google shows it as a rich result only alongside ratings,
+which the site doesn't have and mustn't invent.) Addresses come from the settings, never from the files: a site of
 your own gets its own.
 
 With one address for both (no "home"), / stays the app and nothing is hidden.

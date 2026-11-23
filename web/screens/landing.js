@@ -34,7 +34,8 @@ const MAIL_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="
 // The same lines are written out at the top and bottom of web/faq.html, web/rules.html, web/download.html,
 // web/releases.html, web/opensource.html and web/privacy.html: change one, change them all.
 const SITE_PLACES = [['faq.html', 'FAQ'], ['download.html', 'Download'], ['releases.html', "What's new"], ['opensource.html', 'Open source']];
-const FOOT_PLACES = [SITE_PLACES[0], ['rules.html', 'How to play'], ...SITE_PLACES.slice(1)];
+const FOOT_PLACES = [SITE_PLACES[0], ['rules.html', 'How to play'], ['autoscoring.html', 'How autoscoring works'],
+  ['compare.html', 'Compared with Autodarts and DartCounter'], ...SITE_PLACES.slice(1)];
 const BRAND = '<b class="wordmark">Darts S.A.M</b><span class="strap"><b>S</b>coring <b>A</b>ssisted <b>M</b>arker</span>';
 const siteHead = () => `<header class="site-head"><a class="brand" href="./" data-act="land-home">${BRAND}</a>
       <nav class="site-nav" aria-label="Darts S.A.M">${SITE_PLACES.map(([href, name]) => `<a href="${href}">${name}</a>`).join('')}
