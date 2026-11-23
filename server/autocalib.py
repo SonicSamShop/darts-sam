@@ -315,12 +315,13 @@ def _edge_misfit(img, H) -> float:
     return float(np.sqrt(np.mean(np.sum((_apply(H_inv, mm) - px) ** 2, axis=1))))
 
 
-def detect(img, twenty_px=None) -> Result:
+def detect(img, twenty_px=None, number: int = 20) -> Result:
     """Calibrate from one picture (BGR, as OpenCV reads it) of the empty board.
 
     `twenty_px` is any pixel (x, y) inside the 20 segment: it says which way up
-    the board is. Left out, the 20 is taken to be straight up the picture from
-    the bull. Raises Failed, with a message for the user, rather than return a
+    the board is. Or inside the segment `number`, for a camera that can't see
+    the 20 (a board whose number ring hides the top numbers from below). Left
+    out, the 20 is taken to be straight up the picture from the bull. Raises Failed, with a message for the user, rather than return a
     calibration it can't trust."""
     size = (img.shape[1], img.shape[0])
     tried = {}  # bend -> (edge misfit, Result) or the reason it failed
@@ -331,7 +332,7 @@ def detect(img, twenty_px=None) -> Result:
             straight = img if not k else cv2.remap(img, *calib.straighten_maps(k, size), cv2.INTER_LINEAR,
                                                    borderMode=cv2.BORDER_CONSTANT)
             try:
-                res = _flat(straight, None if twenty_px is None else calib.straighten([twenty_px], k, size)[0])
+                res = _flat(straight, None if twenty_px is None else calib.straighten([twenty_px], k, size)[0], number)
                 res.lens, res.size = k, size
                 tried[k] = (_edge_misfit(straight, res.H), res)
             except Failed as e:
@@ -350,7 +351,7 @@ def detect(img, twenty_px=None) -> Result:
     return good[min(good, key=lambda k: good[k][0])][1]
 
 
-def _flat(img, twenty_px) -> Result:
+def _flat(img, twenty_px, number: int = 20) -> Result:
     """Steps 1-5, taking the picture's lens to be perfect."""
     chan = _lab_a(img)
     H = _coarse(img, chan)
@@ -387,8 +388,9 @@ def _flat(img, twenty_px) -> Result:
     else:
         x, y = _apply(H, [twenty_px])[0]
         if np.hypot(x, y) > board.R_DOUBLE_OUT:
-            raise Failed("That tap wasn't on the board. Tap anywhere inside the 20 segment.")
-    turn = 36 * round(np.degrees(np.arctan2(x, y)) / 36)
+            raise Failed(f"That tap wasn't on the board. Tap anywhere inside the {number} segment.")
+    # The tap's angle (clockwise from the top, as board.polar), back round to the 20.
+    turn = 36 * round((np.degrees(np.arctan2(x, y)) - 18 * board.SEGMENTS.index(number)) / 36)
     H = _rot(turn) @ H
     points = _apply(np.linalg.inv(H), [p["xy"] for p in board.CALIBRATION_POINTS]).tolist()
     return Result(H=H, points=points, joins=inliers, rms_px=rms)

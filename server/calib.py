@@ -127,6 +127,17 @@ def view(saved) -> View:
     return View(homography(saved))
 
 
+def rescale(saved, old, new):
+    """A calibration as saved, moved from pictures `old` [w, h] in size to
+    `new`. A tapped one has no size of its own: it was made at `old`."""
+    sx, sy = new[0] / old[0], new[1] / old[1]
+    if isinstance(saved, dict):
+        was = saved.get("size") or old
+        sx, sy = new[0] / was[0], new[1] / was[1]
+        return {**saved, "points": [[x * sx, y * sy] for x, y in saved["points"]], "size": list(new)}
+    return [[x * sx, y * sy] for x, y in saved]
+
+
 def draw_board(img, saved, colour=(0, 255, 0), thickness=1, numbers=False):
     """Draw the board's wires on a camera's picture where this calibration
     (anything view() takes) says they are. If the lines sit on the real wires,

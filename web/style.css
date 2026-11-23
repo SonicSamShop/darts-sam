@@ -734,6 +734,28 @@ button.apple {
 .camtabs { margin-top: 14px; }
 .camtabs .camnew { border-style: dashed; color: var(--muted); }
 .cambody { display: flex; gap: 16px; margin-top: 12px; }
+.camtabs .ghost:first-child { padding-left: 0; }
+/* every camera side by side: the edge says how each is (as .camstate's stripe) */
+.camgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 14px; margin-top: 14px; align-content: start; }
+.camtile { --stripe: var(--muted); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.camtile.ok { --stripe: var(--accent); }
+.camtile.now { --stripe: var(--text); }
+.camtile.bad { --stripe: var(--warn); }
+.camtile .camshot { display: flex; align-items: center; justify-content: center; aspect-ratio: 16 / 9; padding: 0; overflow: hidden;
+  background: var(--panel); border: 0; border-radius: var(--round); outline: 2px solid var(--stripe); outline-offset: 1px; }  /* (themes take buttons' borders off) */
+.camshot img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.camtilebar { display: flex; gap: 8px; align-items: center; }
+.camtilebar .pick { position: relative; flex: 1; min-width: 0; }
+.camtilebar .pick::after { content: "▾"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.camtilebar > b { flex: 1; }
+.camtilebar button { white-space: nowrap; }
+.camtile > p { margin: 0; }
+.camgridnote { margin: 12px 0 0; }
+.camset { margin-top: 16px; }
+.camstate .tapnumber { display: block; position: relative; margin-top: 12px; }
+.camstate .tapnumber::after { content: "▾"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.camstate .tapnumber span { position: absolute; left: 16px; top: 7px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.camgridacts { margin-top: 12px; }
 .camstage { flex: 1; min-width: 0; min-height: 140px; display: flex; align-items: flex-start; justify-content: center; overflow: hidden; }
 .camside { flex: 0 0 340px; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .camstate { background: var(--panel); border: 1px solid var(--line); border-radius: var(--round); padding: 14px 16px 16px 20px;

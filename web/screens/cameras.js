@@ -13,16 +13,22 @@ import { switchRow } from './settings.js';
 import { renderLanding } from './landing.js';
 
 // ---------- cameras & calibration ----------
-// A screen of its own. One camera is shown at a time: its picture, and beside
-// it the one thing that camera needs next (lining up with the board, a tap on
-// the picture, nothing: it is ready). Adding a camera is a step aside from that.
+// A screen of its own. First every camera side by side, each picture with its
+// green lines, which camera goes in each place, and the settings they share
+// (picture size, frames a second, standby). A tap on a picture opens that one
+// by itself: its picture large, and beside it the one thing it needs next
+// (lining up with the board, a tap on the picture, nothing: it is ready).
+// Adding a camera is a step aside from both.
 export const camScreen = {
   calib: {},  // camera id -> points tapped so far
   autoCal: null,  // camera id waiting for a tap on the 20, for auto-calibration
+  number: 20,  // ...or on this number, when that camera can't see the 20
   calibNote: '',  // how the last calibration went
   calibFailed: false,  // ...and whether that was badly
   startCal: '',  // finding the board again on opening the app: '' not yet, 'wait' (for the settings), 'busy', 'done'
   shown: 0,  // the camera on screen
+  one: false,  // that camera by itself; false: all of them side by side
+  finding: null,  // the camera id finding the board, side by side
   adding: false,  // "Add a camera" is open
   first: false,  // ...opened by the desktop app's first screens: asked as if there were no camera yet
   note: '',  // why the cameras could not be changed
@@ -57,12 +63,106 @@ export function drawCameras(status) {
       : account.hosted && !status ? hostedCameras()
       : !status ? `${wait('The cameras aren\'t answering. You can still score by tapping the board.')}
     <div class="row"><button data-act="pair-retry">Try again</button></div>`
-      : camScreen.adding || !cam ? camSetup(status, cam) : camPanel(status, cams, cam)}
+      : camScreen.adding || !cam ? camSetup(status, cam) : camScreen.one ? camPanel(status, cams, cam) : camGrid(status, cams)}
     ${pageFoot('cameras')}
   </div>`;
   refreshStatus();
   fit();
   watchUsb(status);
+  liveTiles();
+}
+
+// Side by side: every camera's picture, kept fresh while it shows.
+function camGrid(status, cams) {
+  const all = [...cams.map(c => ({ name: c.name, label: c.label })), ...(status.off ?? [])];
+  const place = c => status.fixed ? `<b>${esc(c.label)}</b>`
+    : `<label class="pick"><select class="plain" data-place="${c.id}" aria-label="Camera in this place">
+      ${all.map(o => `<option value="${esc(o.name)}" ${o.name === c.name ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+      <option value="">None (switch it off)</option></select></label>`;
+  const tile = c => {
+    const busy = camScreen.finding === c.id;
+    const [look, text] = !c.ok ? ['bad', status.resting ? 'Resting. Waking up…' : 'No picture. Check it is plugged in.']
+      : busy ? ['', 'Looking for the board…']
+      : c.points ? ['ok', 'Ready to score'] : ['now', 'Not lined up yet: tap the picture'];
+    return `<div class="camtile ${look}">
+      <button class="camshot" data-showcam="${c.id}" title="Open this camera by itself">${c.ok
+        ? `<img data-live="${c.id}" src="/api/cameras/${c.id}/snapshot.jpg?overlay=1&t=${Date.now()}" alt="${esc(c.label)}">`
+        : '<span class="dim">No picture</span>'}</button>
+      <div class="camtilebar">${place(c)}${c.ok && !calibBusy ? `<button data-autocal="${c.id}" ${c.points ? 'data-has="1"' : ''}>Find the board</button>` : ''}</div>
+      <p class="dim">${text}</p></div>`;
+  };
+  const set = status.settings, ch = status.choices;
+  const pick = (label, key, options) => `<label class="pick"><span>${label}</span><select data-camset="${key}">${options}</select></label>`;
+  const opt = (value, text, on) => `<option value="${value}" ${on ? 'selected' : ''}>${text}</option>`;
+  const settingsRow = !set ? '' : `<div class="picks camset">
+      ${pick('Picture size', 'size', ch.sizes.map(([w, h]) => opt(`${w}x${h}`, `${w} × ${h}`, w === set.width && h === set.height)).join(''))}
+      ${pick('Frames a second', 'fps', ch.rates.map(r => opt(r, r, r === set.fps)).join(''))}
+      ${pick('Rest the cameras after', 'standby', ch.standby.map(m => opt(m, m ? `${m} minutes unused` : 'Never', m === set.standby)).join(''))}
+    </div>`;
+  const lined = cams.filter(c => c.ok && c.points).length;
+  return `
+    ${camScreen.note ? `<p class="warn">${esc(camScreen.note)}</p>` : ''}
+    <div class="camgrid">${cams.map(tile).join('')}</div>
+    ${camScreen.calibNote ? `<p class="${camScreen.calibFailed ? 'warn' : 'dim'} camgridnote">${esc(camScreen.calibNote)}</p>` : ''}
+    ${settingsRow}
+    <div class="row camgridacts">
+      ${lined > 1 ? `<button class="primary" data-act="findall" ${calibBusy ? 'disabled' : ''}>Find the board on all</button>` : ''}
+      ${cams.some(c => c.points) && cams.some(c => c.ok) ? '<button data-act="reset">Board is empty now</button>' : ''}
+      ${status.fixed ? '' : '<button class="ghost camnew" data-act="camadd">+ Add a camera</button>'}
+    </div>
+    ${cams.some(c => c.points) ? `<div class="camextra">${switchRow('Auto-calibrate on start', settings.autoCal !== false,
+      `data-autostart="${settings.autoCal !== false ? 'off' : 'on'}"`, 'Every camera finds the board again each time the app opens.')}</div>` : ''}
+    ${linkRow()}${account.hosted && account.helper ? `<div class="camextra">${unpairButton()}</div>` : ''}`;
+}
+// Each picture side by side is fetched again about once a second, the new one
+// swapped in once it has loaded so nothing flickers.
+let liveTimer = null;
+function liveTiles() {
+  clearTimeout(liveTimer);
+  if (!document.querySelector('img[data-live]')) return;
+  liveTimer = setTimeout(() => {
+    if (!onCamerasTab()) return;
+    for (const img of document.querySelectorAll('img[data-live]')) {
+      const next = new Image();
+      next.onload = () => { if (img.isConnected) img.src = next.src; };
+      next.src = `/api/cameras/${img.dataset.live}/snapshot.jpg?overlay=1&t=${Date.now()}`;
+    }
+    liveTiles();
+  }, 1000);
+}
+// "Find the board on all": each camera that has been lined up finds it again,
+// one after another (one never lined up needs a tap on its 20 first).
+export async function findAll() {
+  const todo = (camStatus?.cameras ?? []).filter(c => c.ok && c.points);
+  if (calibBusy || !todo.length) return;
+  calibBusy = true; camScreen.calibNote = ''; camScreen.calibFailed = false;
+  const missed = [];
+  for (const cam of todo) {
+    camScreen.finding = cam.id;
+    if (onCamerasTab()) drawCameras(camStatus);
+    try {
+      const r = await api(`/cameras/${cam.id}/autocalibration`, 'POST', {}, 30000);
+      tracker.track('calibrated', { ok: true, how: 'all', joins: r.joins, rms_px: r.rms_px, tapped: false });
+    } catch (err) {
+      missed.push(cam.label);
+      tracker.track('calibrated', { ok: false, how: 'all', why: err.message, tapped: false });
+    }
+  }
+  calibBusy = false; camScreen.finding = null;
+  const n = todo.length - missed.length;
+  camScreen.calibFailed = missed.length > 0;
+  camScreen.calibNote = !missed.length ? `Board found on ${n === 2 ? 'both cameras' : `all ${n} cameras`}.`
+    : `Couldn't find the board on ${missed.join(', ')}, so ${missed.length > 1 ? 'they keep' : 'it keeps'} the line-up from before. Open it to try again or mark it by hand.`;
+  if (onCamerasTab()) renderCameras();
+}
+// A camera chosen for a place side by side, or the picture size, rate or standby changed.
+export function placeCamera(place, name) {
+  return changeCameras('/cameras/place', { place, name: name || null });
+}
+export function cameraSettings() {
+  const v = key => document.querySelector(`select[data-camset="${key}"]`)?.value;
+  const [width, height] = (v('size') ?? '1280x720').split('x').map(Number);
+  return changeCameras('/cameras/settings', { width, height, fps: +v('fps'), standby: +v('standby') });
 }
 
 // One camera: which one, its picture, and what to do about it.
@@ -80,7 +180,10 @@ function camPanel(status, cams, cam) {
         : 'Check the camera is plugged in, then look again.',
       '<button class="primary" data-act="refreshcams">Look again</button>']
     : calibBusy ? ['', 'Looking for the board…', 'This takes a few seconds.', '']
-    : wantTwenty ? ['now', 'Tap the 20', 'Tap anywhere inside the <b>20</b> segment on the picture. That shows which way up the board is.',
+    : wantTwenty ? ['now', `Tap the ${camScreen.number}`, `Tap anywhere inside the <b>${camScreen.number}</b> segment on the picture. That shows which way up the board is.
+        <label class="pick tapnumber"><span>Can't see the 20? Tap another number</span><select data-tapnumber>
+        ${[20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5].map(n =>
+          `<option value="${n}" ${n === camScreen.number ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`,
       `<button data-autocal="${cam.id}">Cancel</button>`]
     : pts ? ['now', `Point ${pts.length + 1} of 4`,
       `Tap the picture where the <b>outer double wire</b> meets the wire between <b>${esc(status.targets[pts.length])}</b>.`,
@@ -95,7 +198,7 @@ function camPanel(status, cams, cam) {
   const quiet = pts || wantTwenty || calibBusy;  // in the middle of lining up: nothing else to look at
   const extra = (text, buttons) => `<div class="camextra"><span class="dim">${text}</span>${buttons}</div>`;
   return `
-    <div class="row camtabs">${cams.map(c => `<button class="${c.id === cam.id ? 'on' : ''}" data-showcam="${c.id}"
+    <div class="row camtabs"><button class="ghost" data-act="camgrid">‹ All cameras</button>${cams.map(c => `<button class="${c.id === cam.id ? 'on' : ''}" data-showcam="${c.id}"
         title="${!c.ok ? 'No picture' : c.points ? 'Ready to score' : 'Not lined up yet'}"><span class="dot ${c.ok && c.points ? 'ok' : ''}"></span>${esc(c.label)}</button>`).join('')}
       ${status.fixed ? '' : '<button class="ghost camnew" data-act="camadd">+ Add a camera</button>'}</div>
     ${camScreen.note ? `<p class="warn">${esc(camScreen.note)}</p>` : ''}
@@ -330,11 +433,11 @@ export function addCamera() {
 // Auto-calibrate one camera. `twenty` is a tapped pixel in the 20 segment; left
 // out, the Pi uses the camera's existing calibration to know which way is up.
 export async function autoCalibrate(camId, twenty) {
-  camScreen.autoCal = null;
+  camScreen.autoCal = null; camScreen.finding = camId;
   calibBusy = true; camScreen.calibNote = ''; camScreen.calibFailed = false;
   drawCameras(await api('/status', 'GET', undefined, 4000).catch(() => null));
   try {
-    const r = await api(`/cameras/${camId}/autocalibration`, 'POST', { twenty });
+    const r = await api(`/cameras/${camId}/autocalibration`, 'POST', twenty ? { twenty, number: camScreen.number } : {});
     camScreen.calibNote = `Board found: ${r.joins} of 40 points, within ${r.rms_px} px.`;
     setCameraCount(Math.max(cameraCount, 1));
     tracker.track('calibrated', { ok: true, how: 'auto', joins: r.joins, rms_px: r.rms_px, tapped: !!twenty });
@@ -342,7 +445,7 @@ export async function autoCalibrate(camId, twenty) {
     camScreen.calibNote = err.message; camScreen.calibFailed = true;
     tracker.track('calibrated', { ok: false, how: 'auto', why: err.message, tapped: !!twenty });
   }
-  calibBusy = false;
+  calibBusy = false; camScreen.finding = null;
   if (onCamerasTab()) renderCameras();
 }
 

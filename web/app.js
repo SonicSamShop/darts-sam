@@ -16,7 +16,7 @@ import { deleteShared, loadShare, openDetail, setShare, share, sharing } from '.
 import { accountDo, acct, sendFeedback } from './screens/accountpanel.js';
 import {
   addCamera, autoCalibrate, calibTap, calibrateOnStart, camScreen, camStatus, changeCameras, drawCameras, linkDo,
-  pairCameras, pairing, refreshCameras, renderCameras, resetDetection, unpairCameras, usbChosen
+  cameraSettings, findAll, pairCameras, pairing, placeCamera, refreshCameras, renderCameras, resetDetection, unpairCameras, usbChosen
 } from './screens/cameras.js';
 import { appleSignIn, landing, mailTo, renderLanding, sendCode, signIn } from './screens/landing.js';
 import {
@@ -114,7 +114,16 @@ delete settings.board;  // (the one board there was, before boards had a list of
 export let totals = store.get('totals', null);  // {darts, reports}: everything on the Pi, as it last said
 export const setTotals = v => { totals = v; };  // for screens/home.js
 export let screen = match ? 'game' : 'home';
-export const setScreen = v => { screen = v; counted(); };  // for screens/*.js: each sets its own
+export const setScreen = v => { screen = v; counted(); wakeCameras(); };  // for screens/*.js: each sets its own
+// The cameras rest after a while unused (standby, on the Cameras screen). A game,
+// or the Cameras screen, keeps them awake, and wakes them if they are resting.
+let woke = 0;
+function wakeCameras() {
+  if (!['game', 'bull', 'cameras'].includes(screen) || Date.now() - woke < 50000) return;
+  woke = Date.now();
+  api('/cameras/wake', 'POST', undefined, 5000).catch(() => {});
+}
+setInterval(wakeCameras, 60000);
 // Tell the hosted site's Google Analytics which screen is showing (web/consent.js,
 // which counts it only for people who allowed it; elsewhere there is no such thing).
 // Only what kind of screen it is: never whose stats or which game. It is told
@@ -613,7 +622,7 @@ $app.addEventListener('click', e => {
   if (d.camremove) return changeCameras('/cameras/remove', { name: d.camremove });
   if (d.camoff) return changeCameras('/cameras/enabled', { name: d.camoff, on: false });
   if (d.camon) return changeCameras('/cameras/enabled', { name: d.camon, on: true });
-  if (d.showcam) { camScreen.shown = +d.showcam; camScreen.adding = false; camScreen.calib = {}; camScreen.autoCal = null; camScreen.calibNote = camScreen.note = ''; camScreen.calibFailed = false; return renderCameras(); }
+  if (d.showcam) { camScreen.shown = +d.showcam; camScreen.one = true; camScreen.adding = false; camScreen.calib = {}; camScreen.autoCal = null; camScreen.calibNote = camScreen.note = ''; camScreen.calibFailed = false; return renderCameras(); }
   if (d.key === 'cancel') { numPad.ask = null; numPad.value = ''; return renderGame(); }
   if (d.key) return padKey(d.key);
   if (d.fin) return padCommit(numPad.ask.total, +d.fin);
@@ -647,7 +656,9 @@ $app.addEventListener('click', e => {
     const id = +d.autocal;
     delete camScreen.calib[id];
     if (camScreen.autoCal === id) { camScreen.autoCal = null; return renderCameras(); }
+    camScreen.shown = id;
     if (b.dataset.has) return autoCalibrate(id);
+    camScreen.one = true;  // a tap on its 20 first, on the picture large
     camScreen.autoCal = id; camScreen.calibNote = ''; camScreen.calibFailed = false;
     return renderCameras();
   }
@@ -699,6 +710,8 @@ $app.addEventListener('click', e => {
     case 'camadd-done': camScreen.adding = false; camScreen.step = camScreen.note = ''; return renderCameras();
     case 'cam-step': camScreen.step = camScreen.note = ''; return renderCameras();
     case 'cam-usb': return usbChosen();
+    case 'camgrid': camScreen.one = false; camScreen.calib = {}; camScreen.autoCal = null; camScreen.calibNote = camScreen.note = ''; camScreen.calibFailed = false; return renderCameras();
+    case 'findall': return findAll();
     case 'welcome-name': return welcomeNamed();
     case 'welcome-back': welcomeForm.step = welcomeForm.note = ''; return renderWelcome();
     case 'welcome-cam': return finishWelcome(true);
@@ -767,6 +780,9 @@ $app.addEventListener('change', e => {
     saveSettings();
     return;
   }
+  if (e.target.dataset?.tapnumber !== undefined) { camScreen.number = +e.target.value; return renderCameras(); }
+  if (e.target.dataset?.place !== undefined) return placeCamera(+e.target.dataset.place, e.target.value);
+  if (e.target.dataset?.camset !== undefined) return cameraSettings();
   const choose = e.target.dataset?.choose;
   if (!choose) return;
   statsView.drill = [];

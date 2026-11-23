@@ -44,13 +44,19 @@ WEB = paths.BUNDLE / "web"
 CONFIG_PATH = paths.HOME / "config.json"
 # "added": stream addresses added in the app; "off": names of cameras switched
 # off there; "calibration": by camera name (see camlist.py). "devices", like
-# --camera, names the cameras outright and turns all of that off.
+# --camera, names the cameras outright and turns all of that off. "order": the
+# cameras' names in the order they are shown. "width", "height", "fps": what
+# USB cameras are asked for (Cameras screen, one of SIZES and RATES);
+# "standby": minutes unused before the cameras rest, 0 never (STANDBY).
 # "host": the hosted site's address; "link": {"token"} once paired with an
 # account there (see link.py). "share": whether its owner agreed to send what
 # it records without an account (see share.py). Without "link" or a yes in
 # "share" this server contacts nothing.
-DEFAULTS = {"devices": None, "added": [], "off": [], "width": 1280, "height": 720, "fps": 15, "calibration": {},
-            "host": None, "link": None, "share": None}
+DEFAULTS = {"devices": None, "added": [], "off": [], "order": [], "width": 1280, "height": 720, "fps": 15,
+            "standby": 15, "calibration": {}, "host": None, "link": None, "share": None}
+SIZES = [(640, 360), (1280, 720), (1920, 1080)]  # all one shape, so calibration scales from one to another
+RATES = [15, 30]
+STANDBY = [0, 5, 15, 30, 60]
 SHARED_PATH = paths.HOME / "data" / "shared.json"  # which games have been sent (share.py)
 
 loop: asyncio.AbstractEventLoop | None = None
@@ -78,6 +84,8 @@ sources: list | None = None  # cameras named with --camera; None: config.json, e
 found: list[int] = []  # the USB cameras the last search saw, switched off or not
 cameras_on = False  # False under --no-cameras
 refreshing = threading.Lock()
+wanted = time.time()  # when the cameras were last wanted: a dart, a game, the Cameras screen
+resting = False  # standby: the cameras have let go of their devices until wanted
 tracker = Tracker({})
 clients: set[WebSocket] = set()
 lock = threading.Lock()
@@ -113,8 +121,10 @@ def start_cameras():
         found, devices = [], sources or config["devices"]
     else:
         found = cameras.discover()
-        devices = camlist.running(found, config["added"], config["off"])
+        devices = camlist.ordered(camlist.running(found, config["added"], config["off"]), config["order"])
     print("cameras:", devices)
+    global resting, wanted
+    resting, wanted = False, time.time()
     cams = {i: cameras.Camera(i, dev, config["width"], config["height"], config["fps"])
             for i, dev in enumerate(devices)}
     if camlist.adopt(config["calibration"], [camlist.name(dev) for dev in devices]):
@@ -158,18 +168,47 @@ async def broadcast(event: dict):
 
 
 def vision_loop():
-    period = 1.0 / config["fps"]
+    global wanted
     while True:
         start = time.time()
+        period = 1.0 / config["fps"]
         frames = {c.id: c.frame for c in cams.values()
                   if c.ok and c.frame is not None and c.id in tracker.H}
         with lock:
             events = tracker.update(frames) if frames else []
+        if events:
+            wanted = time.time()
         for ev in events:
             print("event:", ev)
             if loop:
                 asyncio.run_coroutine_threadsafe(broadcast(ev), loop)
         time.sleep(max(0.0, period - (time.time() - start)))
+
+
+def standby_loop():
+    """Rest the cameras once nothing has wanted them for "standby" minutes."""
+    global resting
+    while True:
+        time.sleep(10)
+        minutes = config.get("standby") or 0
+        if minutes and cams and not resting and time.time() - wanted > minutes * 60:
+            resting = True
+            print("cameras: resting")
+            for c in list(cams.values()):
+                c.sleep()
+
+
+def wake_cameras():
+    """The cameras are wanted: a game, the Cameras screen. Wakes them if resting."""
+    global wanted, resting
+    wanted = time.time()
+    if resting:
+        resting = False
+        print("cameras: awake")
+        for c in list(cams.values()):
+            c.wake()
+        with lock:
+            tracker.reset()  # the board may have changed while they rested
 
 
 @app.websocket("/ws")
@@ -197,6 +236,10 @@ def status():
         "off": [_about(n) for n in config["off"]
                 if n in config["added"] or n in map(camlist.name, found)],
         "fixed": fixed(),
+        "resting": resting,
+        "settings": {"width": config["width"], "height": config["height"], "fps": config["fps"],
+                     "standby": config.get("standby") or 0},
+        "choices": {"sizes": SIZES, "rates": RATES, "standby": STANDBY},
     }
 
 
@@ -205,7 +248,11 @@ def _about(name: str) -> dict:
 
 
 def _frame(cam_id: int):
+    wake_cameras()
     cam = cams.get(cam_id)
+    deadline = time.time() + 3  # one just woken takes a moment
+    while cam is not None and cam.frame is None and time.time() < deadline:
+        time.sleep(0.1)
     if cam is None or cam.frame is None:
         raise HTTPException(404, "camera not available")
     return cam.frame.copy()
@@ -309,6 +356,73 @@ def enable_camera(body: CameraOn):
     return change_cameras(switch)
 
 
+class Place(BaseModel):
+    place: int  # a camera's position as shown (its id)
+    name: str | None = None  # the camera to show there; None: none, that one switched off
+
+
+@app.post("/api/cameras/place")
+def place_camera(body: Place):
+    """Choose the camera in one place: one shown elsewhere swaps with it, one
+    switched off takes its place (and it is switched off), None switches it off."""
+    _changeable()
+
+    def place():
+        names = [camlist.name(c.device) for c in cams.values()]
+        if not 0 <= body.place < len(names):
+            raise HTTPException(404, "No camera there.")
+        here, off = names[body.place], config["off"]
+        if body.name is None:
+            off.append(here)
+        elif body.name in names:
+            there = names.index(body.name)
+            names[body.place], names[there] = names[there], names[body.place]
+        elif body.name in off:
+            off.remove(body.name)
+            off.append(here)
+            names[body.place] = body.name
+        else:
+            raise HTTPException(404, "No such camera.")
+        config["order"] = names + [n for n in config["order"] if n not in names]
+    return change_cameras(place)
+
+
+class CameraSettings(BaseModel):
+    width: int
+    height: int
+    fps: int
+    standby: int
+
+
+@app.post("/api/cameras/settings")
+def camera_settings(body: CameraSettings):
+    """Picture size, frames a second and standby. A new size or rate restarts
+    the cameras; each USB camera's calibration is scaled to the new size."""
+    if (body.width, body.height) not in SIZES or body.fps not in RATES or body.standby not in STANDBY:
+        raise HTTPException(400, "Not one of the choices.")
+    config["standby"] = body.standby
+    if (body.width, body.height, body.fps) == (config["width"], config["height"], config["fps"]):
+        save_config()
+        wake_cameras()
+        return {**status(), "scoring": scoring_cameras()}
+    _changeable()
+
+    def change():
+        old = (config["width"], config["height"])
+        for name, saved in config["calibration"].items():
+            if camlist.kind(name) == "usb":
+                config["calibration"][name] = calib.rescale(saved, old, (body.width, body.height))
+        config["width"], config["height"], config["fps"] = body.width, body.height, body.fps
+    return change_cameras(change)
+
+
+@app.post("/api/cameras/wake")
+def wake():
+    """The app is in a game or on the Cameras screen: keep the cameras awake."""
+    wake_cameras()
+    return {"ok": True, "resting": resting}
+
+
 @app.get("/api/cameras/{cam_id}/snapshot.jpg")
 def snapshot(cam_id: int, overlay: bool = False):
     img = _frame(cam_id)
@@ -334,6 +448,7 @@ def calibrate(cam_id: int, body: Calibration):
 
 class AutoCalibration(BaseModel):
     twenty: list[float] | None = None  # a pixel anywhere inside the 20 segment
+    number: int = 20  # ...or inside this one, for a camera that can't see the 20
     idle: bool = False  # only if no darts are in the board: the app asking by itself as it opens
 
 
@@ -351,8 +466,10 @@ def autocalibrate(cam_id: int, body: AutoCalibration):
         if not old:
             raise HTTPException(400, "Tap the 20 segment first.")
         twenty = calib.view(old).to_picture([board.polar(0, 130)])[0].tolist()
+    if body.number not in board.SEGMENTS:
+        raise HTTPException(400, "Not a number on the board.")
     try:
-        board_found = autocalib.detect(img, twenty)
+        board_found = autocalib.detect(img, twenty, body.number if body.twenty is not None else 20)
     except autocalib.Failed as e:
         raise HTTPException(422, str(e))
     config["calibration"][key(cam_id)] = board_found.saved()
@@ -365,6 +482,7 @@ def autocalibrate(cam_id: int, body: AutoCalibration):
 @app.post("/api/reset")
 def reset():
     """Tell the tracker the board is empty right now."""
+    wake_cameras()
     with lock:
         tracker.reset()
     return {"ok": True}
@@ -748,6 +866,7 @@ def main():
         keep_awake()  # a computer gone to sleep with its screen counts nothing
         start_cameras()
         threading.Thread(target=vision_loop, daemon=True).start()
+        threading.Thread(target=standby_loop, daemon=True).start()
 
     vision_files(app)
     app.mount("/", WebFiles(directory=WEB, html=True), name="web")

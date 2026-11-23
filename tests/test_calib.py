@@ -217,6 +217,11 @@ def real_picture():
     assert 0.4 <= res.lens <= 1.0, f"this camera's lens bends about 0.7, not {res.lens}"
     for px, seg in (((947, 326), 3), ((572, 424), 11), ((805, 128), 6), ((686, 119), 4)):
         assert board.score(*view.to_board([px])[0]) == {"seg": seg, "mult": 1}, f"{px} is in the {seg} on the real board"
+    # A camera that can't see the 20 (a board whose number ring hides the top
+    # numbers from below) taps another number instead: the same board, same way up.
+    for px, seg in (((805, 128), 6), ((947, 326), 3)):
+        other = autocalib.detect(img, px, number=seg)
+        assert np.abs(np.array(other.points) - np.array(res.points)).max() < 0.5, f"tapping the {seg} turned the board"
 
 
 def main(seed=3):

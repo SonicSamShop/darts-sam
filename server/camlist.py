@@ -62,6 +62,13 @@ def running(found: list[int], added: list[str], off: list[str]) -> list:
     return [device(n) for n in [*map(name, found), *added] if n not in off]
 
 
+def ordered(devices: list, order: list[str]) -> list:
+    """The devices in the order the app shows them: as chosen there, then any
+    not placed yet in the order found."""
+    rank = {n: i for i, n in enumerate(order)}
+    return sorted(devices, key=lambda d: rank.get(name(d), len(rank)))
+
+
 def adopt(calibration: dict, names: list[str]) -> bool:
     """config.json used to save calibration by position ("0", "1", "2"). Move
     each to the camera now in that position; one with no camera there waits.

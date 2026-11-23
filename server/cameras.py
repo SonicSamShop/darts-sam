@@ -59,6 +59,8 @@ class Camera:
         self.ok = False
         self._size = (width, height, fps)
         self._stop = False
+        self._awake = threading.Event()  # cleared: resting (standby), the device let go
+        self._awake.set()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
@@ -72,11 +74,23 @@ class Camera:
 
     def _run(self):
         cap = None
+        w, h, _ = self._size
         while not self._stop:
+            if not self._awake.is_set():
+                if cap is not None:
+                    cap.release()
+                    cap = None
+                self.frame, self.ok = None, False
+                self._awake.wait(1)
+                continue
             if cap is None or not cap.isOpened():
                 cap = self._open()
             good, frame = cap.read()
             if good:
+                if not isinstance(self.device, str) and frame.shape[:2] != (h, w):
+                    # A USB camera that can't give the size asked for: every
+                    # picture is the size its calibration is saved at.
+                    frame = cv2.resize(frame, (w, h))
                 self.frame, self.ok = frame, True
             else:
                 self.ok = False
@@ -86,8 +100,16 @@ class Camera:
         if cap is not None:
             cap.release()
 
+    def sleep(self):
+        """Rest: let go of the camera until wake()."""
+        self._awake.clear()
+
+    def wake(self):
+        self._awake.set()
+
     def stop(self):
         self._stop = True
+        self._awake.set()
 
     def join(self, timeout: float = 5):
         """Wait for a stopped camera to let go of its device."""

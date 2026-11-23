@@ -24,6 +24,12 @@ class FakeCamera:
     def stop(self):
         self.stopped = True
 
+    def sleep(self):
+        self.ok = False
+
+    def wake(self):
+        self.ok = self.device not in FakeCamera.dead
+
     def join(self, timeout=None):
         assert self.stopped  # told to stop before being waited for
         self.joined = True
@@ -202,6 +208,58 @@ def main():
     app.remove_camera(app.CameraName(name="http://phone:8080/video"))
     assert app.config["added"] == [] and app.config["off"] == []
     assert "http://phone:8080/video" not in app.config["calibration"]
+
+    # --- which camera goes where ---
+    plugged[:] = [0, 1, 2]
+    app.config.update(off=[], order=[], calibration={"usb:0": PTS})
+    names = lambda r: [c["name"] for c in r["cameras"]]
+    r = app.refresh_cameras()
+    assert names(r) == ["usb:0", "usb:1", "usb:2"]
+    # one shown elsewhere swaps with it, and the order is kept for next time
+    r = app.place_camera(app.Place(place=0, name="usb:2"))
+    assert names(r) == ["usb:2", "usb:1", "usb:0"] and r["cameras"][2]["points"] == PTS
+    assert names(app.refresh_cameras()) == ["usb:2", "usb:1", "usb:0"]
+    # none: that one is switched off
+    r = app.place_camera(app.Place(place=1))
+    assert names(r) == ["usb:2", "usb:0"] and app.config["off"] == ["usb:1"]
+    # a switched-off one takes the place, and the one there is switched off
+    r = app.place_camera(app.Place(place=0, name="usb:1"))
+    assert names(r) == ["usb:1", "usb:0"] and app.config["off"] == ["usb:2"]
+    refused(404, app.place_camera, app.Place(place=5, name="usb:0"))
+    refused(404, app.place_camera, app.Place(place=0, name="usb:7"))
+    app.config.update(off=[], order=[])
+
+    # --- picture size, frames a second, standby ---
+    r = app.refresh_cameras()
+    assert r["settings"] == {"width": 1280, "height": 720, "fps": 15, "standby": 15}
+    assert [1920, 1080] in [list(x) for x in r["choices"]["sizes"]]
+    tapped = [[100, 200], [300, 200], [300, 400], [100, 400]]
+    found_board = {"points": tapped, "lens": -0.1, "size": [1280, 720]}
+    app.config["calibration"] = {"usb:0": tapped, "usb:1": found_board, "http://phone/video": tapped}
+    before = list(app.cams.values())
+    r = app.camera_settings(app.CameraSettings(width=1920, height=1080, fps=30, standby=5))
+    assert all(c.stopped for c in before)  # restarted at the new size
+    assert (app.config["width"], app.config["height"], app.config["fps"], app.config["standby"]) == (1920, 1080, 30, 5)
+    cal = app.config["calibration"]
+    assert cal["usb:0"] == [[150, 300], [450, 300], [450, 600], [150, 600]]  # tapped: scaled from the old size
+    assert cal["usb:1"] == {"points": [[150, 300], [450, 300], [450, 600], [150, 600]], "lens": -0.1, "size": [1920, 1080]}
+    assert cal["http://phone/video"] == tapped  # a phone decides its own size
+    # standby alone doesn't restart them
+    before = list(app.cams.values())
+    app.camera_settings(app.CameraSettings(width=1920, height=1080, fps=30, standby=0))
+    assert not any(c.stopped for c in before) and app.config["standby"] == 0
+    refused(400, app.camera_settings, app.CameraSettings(width=1000, height=500, fps=30, standby=0))
+    refused(400, app.camera_settings, app.CameraSettings(width=1920, height=1080, fps=60, standby=0))
+    app.camera_settings(app.CameraSettings(width=1280, height=720, fps=15, standby=15))
+
+    # resting: wanted wakes them
+    app.resting = True
+    for c in app.cams.values():
+        c.sleep()
+    assert app.status()["resting"] is True
+    assert app.wake() == {"ok": True, "resting": False}
+    assert all(c.ok for c in app.cams.values())
+    app.config["calibration"] = {}
 
     # a change while another is under way is refused and changes nothing
     app.refreshing.acquire()
