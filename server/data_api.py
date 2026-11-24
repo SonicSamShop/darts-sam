@@ -79,6 +79,16 @@ class MatchIn(BaseModel):
     throws: list[ThrowIn]
 
 
+class TournamentIn(BaseModel):
+    seq: int
+    name: str
+    data: dict  # opts, rounds, entrants, slots: the app's own bracket
+    created: int
+    finished: int | None = None
+    abandoned: bool = False
+    winner: int | None = None  # a player id
+
+
 def _db(fn, *args):
     try:
         return fn(*args)
@@ -154,6 +164,21 @@ def make_router(db_file: Callable[[Request], Path | None], reports: Callable[[],
     def move_games(request: Request, board_id: str, body: MoveIn):
         with db.at(db_file(request)):
             return {"moved": _db(db.move_games, board_id, body.start, body.end, body.only)}
+
+    @router.get("/api/tournaments")
+    def tournaments(request: Request):
+        with db.at(db_file(request)):
+            return db.list_tournaments()
+
+    @router.get("/api/tournaments/{tid}")
+    def get_tournament(request: Request, tid: str):
+        with db.at(db_file(request)):
+            return _db(db.get_tournament, tid)
+
+    @router.put("/api/tournaments/{tid}")
+    def put_tournament(request: Request, tid: str, body: TournamentIn):
+        with db.at(db_file(request)):
+            return {"ok": True, "saved": _db(db.save_tournament, tid, body.model_dump())}
 
     @router.get("/api/settings")
     def get_settings(request: Request):

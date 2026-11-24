@@ -67,6 +67,16 @@ CREATE TABLE IF NOT EXISTS boards (        -- the household's boards; the one wi
   down      INTEGER,                       -- ms: when it came down; NULL while it is up
   created   INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS tournaments (   -- knockout tournaments: the whole bracket is kept as JSON
+  id        TEXT PRIMARY KEY,              -- made up by the app
+  seq       INTEGER NOT NULL,              -- goes up with every change; stale saves are ignored
+  name      TEXT NOT NULL,
+  data      TEXT NOT NULL,                 -- JSON: game options, rounds, entrants, the bracket's slots
+  created   INTEGER NOT NULL,
+  finished  INTEGER,                       -- NULL while going
+  abandoned INTEGER NOT NULL DEFAULT 0,
+  winner_id INTEGER REFERENCES players(id)
+);
 CREATE TABLE IF NOT EXISTS match_players (
   match_id  TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
   position  INTEGER NOT NULL,              -- throwing order, 0 first
@@ -476,6 +486,57 @@ def move_games(board_id: str, start: int | None, end: int | None, only: list | N
         if not db.execute("SELECT 1 FROM boards WHERE id = ?", (board_id,)).fetchone():
             raise NotFound("no such board")
         return db.execute(f"UPDATE matches SET board = ? WHERE {' AND '.join(where)}", (board_id, *args)).rowcount
+
+
+# ---------- tournaments ----------
+# A knockout tournament is one row: the app keeps the bracket in `data` and saves the whole
+# thing after every change, like a match (a copy older than the one stored is ignored).
+
+def _tournament(row) -> dict:
+    return {"id": row["id"], "seq": row["seq"], "name": row["name"], "data": json.loads(row["data"]),
+            "created": row["created"], "finished": row["finished"], "abandoned": bool(row["abandoned"]),
+            "winner": row["winner_id"]}
+
+
+def save_tournament(tid: str, t: dict) -> bool:
+    """Store the current state of a tournament, replacing any earlier copy.
+
+    t: seq, name (1-40 characters), data (the bracket, as the app keeps it), created, finished
+    (ms, or None while going), abandoned, winner (a player id, or None). Returns False when
+    the stored copy is the same age or newer."""
+    name = (t.get("name") or "").strip()
+    if not name or len(name) > 40:
+        raise Invalid("a tournament needs a name of 1 to 40 characters")
+    with connect() as db:
+        if t.get("winner") is not None and not db.execute(
+                "SELECT 1 FROM players WHERE id = ?", (t["winner"],)).fetchone():
+            raise Invalid("unknown player id")
+        old = db.execute("SELECT seq FROM tournaments WHERE id = ?", (tid,)).fetchone()
+        if old and old["seq"] >= t["seq"]:
+            return False
+        db.execute(
+            "INSERT INTO tournaments (id, seq, name, data, created, finished, abandoned, winner_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET seq = excluded.seq, name = excluded.name, data = excluded.data, "
+            "finished = excluded.finished, abandoned = excluded.abandoned, winner_id = excluded.winner_id",
+            (tid, t["seq"], name, json.dumps(t["data"]), int(t["created"]),
+             None if t.get("finished") is None else int(t["finished"]),
+             int(bool(t.get("abandoned"))), t.get("winner")))
+    return True
+
+
+def list_tournaments() -> list[dict]:
+    """Every tournament, the newest first."""
+    with connect() as db:
+        return [_tournament(r) for r in db.execute("SELECT * FROM tournaments ORDER BY created DESC, id")]
+
+
+def get_tournament(tid: str) -> dict:
+    with connect() as db:
+        row = db.execute("SELECT * FROM tournaments WHERE id = ?", (tid,)).fetchone()
+        if row is None:
+            raise NotFound("no such tournament")
+        return _tournament(row)
 
 
 # ---------- settings ----------
