@@ -15,7 +15,7 @@ function rig() {
     get: (k, d) => kept.has(k) ? JSON.parse(kept.get(k)) ?? d : d,
     set: (k, v) => kept.set(k, JSON.stringify(v)),
   };
-  const pi = { up: false, players: [], settings: {}, matches: new Map(), darts: new Map(), boards: new Map(), noBoards: false, calls: [], nextId: 1 };
+  const pi = { up: false, players: [], settings: {}, matches: new Map(), darts: new Map(), boards: new Map(), noBoards: false, tournaments: new Map(), noTournaments: false, calls: [], nextId: 1 };
   const refuse = (status, msg) => { throw Object.assign(new Error(msg), { status }); };
   async function api(path, method = 'GET', body) {
     if (!pi.up) throw new TypeError('Failed to fetch');
@@ -65,6 +65,14 @@ function rig() {
       if (placed && body.down == null) for (const b of pi.boards.values()) if (b.down == null && b.id !== key) b.down = body.up;
       pi.boards.set(key, { id: key, ...(placed ? {} : { up: was?.up ?? null, down: was?.down ?? 0 }), ...body });
       return pi.boards.get(key);
+    }
+    if (path.startsWith('/tournaments')) {
+      if (pi.noTournaments) refuse(404, 'Not Found');
+      const key = path.split('/')[2];
+      if (!key) return [...pi.tournaments.values()].sort((a, b) => b.created - a.created);
+      if (body.data.entrants.some(e => !pi.players.some(o => o.id === e.id))) refuse(400, 'unknown player id');
+      if (!(pi.tournaments.get(key)?.seq >= body.seq)) pi.tournaments.set(key, { id: key, ...body });
+      return { ok: true };
     }
     if (path === '/settings') return pi.settings;
     if (path.startsWith('/settings/')) { pi.settings[path.split('/')[2]] = body.value; return { ok: true }; }
@@ -452,4 +460,82 @@ test('saying an older board was played on before a date keeps the dates it alrea
   data.playedBefore(a.id, 2000);
   const now = store.get('boards').find(o => o.id === a.id);
   assert.deepEqual([now.up, now.down], [1000, 3000]);
+});
+
+// ---------- tournaments ----------
+const cup = (id, ids, created = 1) => ({
+  id, name: 'Tournament 24 Nov', created, finished: null, abandoned: false, winner: null,
+  data: {
+    opts: { start: 501, out: 'double' }, rounds: [{ legs: 2 }, { legs: 3 }],
+    entrants: ids.map(i => ({ id: i, name: 'P' + i })),
+    slots: [{ round: 0, a: ids[0], b: ids[1], match: null, winner: null, legs: [0, 0], how: null },
+      { round: 0, a: ids[2], b: 'bye', match: null, winner: ids[2], legs: [0, 0], how: 'bye' },
+      { round: 1, a: null, b: ids[2], match: null, winner: null, legs: [0, 0], how: null }],
+  },
+});
+
+test('a tournament saved here goes to the Pi with its seq', async () => {
+  const { store, pi, data } = rig();
+  pi.players.push({ id: 1, name: 'P1' }, { id: 2, name: 'P2' }, { id: 3, name: 'P3' });
+  data.saveTournament(cup('t1', [1, 2, 3]));
+  assert.equal(data.tournament('t1').seq, 1);
+  assert.equal(data.waiting(), 1);
+  pi.up = true;
+  assert.equal(await data.sync(true), true);
+  assert.ok(pi.calls.includes('PUT /tournaments/t1'));
+  assert.equal(pi.tournaments.get('t1').seq, 1);
+  assert.equal(pi.tournaments.get('t1').name, 'Tournament 24 Nov');
+  assert.deepEqual(store.get('tournamentsq'), []);
+  assert.equal(data.waiting(), 0);
+});
+
+test('a tournament with a player made offline waits for their number, then goes with it', async () => {
+  const { store, pi, data } = rig();
+  pi.players.push({ id: 1, name: 'P1' }, { id: 3, name: 'P3' });
+  pi.nextId = 6;
+  data.addPlayer('Newbie');
+  const other = data.addPlayer('Other');
+  assert.equal(other.id, -2);
+  data.saveTournament(cup('t1', [1, -2, 3]));
+  // the Pi can't be reached, so the player has no number yet: the tournament stays here
+  assert.equal(await data.sync(true), false);
+  assert.equal(pi.tournaments.size, 0);
+  assert.deepEqual(store.get('tournamentsq'), ['t1']);
+  pi.up = true;
+  assert.equal(await data.sync(true), true);
+  const sent = pi.tournaments.get('t1');
+  assert.deepEqual(sent.data.entrants.map(e => e.id), [1, 7, 3]);
+  assert.deepEqual(sent.data.slots[0].b, 7);
+  assert.deepEqual(data.tournament('t1').data.slots[0].b, 7);
+  assert.deepEqual(store.get('tournamentsq'), []);
+});
+
+test('the Pi\'s tournaments come back, except ones changed here and not yet sent', async () => {
+  const { pi, data } = rig();
+  pi.players.push({ id: 1, name: 'P1' }, { id: 2, name: 'P2' }, { id: 3, name: 'P3' });
+  pi.up = true;
+  data.saveTournament(cup('old', [1, 2, 3], 1));
+  data.saveTournament(cup('mine', [1, 2, 3], 2));
+  await data.sync(true);
+  pi.tournaments.get('old').name = 'Renamed elsewhere';
+  pi.tournaments.get('old').seq = 5;
+  pi.tournaments.get('mine').name = 'Theirs';
+  // changed here, with a player who has no number yet, so it stays queued through the pull below
+  const mine = data.tournament('mine');
+  data.saveTournament({ ...mine, name: 'Mine', data: { ...mine.data, entrants: [...mine.data.entrants, { id: -9, name: 'New' }] } });
+  assert.equal(await data.sync(true), true);
+  assert.equal(data.tournament('old').name, 'Renamed elsewhere');
+  assert.equal(data.tournament('mine').name, 'Mine');
+  assert.equal(pi.tournaments.get('mine').name, 'Theirs');  // not sent
+  assert.deepEqual(data.tournaments().map(t => t.id), ['mine', 'old']);  // newest first
+  assert.equal(data.tournament('nope'), null);
+});
+
+test('a Pi that doesn\'t know tournaments leaves ours alone', async () => {
+  const { pi, data } = rig();
+  pi.noTournaments = true;
+  data.saveTournament(cup('t1', [1, 2, 3]));
+  pi.up = true;
+  assert.equal(await data.sync(true), true);
+  assert.deepEqual(data.tournaments().map(t => t.id), ['t1']);
 });

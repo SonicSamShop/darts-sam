@@ -27,10 +27,14 @@
 //                            up and down, so details changed on a device that hasn't heard
 //                            of a swap don't undo it
 //   moves     [{n, id, start, end, only}]  games said to be on a board (see moveGames), to send
+//   tournaments [{id, seq, name, data, created, finished, abandoned, winner}]  knockouts
+//                            (see tournament.js), each saved whole with a seq that goes up
+//   tournamentsq [id]        tournaments changed here, to send
 //   dirty     {setup?, settings?}   settings changed here since they were last sent
 //   pending   {matchId: {seq, m: match} | {seq, quit: true}}  matches to send
 //   recent    finished games as the Pi last listed them
 import { gameById, compute, elapsed } from './engine.js';
+import { remapIds } from './tournament.js';
 
 export const cleanName = name => String(name).trim().split(/\s+/).join(' ');
 
@@ -278,8 +282,20 @@ export function createSync({ store, api, changed = () => {} }) {
     set('pending', { ...get('pending', {}), [match.id]: { seq: (match.seq || 0) + 1, quit: true } });
   }
 
+  // ---------- tournaments ----------
+  // Saved whole, with a seq one more than before, so the Pi keeps the newest copy.
+  const byCreated = list => list.sort((a, b) => b.created - a.created || (a.id < b.id ? -1 : 1));
+  const tournaments = () => get('tournaments', []);
+  const tournament = id => tournaments().find(t => t.id === id) ?? null;
+  function saveTournament(t) {
+    const seq = Math.max(t.seq ?? 0, tournament(t.id)?.seq ?? 0) + 1;
+    set('tournaments', byCreated([...tournaments().filter(o => o.id !== t.id), { ...t, seq }]));
+    set('tournamentsq', [...get('tournamentsq', []).filter(id => id !== t.id), t.id]);
+  }
+
   // How many changes have not reached the Pi yet, and how many of them are games.
   const waiting = () => get('ops', []).length + get('dartsq', []).length + get('boardsq', []).length + get('moves', []).length
+    + get('tournamentsq', []).length
     + Object.keys(get('dirty', {})).length
     + Object.keys(get('pending', {})).length;
   const waitingGames = () => Object.values(get('pending', {})).filter(i => !i.quit).length;
@@ -331,6 +347,7 @@ export function createSync({ store, api, changed = () => {} }) {
       else if (item.players) item.players = swap(item.players);
     }
     set('pending', pending);
+    set('tournaments', tournaments().map(t => remapIds(t, old, id)));
     set('ops', get('ops', []).map(o => o.id === old ? { ...o, id } : o));
   }
   // The Pi will never accept this new player: drop them and what depends on them.
@@ -444,11 +461,26 @@ export function createSync({ store, api, changed = () => {} }) {
     }
   }
 
+  async function pushTournaments() {
+    for (const id of get('tournamentsq', [])) {
+      const t = tournament(id);
+      if (t?.data.entrants.some(e => e.id < 0)) continue;  // a player still waiting for a number
+      if (t) try {
+        const { seq, name, data, created, finished, abandoned, winner } = t;
+        await api(`/tournaments/${id}`, 'PUT', { seq, name, data, created, finished, abandoned, winner });
+      } catch (e) {
+        if (!refused(e)) throw e;  // refused: the Pi's list puts it right
+      }
+      // Sent, unless it was changed again meanwhile: then it goes next time.
+      if (tournament(id)?.seq === t?.seq) set('tournamentsq', get('tournamentsq', []).filter(o => o !== id));
+    }
+  }
+
   // The Pi's copy replaces ours, except for anything changed here since we sent.
   async function pull() {
     const older = e => { if (refused(e)) return null; throw e; };  // (a Pi too old to know them: keep ours)
-    const [players, saved, games, darts, boards] = await Promise.all([api('/players'), api('/settings'), api('/matches?limit=8'),
-      api('/darts').catch(older), api('/boards').catch(older)]);
+    const [players, saved, games, darts, boards, cups] = await Promise.all([api('/players'), api('/settings'), api('/matches?limit=8'),
+      api('/darts').catch(older), api('/boards').catch(older), api('/tournaments').catch(older)]);
     if (!get('ops', []).length) set('players', players);
     if (darts) {
       const q = get('dartsq', []), mine = get('darts', []).filter(d => q.includes(d.id));
@@ -457,6 +489,10 @@ export function createSync({ store, api, changed = () => {} }) {
     if (boards) {
       const q = get('boardsq', []), mine = boardsNow().filter(b => q.includes(b.id));
       set('boards', [...boards.filter(b => !q.includes(b.id)), ...mine].sort((a, b) => a.created - b.created || (a.id < b.id ? -1 : 1)));
+    }
+    if (cups) {
+      const q = get('tournamentsq', []), mine = tournaments().filter(t => q.includes(t.id));
+      set('tournaments', byCreated([...cups.filter(t => !q.includes(t.id)), ...mine]));
     }
     const dirty = get('dirty', {});
     for (const key of ['settings', 'setup']) if (saved[key] && !dirty[key]) set(key, saved[key]);
@@ -478,6 +514,7 @@ export function createSync({ store, api, changed = () => {} }) {
         await pushBoards();
         await pushSettings();
         await pushMatches(report);
+        await pushTournaments();
         if (report.pull) { await pull(); report.pulled = true; }
         return true;
       } catch {
@@ -492,5 +529,5 @@ export function createSync({ store, api, changed = () => {} }) {
     return running;
   }
 
-  return { addPlayer, renamePlayer, removePlayer, addDarts, changeDarts, addBoard, changeBoard, removeBoard, putUp, playedBefore, wallBoard, saveSetting, saveMatch, quitMatch, waiting, waitingGames, waitingSheets, recent, sheet, sync };
+  return { addPlayer, renamePlayer, removePlayer, addDarts, changeDarts, addBoard, changeBoard, removeBoard, putUp, playedBefore, wallBoard, saveTournament, tournaments, tournament, saveSetting, saveMatch, quitMatch, waiting, waitingGames, waitingSheets, recent, sheet, sync };
 }
