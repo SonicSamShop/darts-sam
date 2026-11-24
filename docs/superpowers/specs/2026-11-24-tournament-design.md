@@ -116,6 +116,10 @@ New tournament
   [ Draw ]
 ```
 
+- **Name** starts filled in with a suggestion the player can type over:
+  "Christmas <year>" from 20 to 31 December, otherwise "Tournament <day> <month>"
+  (e.g. "Tournament 24 Nov"). 1 to 40 characters. It is shown on the bracket,
+  the winner's screen and the list of past tournaments.
 - **Players** are picked like the home screen's chips. Bots need a new picker:
   the home screen has only one computer seat (`BOT`, id 0, at `setup.bot`'s
   level), and a tournament can have several at different levels. Here "+ Bot"
@@ -318,6 +322,17 @@ add later; left out.)
 
 A line in `release.json` "unreleased" (see [[release-notes-upkeep]]):
 "Tournaments: a knockout for 3 to 16 players, people and bots, on one board."
+
+## Prototype
+
+Sam saw a throwaway prototype of the bracket and animation on 2026-11-24 and
+approved it as is ("Excellent, perfect"):
+https://claude.ai/artifact/4gTvdzDhZnZtrkxMNiekUt. The build follows its look:
+Chalk lettering, boxes 156 × 34 with 46 between rows and 40 between rounds,
+"next" and "simulated" written above a match in the accent colour, the winner's
+box travelling out, down or up, and in over about 0.9 s after a 0.35 s pause,
+the wire it travels lighting up behind it, and "Simulating Bot 5 v Bot 9…"
+for 0.7 s before a bot match plays out.
 
 ## In what order
 
