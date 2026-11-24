@@ -215,3 +215,39 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ---------- the setup check after the board is found ----------
+GOOD = camera(angle=30, radius=250, height=420)  # 31° round from straight on, the board filling the picture
+
+
+def found_with(P, dim=1.0):
+    img = (render(P, np.random.default_rng(3)) * dim).astype(np.uint8)
+    tw = tuple(float(v) for v in project(P, np.array([*board.polar(3, 60), 0.0])))
+    found = phonevision.calibrate(cv2.cvtColor(img, cv2.COLOR_BGR2RGBA).tobytes(), W, H, tw)
+    assert found["ok"], found
+    return [c["kind"] for c in found["checks"]], found
+
+
+def test_a_good_setup_passes_the_checks():
+    kinds, found = found_with(GOOD)
+    assert kinds == [], found["checks"]
+
+
+def test_a_dark_board_is_too_dark():
+    """A player's board lit by one lamp off to the side (2026-11-24) read about
+    80 of 255 in the middle of its brightness; a well lit one about 195."""
+    kinds, found = found_with(GOOD, dim=0.45)
+    assert kinds == ["dark"], found["checks"]
+    assert "light" in found["checks"][0]["text"]
+    json.dumps(found)  # posted from the worker as is
+
+
+def test_a_phone_far_round_the_side_is_too_steep():
+    kinds, _ = found_with(camera(angle=30, radius=520, height=200))  # 69°
+    assert "steep" in kinds, kinds
+
+
+def test_a_far_away_board_is_too_small():
+    kinds, _ = found_with(P)  # the drawn phone: 70° round and the board small
+    assert "small" in kinds, kinds

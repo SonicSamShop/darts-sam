@@ -26,10 +26,13 @@ const SAY = {
   aim: () => ['Line it up with the board',
     'Stand the phone to one side of the board, about level with it, with the whole board in the picture. Straight in front hides the dart\'s point behind its flight. Take the darts out, then press <b>Find the board</b>.',
     [['find', 'Find the board', true], ['off', 'Stop using the phone camera']]],
-  twenty: () => ['Tap the 20', 'Tap anywhere inside the <b>20</b> segment on the picture. That shows which way up the board is.', [['aim', 'Cancel']]],
+  twenty: () => ['Tap the 20', 'Tap anywhere inside the <b>20</b> segment on the picture. That shows which way up the board is. The board must have <b>no darts in it</b>.', [['aim', 'Cancel']]],
   finding: () => ['Looking for the board…', 'This takes a few seconds.', []],
   failed: d => ['Couldn\'t find the board', `${esc(d.reason)} Check the whole board is in the picture and well lit, with no darts in it.`,
     [['find', 'Try again', true], ['off', 'Stop using the phone camera']]],
+  // Found, but the picture will cost darts (phonevision.checks): say what to change.
+  check: d => ['Found the board, but…', `${(d.checks || []).map(c => esc(c.text)).join('<br><br>')}`,
+    [['find', 'Find the board again', true], ['use', 'Use it anyway']]],
   watching: () => ['Ready to score',
     'The green lines should sit on the board\'s wires. If they don\'t, or the phone gets moved, find the board again. When it isn\'t sure of a dart it asks you.',
     [['close', 'Done', true], ['find', 'Find the board again'], ['off', 'Stop using the phone camera']]],
@@ -49,7 +52,7 @@ const SAY = {
 export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, inGame = () => false, say = () => {},
   note = () => {}, undoLast = () => {}, dartCount = () => 0, doc = globalThis.document, fetchFn = globalThis.fetch }) {
   let cam = null, sheet = null, video = null, canvas = null, panel = null, toastTimer = 0, watchGame = 0, waitTap = 0;
-  let state = 'off', detail = {}, lines = null, offered = null;
+  let state = 'off', detail = {}, lines = null, offered = null, pending = null;  // pending: found, waiting on "Use it anyway"
   const STOPPED = ['denied', 'no-camera', 'busy'];  // never got going: as good as off
   // One saved before the board's picture was kept with it (anchor) can't be
   // lined up with, so a phone shaken on its stand would score in the wrong
@@ -242,7 +245,17 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
     let r;
     try { r = await cam.calibrate(pt); } catch (e) { r = { ok: false, reason: String(e?.message || e) }; }
     if (!r?.ok) return set('failed', { reason: r?.reason });
-    calibration = r.calibration;
+    if (r.checks?.length) {
+      note('phone-check', { kinds: r.checks.map(c => c.kind) });
+      pending = r.calibration;
+      return set('check', { checks: r.checks });
+    }
+    use(r.calibration);
+  }
+
+  function use(cal) {
+    pending = null;
+    calibration = cal;
     store.set(KEY, { calibration, savedAt: Date.now() });
     watch(calibration);
   }
@@ -261,6 +274,7 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
     if (a === 'retry') { set('loading', { step: 1 }); return begin(); }
     if (a === 'find') { cam?.pause(); return set('twenty'); }  // nothing scored while the board is found again
     if (a === 'aim') return calibration ? watch(calibration) : set('aim');
+    if (a === 'use') return pending ? use(pending) : set('aim');
     if (a === 'off') {
       cam?.stop();
       lines = null;

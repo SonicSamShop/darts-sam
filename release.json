@@ -1,7 +1,8 @@
 {
   "version": "1.7.3",
   "unreleased": [
-    "121 Checkout now says \"Can't check out\" when the darts you have left can't finish what's left, instead of \"Bust\", and those darts still count."
+    "121 Checkout now says \"Can't check out\" when the darts you have left can't finish what's left, instead of \"Bust\", and those darts still count.",
+    "Phone camera (Beta): after it finds the board it now says if the board is too dark, too small in the picture or seen too far from the side, and what to change."
   ],
   "notes": {
     "1.0": [

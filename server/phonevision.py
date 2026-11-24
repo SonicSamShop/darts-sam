@@ -23,6 +23,23 @@ CAMERA = 0  # its number, as the cameras' computer numbers them: reports say "Ca
 MOVED_PX = 3.0   # rings' edges further than this from where the calibration puts them: the phone moved
 MIN_EDGES = 40   # of up to 320 ring edges; fewer found and the board isn't where it was
 
+# The setup check once the board is found (checks()). It still scores past
+# these, worse: the player is told, and can go on anyway.
+DARK = 110        # the board's middle brightness (0-255) below this: too dark. Sam's lit board reads
+                  # about 195; a player's lit by one lamp off to the side (2026-11-24) about 80
+SMALL = 0.45      # px per mm, where the board is seen least well, below this: too far away. Sam's
+                  # webcams see about 0.7, so a double (8 mm) is under 4 px across below this
+STEEP = 65        # degrees round from straight on, past this: the board is seen too edge on
+
+CHECKS = {
+    "dark": "The board is too dark for the camera to see darts well. Turn on a light that shines "
+            "on the board, or bring a lamp nearer, then find the board again.",
+    "small": "The board is small in the picture. Move the phone closer, or turn it sideways, so "
+             "the board fills more of the picture.",
+    "steep": "The phone is too far round to the side, so the board looks thin. Move it nearer the "
+             "front: about halfway between straight on and side on.",
+}
+
 REPORTS = "/tmp/reports"  # in the browser's own file system; packed and sent, then gone
 
 _tracker: tracker.Tracker | None = None
@@ -48,7 +65,35 @@ def calibrate(rgba, w: int, h: int, twenty=None) -> dict:
     # The picture goes with it (small, grey): later pictures are lined up
     # with this one, so a phone a few px from where it was still scores right.
     ok, jpg = cv2.imencode(".jpg", tracker.small_grey(img), [cv2.IMWRITE_JPEG_QUALITY, 80])
-    return {"ok": True, "calibration": {**found.saved(), **({"anchor": base64.b64encode(jpg.tobytes()).decode()} if ok else {})}}
+    return {"ok": True, "calibration": {**found.saved(), **({"anchor": base64.b64encode(jpg.tobytes()).decode()} if ok else {})},
+            "checks": [{"kind": k, "text": CHECKS[k]} for k in checks(img, found.view())]}
+
+
+def checks(img, view: calib.View) -> list[str]:
+    """What about the picture will cost darts: "dark", "small", "steep" (see
+    CHECKS), from the picture the board was found in."""
+    a = np.radians(np.arange(0, 360, 6))
+    ring = np.stack([np.sin(a), -np.cos(a)], 1)
+    outline = view.to_picture(ring * board.R_DOUBLE_OUT).astype(np.int32)
+    inside = np.zeros(img.shape[:2], np.uint8)
+    cv2.fillPoly(inside, [outline], 255)
+    bright = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[..., 2][inside > 0]
+
+    def stretch(mm):
+        """How many px one mm becomes there, the most and the least, by direction."""
+        p = view.to_picture([mm, mm + (1.0, 0.0), mm + (0.0, 1.0)])
+        return np.linalg.svd(np.stack([p[1] - p[0], p[2] - p[0]], 1), compute_uv=False)
+
+    most, least = stretch(np.zeros(2))
+    worst = min(stretch(m)[1] for m in np.concatenate([ring * 100, ring * board.R_DOUBLE_OUT]))
+    found = []
+    if bright.size and np.median(bright) < DARK:
+        found.append("dark")
+    if worst < SMALL:
+        found.append("small")
+    if np.degrees(np.arccos(min(1.0, least / most))) > STEEP:
+        found.append("steep")
+    return found
 
 
 def _anchor(calibration: dict):
