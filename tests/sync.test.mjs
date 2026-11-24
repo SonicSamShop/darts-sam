@@ -24,6 +24,7 @@ function rig() {
     if (path === '/players' && method === 'GET') return pi.players.filter(p => !p.gone).map(({ gone, ...p }) => p)
       .sort((a, b) => a.name.localeCompare(b.name));
     if (path === '/players' && method === 'POST') {
+      if (pi.noAdd?.includes(body.name)) refuse(422, 'the Pi will not take this player');
       const old = pi.players.find(p => p.name.toLowerCase() === body.name.toLowerCase());
       if (old && !old.gone) refuse(400, 'there is already a player called ' + old.name);
       if (old) { old.gone = false; return { id: old.id, name: old.name }; }
@@ -532,10 +533,55 @@ test('the Pi\'s tournaments come back, except ones changed here and not yet sent
 });
 
 test('a Pi that doesn\'t know tournaments leaves ours alone', async () => {
-  const { pi, data } = rig();
+  const { store, pi, data } = rig();
+  pi.players.push({ id: 1, name: 'P1' }, { id: 2, name: 'P2' }, { id: 3, name: 'P3' });
   pi.noTournaments = true;
   data.saveTournament(cup('t1', [1, 2, 3]));
   pi.up = true;
   assert.equal(await data.sync(true), true);
   assert.deepEqual(data.tournaments().map(t => t.id), ['t1']);
+  // not reached, so still to send: once the Pi is updated, it goes and is kept
+  assert.deepEqual(store.get('tournamentsq'), ['t1']);
+  pi.noTournaments = false;
+  assert.equal(await data.sync(true), true);
+  assert.deepEqual(data.tournaments().map(t => t.id), ['t1']);
+  assert.equal(pi.tournaments.get('t1').seq, 1);
+  assert.equal(data.waiting(), 0);
+});
+
+test('a tournament the Pi refuses stays on this device', async () => {
+  const { store, pi, data } = rig();
+  pi.players.push({ id: 1, name: 'P1' }, { id: 2, name: 'P2' });
+  data.saveTournament(cup('t1', [1, 2, 9]));  // 9: a player this Pi has never had
+  pi.up = true;
+  assert.equal(await data.sync(true), true);
+  assert.equal(pi.tournaments.size, 0);
+  assert.deepEqual(store.get('tournamentsq'), []);
+  assert.deepEqual(data.tournaments().map(t => t.id), ['t1']);
+});
+
+test('a player the Pi will never take goes, and so do the tournaments they are in', async () => {
+  const { store, pi, data } = rig();
+  pi.players.push({ id: 1, name: 'P1' }, { id: 3, name: 'P3' });
+  pi.nextId = 7;
+  pi.noAdd = ['Bad'];
+  const bad = data.addPlayer('Bad');
+  data.saveTournament(cup('t1', [1, bad.id, 3]));
+  data.saveTournament(cup('t2', [1, 3, 1]));
+  pi.up = true;
+  assert.equal(await data.sync(true), true);
+  assert.deepEqual(data.tournaments().map(t => t.id), ['t2']);
+  assert.deepEqual(store.get('tournamentsq'), []);
+  assert.equal(data.waiting(), 0);
+  // the next new player is not mistaken for the one that went
+  data.addPlayer('Newcomer');
+  assert.equal(await data.sync(true), true);
+  assert.deepEqual(data.tournaments().map(t => t.id), ['t2']);
+  assert.deepEqual([...pi.tournaments.keys()], ['t2']);
+});
+
+test('a new player is never given an id a stored tournament still uses', () => {
+  const { data } = rig();
+  data.saveTournament(cup('t1', [1, -5, 3]));
+  assert.equal(data.addPlayer('Newcomer').id, -6);
 });

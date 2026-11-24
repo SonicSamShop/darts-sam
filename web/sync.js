@@ -150,7 +150,9 @@ export function createSync({ store, api, changed = () => {} }) {
   function addPlayer(name, bot) {
     name = checkName(name);
     const players = get('players', []);
-    const id = Math.min(0, ...players.map(p => p.id), ...get('ops', []).map(o => o.id)) - 1;
+    // (below every id still in use, so a new player is never taken for one that went)
+    const id = Math.min(0, ...players.map(p => p.id), ...get('ops', []).map(o => o.id),
+      ...get('tournaments', []).flatMap(t => t.data.entrants.map(e => e.id))) - 1;
     const p = bot ? { id, name, bot } : { id, name };
     set('players', byName([...players, p]));
     queue({ op: 'add', ...p });
@@ -360,6 +362,10 @@ export function createSync({ store, api, changed = () => {} }) {
     const pending = get('pending', {});
     for (const [key, item] of Object.entries(pending)) if (idsOf(item).includes(id)) delete pending[key];
     set('pending', pending);
+    // a tournament they are in can never be sent either, like their games
+    const gone = tournaments().filter(t => t.data.entrants.some(e => e.id === id)).map(t => t.id);
+    set('tournaments', tournaments().filter(t => !gone.includes(t.id)));
+    set('tournamentsq', get('tournamentsq', []).filter(q => !gone.includes(q)));
   }
 
   async function pushPlayers(report) {
@@ -469,7 +475,9 @@ export function createSync({ store, api, changed = () => {} }) {
         const { seq, name, data, created, finished, abandoned, winner } = t;
         await api(`/tournaments/${id}`, 'PUT', { seq, name, data, created, finished, abandoned, winner });
       } catch (e) {
-        if (!refused(e)) throw e;  // refused: the Pi's list puts it right
+        if (!refused(e)) throw e;
+        if (e.status === 404) continue;  // a Pi too old to know them: kept to send once it does
+        // other refusals: it never will be accepted, and stays on this device only
       }
       // Sent, unless it was changed again meanwhile: then it goes next time.
       if (tournament(id)?.seq === t?.seq) set('tournamentsq', get('tournamentsq', []).filter(o => o !== id));
@@ -491,8 +499,9 @@ export function createSync({ store, api, changed = () => {} }) {
       set('boards', [...boards.filter(b => !q.includes(b.id)), ...mine].sort((a, b) => a.created - b.created || (a.id < b.id ? -1 : 1)));
     }
     if (cups) {
-      const q = get('tournamentsq', []), mine = tournaments().filter(t => q.includes(t.id));
-      set('tournaments', byCreated([...cups.filter(t => !q.includes(t.id)), ...mine]));
+      // (none is ever deleted, so one the Pi hasn't got is kept: still to send, or refused)
+      const q = get('tournamentsq', []), mine = tournaments().filter(t => q.includes(t.id) || !cups.some(c => c.id === t.id));
+      set('tournaments', byCreated([...cups.filter(t => !mine.some(m => m.id === t.id)), ...mine]));
     }
     const dirty = get('dirty', {});
     for (const key of ['settings', 'setup']) if (saved[key] && !dirty[key]) set(key, saved[key]);
