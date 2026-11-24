@@ -17,7 +17,7 @@
 // One person's data is also kept on the device (see sync.js) so the app works
 // offline. DEVICE_KEYS is that data: it is cleared when they sign out, so the
 // next person to sign in here starts empty instead of inheriting it.
-export const DEVICE_KEYS = ['players', 'ops', 'pending', 'dirty', 'recent', 'settings', 'setup', 'match', 'totals', 'events'];
+export const DEVICE_KEYS = ['players', 'ops', 'pending', 'dirty', 'recent', 'settings', 'setup', 'match', 'totals', 'events', 'tournaments', 'tournamentsq'];
 
 // request(path, method, body): resolves with the server's reply or rejects.
 // store: {get(key, fallback), set(key, value)}.  onChange(): signed in or out.

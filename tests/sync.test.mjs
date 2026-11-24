@@ -8,6 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cleanBoard, cleanDetails, createSync, matchBody } from '../web/sync.js';
 import { newMatch } from '../web/engine.js';
+import { DEVICE_KEYS } from '../web/account.js';
 
 function rig() {
   const kept = new Map();
@@ -584,4 +585,22 @@ test('a new player is never given an id a stored tournament still uses', () => {
   const { data } = rig();
   data.saveTournament(cup('t1', [1, -5, 3]));
   assert.equal(data.addPlayer('Newcomer').id, -6);
+});
+
+test('signing out leaves no tournaments for the next person to sign in here', async () => {
+  // the hosted site: each account has its own players, numbered from 1 again
+  const { store, pi, data } = rig();
+  pi.players.push({ id: 1, name: 'P1' }, { id: 2, name: 'P2' }, { id: 3, name: 'P3' });
+  pi.up = true;
+  data.saveTournament(cup('t1', [1, 2, 3]));
+  data.saveTournament(cup('t2', [1, 2, 9]));  // refused: kept on this device only
+  assert.equal(await data.sync(true), true);
+  // sign out (account.js clears DEVICE_KEYS), then someone else signs in
+  for (const k of DEVICE_KEYS) store.set(k, null);
+  pi.players = [{ id: 1, name: 'B1' }, { id: 2, name: 'B2' }, { id: 3, name: 'B3' }];
+  pi.tournaments = new Map();
+  assert.equal(await data.sync(true), true);
+  assert.deepEqual(data.tournaments(), []);
+  assert.deepEqual(store.get('tournamentsq', []), []);
+  assert.equal(pi.tournaments.size, 0);
 });
