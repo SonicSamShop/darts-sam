@@ -251,7 +251,7 @@ A person against a bot is played on the board as usual.
 ### Players changing during a tournament
 
 - **Removing a player** who is still in a running tournament is refused, with
-  "Sam is still in Christmas 2026. Withdraw them from it first." (My call: the
+  "Sam is still in Christmas 2026. Finish or abandon it first." (Withdraw them first, once Withdraw comes in the second release.) (My call: the
   app drops removed players from its lists, and one made offline and removed
   before syncing is unknown to the server, so their matches could never save
   and the tournament would stick.) The record keeps names as well as ids, so a
