@@ -257,17 +257,37 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .tourline span { color: var(--muted); font-size: 14px; }
 .tour-phone { display: none; }  /* a phone's menu has it under its steps instead (as How to play) */
 .inprogress { display: grid; gap: 10px; }
-/* the Tournament screen: the form to set one up, and (until it is drawn) the bracket as a list */
+/* the Tournament screen: the form to set one up, then the bracket filling the screen (going) */
 .tour-body { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; max-width: 720px; }
+.tour-body.going { max-width: none; display: flex; flex-direction: column; }
+.page .tour-body.going > * { flex: none; }  /* .page: outranks .page h1.sub's flex */
 .page .tour-body > h1.sub { margin: 12px 0 6px; }  /* .page: outranks the themes' headings */
 .tour-body input[type=text] { width: 100%; }
 .tour-body .opt .row { gap: 8px; }
 .tour-buttons { margin: 14px 0; }
 .tour-won { font-size: 20px; color: var(--accent); }
-.tlist { margin: 0 0 8px; padding-left: 22px; }
-.tlist li { margin: 4px 0; }
-.tlist .won { color: var(--accent); }
-.tlist .tag { color: var(--accent); }
+.tour-status { min-height: 1.4em; margin: 6px 0 0; color: var(--accent); font-size: 14px; }
+/* The bracket (screens/bracket.js): one SVG drawn like a printed draw sheet, scaled to its box by the script,
+   and scrolling in the box when that would make its names too small to read. */
+.bracket { overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; min-width: 0; margin-top: 8px; }
+.page .tour-body.going > .bracket { flex: 1 1 0; min-height: 220px; }
+.bracket svg { display: block; }
+.bracket text { font-family: var(--font); fill: var(--text); }
+.bracket text.muted { fill: var(--muted); }
+.bracket .box rect { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.bracket .box.empty rect { stroke-dasharray: 4 4; opacity: .6; }
+.bracket .box.lost { opacity: .4; }
+.bracket .box.won rect { stroke: var(--accent); }
+.bracket .box.next rect { stroke: var(--accent); stroke-width: 2.5; }
+.bracket .box.champ rect { stroke: var(--accent); stroke-width: 3; }
+.bracket .legs { font-variant-numeric: tabular-nums; font-weight: 600; }
+.bracket .wire { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.bracket .wire.won { stroke: var(--accent); stroke-width: 2.5; }
+.bracket .head { fill: var(--muted); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
+.bracket .sub, .bracket .tag { font-size: 11px; }
+.bracket .sub { fill: var(--muted); }
+.bracket .tag { fill: var(--accent); }
+.bracket .ghost rect { fill: var(--board, var(--bg)); stroke: var(--accent); stroke-width: 2.5; }
 /* "How to play" the chosen game, opened in place (howToPlay in screens/home.js): under its blurb on a computer,
    above Start on a phone. Open, it is headed with the game's name, and the way to shut it is beside that.
    Whatever the theme does to its lettering, the rules are sentences: no capitals, no spacing out. */

@@ -15,6 +15,7 @@ import {
   botSlots, clearResult, defaultRounds, dropMatch, freeLevel, makeDraw, nextSlot, reconcile, remapIds, roundName,
   simulateMatch, startSlot, suggestName
 } from '../tournament.js';
+import { animate, drawBracket, showSlot, sizeBracket } from './bracket.js';
 import { renderLanding } from './landing.js';
 import { askFirst } from './start.js';
 import {
@@ -93,23 +94,26 @@ export function onMatchQuit(m) {
   data.sync();
 }
 
-// On opening a tournament: results of saved matches the bracket never heard of, then
-// any bot against bot made ready, played out one at a time, saved as they go.
+// On opening a tournament: results of saved matches the bracket never heard of.
+// (Bot against bot is played out on the bracket, where it can be watched: playOut.)
 function catchUp(t) {
-  let out = reconcile(t, matchById);
-  if (out !== t) out = save(out);
-  for (let i; !out.finished && (i = botSlots(out, isBotIn(out))[0]) != null;) {
-    const s = out.data.slots[i], ids = [s.a, s.b], levels = ids.map(id => entrant(out, id).bot);
-    const m = {
-      ...simulateMatch(out, i, ids, levels),
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-      playerIds: ids, bots: levels, seq: 1, board: data.wallBoard(),
-    };
-    data.saveMatch(m);
-    out = save(reconcile(startSlot(out, i, m.id), id => (id === m.id ? m : null)));
-  }
-  if (out !== t) data.sync();
-  return out;
+  const out = reconcile(t, matchById);
+  if (out === t) return t;
+  const saved = save(out);
+  data.sync();
+  return saved;
+}
+// Slot i, bot against bot, played out and saved like any match.
+function simulateSlot(t, i) {
+  const s = t.data.slots[i], ids = [s.a, s.b], levels = ids.map(id => entrant(t, id).bot);
+  const m = {
+    ...simulateMatch(t, i, ids, levels),
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    playerIds: ids, bots: levels, seq: 1, board: data.wallBoard(),
+  };
+  data.saveMatch(m);
+  save(reconcile(startSlot(t, i, m.id), id => (id === m.id ? m : null)));
+  data.sync();
 }
 
 // ---------- setting one up ----------
@@ -197,7 +201,7 @@ function setupHtml(st) {
     ${why ? `<p class="warn small">${esc(why)}</p>` : ''}
     <div class="row tour-buttons"><button class="${st.draw ? '' : 'primary'}" data-act="tour-draw" ${why ? 'disabled' : ''}>${st.draw ? 'Redraw' : 'Draw'}</button>
       ${st.draw && !why ? '<button class="primary" data-act="tour-start">Start</button>' : ''}</div>
-    ${st.draw && !why ? bracketHtml(st.draw, null) : ''}`;
+    ${st.draw && !why ? bracketHtml() : ''}`;
 }
 
 // Anything changed after the draw makes it out of date.
@@ -223,6 +227,7 @@ function start() {
   if (!st?.draw || notReady(st)) return renderTournament();
   const t = { ...st.draw, name: cleanTourName(st.name), created: Date.now() };
   save(t);
+  setSeen(t.id, []);
   data.sync();
   tourView.id = t.id;
   tourView.setup = null;
@@ -230,22 +235,85 @@ function start() {
 }
 
 // ---------- the bracket ----------
-// (Drawn as a list for now: rounds in order, a line per match.)
-function bracketHtml(t, next) {
-  const rounds = t.data.rounds.map((r, k) => {
-    const lines = t.data.slots.map((s, i) => [s, i]).filter(([s]) => s.round === k).map(([s, i]) => {
-      const side = (id, n) => {
-        if (id == null) return '<span class="muted">–</span>';
-        const lost = s.winner != null && s.winner !== id;
-        return `<span class="${lost ? 'muted' : s.winner === id ? 'won' : ''}">${esc(tourName(t, id))}${s.legs ? ` <b>${s.legs[n]}</b>` : ''}</span>`;
-      };
-      const tag = i === next ? 'next' : s.how === 'simulated' ? 'simulated' : '';
-      if (s.how === 'bye') return `<li>${side(s.a === 'bye' ? s.b : s.a, 0)} <span class="muted">bye</span></li>`;
-      return `<li>${tag ? `<small class="tag">${tag}</small> ` : ''}${side(s.a, 0)} v ${side(s.b, 1)}</li>`;
-    }).join('');
-    return `<h3 class="group">${roundName(t, k)} <span class="muted small">· first to ${r.legs}</span></h3><ol class="tlist">${lines}</ol>`;
-  }).join('');
-  return `<div class="tbracket">${rounds}</div>`;
+// Drawn by bracket.js into this, once the screen is up (mountBracket).
+const bracketHtml = () => '<div class="bracket"><svg role="img" aria-label="The tournament draw"></svg></div>';
+
+// Results already shown moving on, on this device: {[tournament id]: [slot index]}.
+const seenOf = id => store.get('tourSeen', {})[id];
+function setSeen(id, slots) {
+  const all = store.get('tourSeen', {}), kept = {};
+  for (const t of data.tournaments()) if (all[t.id]) kept[t.id] = all[t.id];
+  store.set('tourSeen', { ...kept, [id]: slots });
+}
+// Results still to be shown moving on, in bracket order. A bye never is one, and a
+// tournament first opened here once it is over has none (it isn't played again).
+function unseen(t) {
+  if (t.abandoned) return [];
+  const decided = t.data.slots.flatMap((s, i) => (s.winner != null && s.how !== 'bye' ? [i] : []));
+  const was = seenOf(t.id), seen = was == null && t.finished ? decided : (was ?? []).filter(i => decided.includes(i));
+  if (seen.length !== was?.length) setSeen(t.id, seen);  // (a result taken back is to be shown again)
+  return decided.filter(i => !seen.includes(i));
+}
+
+const wait = (ms, skip) => new Promise(done => {
+  const end = Date.now() + ms, tick = () => (skip() || Date.now() >= end ? done() : setTimeout(tick, 50));
+  tick();
+});
+// The bracket on the screen just drawn: the draw being set up, or tournament t, with
+// its results not yet seen here moving on one by one (playOut).
+let drawn = 0, watch = null;  // which drawing is the latest; what resizes it
+function mountBracket(t) {
+  watch?.disconnect();
+  watch = null;
+  const me = ++drawn, box = $app.querySelector('.bracket'), svg = box?.querySelector('svg');
+  if (!svg) return;
+  const fill = box.closest('.going') != null, nameOf = id => tourName(t, id);
+  const hidden = fill ? unseen(t) : [];
+  const next = fill && !t.finished && !t.abandoned ? tourNext(t) : null;
+  drawBracket(svg, t, { hide: new Set(hidden), next: hidden.length ? null : next, nameOf });
+  sizeBracket(box, svg, { fill });
+  showSlot(box, svg, t, hidden[0] ?? next);
+  watch = new ResizeObserver(() => sizeBracket(box, svg, { fill }));
+  watch.observe(box);
+  if (fill) playOut(t.id, box, svg, () => me === drawn && svg.isConnected);
+}
+// Shows each result not yet seen moving on, in bracket order; plays out any bot
+// against bot ("Simulating Bot 5 v Bot 9…", then its result moves on); then draws
+// the bracket as it stands. A tap on the bracket skips to the end. Stops if the
+// screen is drawn again (live() false).
+async function playOut(id, box, svg, live) {
+  let skipping = false, simulated = false, t;
+  box.onclick = () => { skipping = true; };
+  const skip = () => skipping;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const status = $app.querySelector('.tour-status');
+  for (;;) {
+    t = data.tournament(id);
+    if (!t || !live()) return;
+    const nameOf = x => tourName(t, x), hidden = unseen(t);
+    if (hidden.length) {
+      drawBracket(svg, t, { hide: new Set(hidden), next: null, nameOf });
+      showSlot(box, svg, t, hidden[0]);
+      await animate(svg, t, hidden[0], { nameOf, reduced, skip });
+      if (!live()) return;
+      setSeen(id, [...(seenOf(id) ?? []), hidden[0]]);
+      continue;
+    }
+    const bb = t.finished || t.abandoned ? null : botSlots(t, isBotIn(t))[0];
+    if (bb == null) break;
+    status.textContent = `Simulating ${slotTitle(t, bb)}…`;
+    await wait(reduced ? 0 : 700, skip);
+    if (!live()) return;
+    status.textContent = '';
+    simulateSlot(t, bb);
+    simulated = true;
+  }
+  box.onclick = null;
+  // what the bots decided can change the next match, and so the buttons
+  if (simulated) return renderTournament();
+  const next = t.finished ? null : tourNext(t);
+  drawBracket(svg, t, { next, nameOf: x => tourName(t, x) });
+  showSlot(box, svg, t, next);
 }
 const optsLine = t => `${t.data.opts.start} · ${t.data.opts.out === 'straight' ? 'straight' : 'double'} out`;
 
@@ -265,7 +333,8 @@ function goingHtml(t) {
       ${next == null ? '' : playing ? `<button class="primary" data-act="resume">Back to ${esc(slotTitle(t, next))}</button>`
         : `<button class="primary" data-act="tour-play" data-i="${next}">Play ${esc(slotTitle(t, next))}</button>`}
       <span class="spacer"></span><button data-act="tour-abandon">Abandon tournament</button></div>`;
-  return `<h1 class="sub">${esc(t.name)}</h1><p class="muted">${optsLine(t)}</p>${buttons}${bracketHtml(t, next)}`;
+  return `<h1 class="sub">${esc(t.name)}</h1><p class="muted">${optsLine(t)}</p>${bracketHtml()}
+    <p class="tour-status" aria-live="polite"></p>${buttons}`;
 }
 
 // ---------- the screen ----------
@@ -281,9 +350,10 @@ export function renderTournament() {
   if (!t || t.finished || t.abandoned) tourView.abandoning = false;
   $app.innerHTML = `<div class="page tourpage">
     ${pageHead('home')}
-    <div class="tour-body fill">${t ? goingHtml(t) : setupHtml(tourView.setup)}</div>
+    <div class="tour-body fill ${t ? 'going' : ''}">${t ? goingHtml(t) : setupHtml(tourView.setup)}</div>
     ${pageFoot('home')}
   </div>`;
+  mountBracket(t ?? tourView.setup.draw);
   refreshStatus();
   fit();
 }

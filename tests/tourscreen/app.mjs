@@ -28,7 +28,7 @@ export function botPlayer(level) {
   loadPlayers();
   return p.id;
 }
-export const $app = { innerHTML: '' };
+export const $app = { innerHTML: '', querySelector: () => null };
 export const account = { locked: false };
 export const esc = s => String(s), fit = () => {}, pageFoot = () => '', pageHead = () => '';
 export const redraw = f => f(), refreshStatus = () => {};
