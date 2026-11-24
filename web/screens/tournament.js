@@ -12,7 +12,7 @@
 import { compute, gameById } from '../engine.js';
 import { LEVELS } from '../bot.js';
 import {
-  botSlots, clearResult, defaultRounds, dropMatch, freeLevel, makeDraw, nextSlot, reconcile, roundName,
+  botSlots, clearResult, defaultRounds, dropMatch, freeLevel, makeDraw, nextSlot, reconcile, remapIds, roundName,
   simulateMatch, startSlot, suggestName
 } from '../tournament.js';
 import { renderLanding } from './landing.js';
@@ -55,11 +55,14 @@ const save = t => { data.saveTournament(t); return data.tournament(t.id); };
 // ---------- the game screen tells us ----------
 // Each finds the match's tournament and slot, and does nothing if the tournament has
 // gone, is over, or has moved on from that slot (changed on another screen, say).
+// A finished tournament still hears from its final's own match: its winning dart
+// can be undone, and the final won again.
 function slotOf(m) {
   const at = m?.opts?.tournament, t = at && data.tournament(at.id);
-  if (!t || t.finished || t.abandoned) return null;
+  if (!t || t.abandoned) return null;
   const s = t.data.slots[at.slot];
   if (!s || ![s.a, s.b].every(id => m.playerIds?.includes(id))) return null;
+  if (t.finished && s.match !== m.id) return null;
   return { t, i: at.slot, s };
 }
 // A match of the bracket has started: the slot knows its match, so its result can be
@@ -134,8 +137,36 @@ function levelStep(levels, k, by) {
 const shape = n => ({ data: { slots: { length: 2 ** n - 1 } } });
 const sizeOf = n => 2 ** Math.max(1, Math.ceil(Math.log2(n)));
 
-function setupHtml(st) {
+// The draw with the numbers its players go by now: a bot made at Draw may since have
+// been numbered by the Pi (it is found again by its level). null if one of its people
+// or bots has gone since (removed on another screen, say): the draw is out of date.
+function currentDraw(d) {
+  if (!d) return null;
+  let out = d;
+  for (const e of d.data.entrants) {
+    const id = e.bot != null ? bots.find(b => b.bot === e.bot)?.id : players.find(p => p.id === e.id)?.id;
+    if (id == null) return null;
+    if (id !== e.id) out = remapIds(out, e.id, id);
+  }
+  return out;
+}
+// People who have gone since they were picked are dropped, and the draw with them.
+function freshen(st) {
   st.ids = st.ids.filter(id => players.some(p => p.id === id));
+  st.draw = currentDraw(st.draw);
+}
+// After a sync, players made offline go by the Pi's numbers (app.js passes [[old, new]]).
+export function tourRemapped(remapped) {
+  const st = tourView.setup;
+  if (!st) return;
+  for (const [old, id] of remapped) {
+    st.ids = st.ids.map(x => (x === old ? id : x));
+    if (st.draw) st.draw = remapIds(st.draw, old, id);
+  }
+}
+
+function setupHtml(st) {
+  freshen(st);
   fitRounds(st);
   const n = count(st), why = notReady(st), byes = n >= MIN && n <= MAX ? sizeOf(n) - n : 0;
   const full = st.bots.length >= LEVELS.length || n >= MAX;
@@ -188,6 +219,7 @@ function draw() {
 }
 function start() {
   const st = tourView.setup;
+  if (st) freshen(st);
   if (!st?.draw || notReady(st)) return renderTournament();
   const t = { ...st.draw, name: cleanTourName(st.name), created: Date.now() };
   save(t);

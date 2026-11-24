@@ -35,7 +35,7 @@ import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, renderBull, startMatch
 } from './screens/start.js';
 import { reportProblem } from './screens/report.js';
-import { openTournament, renderTournament, tourAct, tourView } from './screens/tournament.js';
+import { openTournament, renderTournament, tourAct, tourRemapped, tourView } from './screens/tournament.js';
 import { finishWelcome, nameDue, renderWelcome, welcomeDue, welcomeForm, welcomeNamed } from './screens/welcome.js';
 
 export const $app = document.getElementById('app');
@@ -239,6 +239,7 @@ function synced({ remapped, pulled, sent }) {
   delete settings.board;
   match = store.get('match', null);
   for (const [old, id] of remapped) if (statsView.player === old) statsView.player = id;
+  tourRemapped(remapped);
   cleanSetup();
   // Someone who has just signed up has one player, themselves: ready to throw.
   if (landing.newcomer && pulled && players.length === 1) {

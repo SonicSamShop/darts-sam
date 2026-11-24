@@ -155,6 +155,8 @@ export function startMatch(act, play, order) {
   // (the order settled a moment ago, less anyone removed since, on another device say)
   const here = id => id === BOT || players.some(p => p.id === id) || bots.some(b => b.id === id);
   const seated = (order ?? play.ids).filter(id => play.ids.includes(id) && here(id));
+  // A tournament's match is played by both its players or not at all: back to the bracket.
+  if (play.tournament && seated.length !== play.ids.length) return openTournament(play.tournament.id);
   if (!seated.some(id => !isBotId(id))) return renderHome();
   // The computer takes its seat as the player its level's games are kept under.
   const level = botAt().level;
