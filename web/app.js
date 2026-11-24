@@ -32,7 +32,7 @@ import {
   askQuit, botThrow, botTimer, botUp, closeQuit, numPad, padCommit, padKey, push, renderGame, undo
 } from './screens/game.js';
 import {
-  askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, renderBull, startMatch
+  askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, renderBull, startMatch
 } from './screens/start.js';
 import { reportProblem } from './screens/report.js';
 import { finishWelcome, nameDue, renderWelcome, welcomeDue, welcomeForm, welcomeNamed } from './screens/welcome.js';
@@ -172,6 +172,10 @@ const botsPlay = () => !!gameById(setup.gameId)?.bot;
 // Who is down to play, in throwing order: the computer only in a game it can play.
 export const seats = () => (setup.players ?? []).filter(id => id !== BOT || botsPlay());
 export const nameOf = id => id === BOT ? `Bot ${botAt().level}` : (players.find(p => p.id === id) ?? bots.find(p => p.id === id))?.name ?? '?';
+// Whether the computer throws for this seat: BOT on the menu, or a level's own player (a tournament's bots).
+export const isBotId = id => id === BOT || bots.some(b => b.id === id);
+// The level the computer throws at for this seat, or null for a person.
+export const levelOf = id => id === BOT ? botAt().level : bots.find(b => b.id === id)?.bot ?? null;
 // The player that the computer's games at this level are kept under, made if this is its first.
 export function botPlayer(level) {
   const old = bots.find(b => b.bot === level);
@@ -202,10 +206,10 @@ export function cleanSetup() {
   setup.players = (setup.players ?? []).filter(id => id === BOT || players.some(p => p.id === id));
   if (setup.first !== 'random' && setup.first !== 'bull') setup.first = null;  // (it was once a player)
 }
-// The players in the order they will throw: the order they were tapped in,
+// The players in the order they will throw: the order given (on the menu, the order they were tapped in),
 // turned round to begin with any one of them (Random, when Start asks who throws first).
-export function randomOrder() {
-  const ids = seats(), at = Math.floor(Math.random() * ids.length);
+export function randomOrder(ids) {
+  const at = Math.floor(Math.random() * ids.length);
   return [...ids.slice(at), ...ids.slice(0, at)];
 }
 export const data = createSync({ store, api, changed: synced });
@@ -694,8 +698,8 @@ $app.addEventListener('click', e => {
     case 'start':
     case 'rematch':
       cleanSetup();
-      if (seats().length > 1) return askFirst(d.act);
-      return startMatch(d.act);
+      if (seats().length > 1) return askFirst(d.act, homePlay());
+      return startMatch(d.act, homePlay());
     case 'bull-cancel': return closeBull();
     case 'bull-undo':
       clearTimeout(bull.timer);

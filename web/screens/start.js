@@ -4,23 +4,30 @@
 
 // Starting a game: with two or more playing, who throws first (at random, or by
 // throwing for the bull, a screen of its own), and then the new match.
+// Who plays is given as a "play": {gameId, ids, opts, tournament?: {id, slot}}. The menu
+// passes its own (homePlay); a tournament passes a match of its bracket, and leaves setup alone.
 
 import { compute, gameById, newMatch } from '../engine.js';
 import { buildBoard, bullMm, bullUp, label } from '../board.js';
-import { throwAt } from '../bot.js';
+import { botLevel, throwAt } from '../bot.js';
 import { renderHome, startOpts } from './home.js';
 import { BOT_WAIT, gameBoard, renderGame } from './game.js';
 import {
-  $app, BOT, botAt, botPlayer, bots, cleanSetup, dartsFor, data, esc, fit, mark, match, nameOf, randomOrder,
-  refreshStatus, saveSetup, say, screen, seats, setMatch, setScreen, setup, store
+  $app, BOT, botAt, botPlayer, bots, dartsFor, data, esc, fit, isBotId, levelOf, mark, match, nameOf, players,
+  randomOrder, refreshStatus, saveSetup, say, screen, seats, setMatch, setScreen, setup, store
 } from '../app.js';
+
+// The menu's game: its players (BOT for the computer, made its level's player at the start), game and options.
+export const homePlay = () => ({ gameId: setup.gameId, ids: seats(), opts: startOpts() });
 
 // With two or more playing, Start (and Play again) asks how to settle who throws first:
 // a dart each at the bull (see renderBull), or at random. The last answer is kept
 // (setup.first) and is the one lit the next time.
 let firstAsk = null;  // the question, while it is on screen
-export function askFirst(act) {
+let firstPlay = null;  // who it is for
+export function askFirst(act, play) {
   closeFirst();
+  firstPlay = play;
   firstAsk = document.body.appendChild(document.createElement('div'));
   firstAsk.className = 'report shareask firstask';
   firstAsk.dataset.act = act;
@@ -34,17 +41,17 @@ export function askFirst(act) {
       and the rest follow in the order they were picked on the menu.</p></div>`;
   firstAsk.querySelector('.primary').focus();
 }
-export function closeFirst() { firstAsk?.remove(); firstAsk = null; }
+export function closeFirst() { firstAsk?.remove(); firstAsk = null; firstPlay = null; }
 document.addEventListener('click', e => {
   const first = e.target.closest('.firstask [data-first]')?.dataset.first;
   if (!first) return;
-  const act = firstAsk.dataset.act;
+  const act = firstAsk.dataset.act, play = firstPlay;
   closeFirst();
   if (first === 'cancel') return;
   setup.first = first;
   saveSetup();
-  if (first === 'bull') return openBull(act);
-  startMatch(act, randomOrder());
+  if (first === 'bull') return openBull(act, play);
+  startMatch(act, play, randomOrder(play.ids));
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFirst(); });
 
@@ -52,10 +59,10 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFirst()
 // on the board (tapped, or seen by the cameras) and the game then starts in the order
 // that gives (bullUp in board.js has the rules). It has no address of its own: going back
 // leaves it, for the menu or the game just finished.
-export let bull = null;  // {act: 'start' or 'rematch', ids: the players, darts: each dart thrown, timer: the game about to start}
+export let bull = null;  // {act: 'start' or 'rematch', play, ids: the players, darts: each dart thrown, timer: the game about to start}
 const BULL_PAUSE = 4000;  // ms the result stays up before the game starts by itself
-function openBull(act) {
-  bull = { act, ids: seats(), darts: [], timer: 0, botTimer: 0 };
+export function openBull(act, play) {
+  bull = { act, play, ids: play.ids, darts: [], timer: 0, botTimer: 0 };
   say(`Closest to the bull. ${nameOf(bull.ids[0])} to throw`);
   renderBull();
 }
@@ -71,12 +78,12 @@ export function closeBull() {
 // Left by Back: no game starts from it.
 export function dropBull() { if (bull) { clearTimeout(bull.timer); bull = null; } }
 // "Random instead": the game starts at once, in a random order.
-export function bullRandom() { const { act } = bull; clearTimeout(bull.timer); bull = null; return startMatch(act, randomOrder()); }
+export function bullRandom() { const { act, play } = bull; clearTimeout(bull.timer); bull = null; return startMatch(act, play, randomOrder(play.ids)); }
 // bot: the dart is the computer's own. While it is the computer's throw, no other dart counts.
 export function bullDart(d, bot = false) {
   const now = bullUp(bull.ids, bull.darts);
   if (now.order) return;  // settled: a dart now is not part of it
-  if ((now.next === BOT) !== bot) return;
+  if (isBotId(now.next) !== bot) return;
   bull.darts.push(bot ? { ...d, bot } : d);
   const b = bullUp(bull.ids, bull.darts);
   if (b.order) {
@@ -88,19 +95,19 @@ export function bullDart(d, bot = false) {
 }
 export function bullStart() {
   if (screen !== 'bull' || !bull) return;
-  const { act, ids, darts } = bull, { order } = bullUp(ids, darts);
+  const { act, play, ids, darts } = bull, { order } = bullUp(ids, darts);
   if (!order) return;
   clearTimeout(bull.timer);
   bull = null;
-  startMatch(act, order);
+  startMatch(act, play, order);
 }
-// The computer's dart at the bull, a moment after its turn comes.
+// The computer's dart at the bull, a moment after its turn comes, at that seat's own level.
 function bullBot() {
-  const mine = bull;
+  const mine = bull, next = bullUp(mine.ids, mine.darts).next;
   clearTimeout(mine.botTimer);
-  if (bullUp(mine.ids, mine.darts).next !== BOT) return;
+  if (!isBotId(next)) return;
   mine.botTimer = setTimeout(() => {
-    if (bull === mine && screen === 'bull') bullDart(throwAt({ seg: 25, mult: 2 }, botAt().finish), true);
+    if (bull === mine && screen === 'bull') bullDart(throwAt({ seg: 25, mult: 2 }, botLevel(levelOf(next)).finish), true);
   }, BOT_WAIT);
 }
 const nth = n => `${n}${['th', 'st', 'nd', 'rd'][n % 10 < 4 && (n % 100 - n % 10 !== 10) ? n % 10 : 0]}`;
@@ -139,20 +146,21 @@ export function renderBull() {
   fit();
   bullBot();
 }
-// A new game with the players chosen, throwing in `order` (as picked, when there is none): from Start on the
-// menu, or "Play again" at the end of a game (which takes that game's place in the history).
-export function startMatch(act, order) {
-  cleanSetup();
-  if (!seats().some(id => id !== BOT)) return renderHome();
+// A new game with the players in `play`, throwing in `order` (as given, when there is none): from Start on the
+// menu, "Play again" at the end of a game (which takes that game's place in the history), or a tournament's match.
+export function startMatch(act, play, order) {
   // (the order settled a moment ago, less anyone removed since, on another device say)
+  const here = id => id === BOT || players.some(p => p.id === id) || bots.some(b => b.id === id);
+  const seated = (order ?? play.ids).filter(id => play.ids.includes(id) && here(id));
+  if (!seated.some(id => !isBotId(id))) return renderHome();
   // The computer takes its seat as the player its level's games are kept under.
   const level = botAt().level;
-  const ids = (order ? order.filter(id => seats().includes(id)) : seats())
-    .map(id => id === BOT ? botPlayer(level) : id).filter(id => id != null);
+  const ids = seated.map(id => id === BOT ? botPlayer(level) : id).filter(id => id != null);
+  const opts = play.tournament ? { ...play.opts, tournament: play.tournament } : play.opts;
   setMatch({
-    ...newMatch(setup.gameId, ids.map(nameOf), startOpts()),
+    ...newMatch(play.gameId, ids.map(nameOf), opts),
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-    playerIds: ids, darts: ids.map(dartsFor), board: data.wallBoard(), bots: ids.map(id => bots.find(b => b.id === id)?.bot ?? null), seq: 0,
+    playerIds: ids, darts: ids.map(dartsFor), board: data.wallBoard(), bots: ids.map(levelOf), seq: 0,
   });
   store.set('match', match);
   const opening = compute(match), aim = gameById(match.gameId).aim?.(opening);  // the first thing to aim at (Random Targets, Around the Clock)
