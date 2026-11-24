@@ -12,6 +12,7 @@ import { buildBoard, bullMm, bullUp, label } from '../board.js';
 import { botLevel, throwAt } from '../bot.js';
 import { renderHome, startOpts } from './home.js';
 import { BOT_WAIT, gameBoard, renderGame } from './game.js';
+import { onMatchStarted, openTournament } from './tournament.js';
 import {
   $app, BOT, botAt, botPlayer, bots, dartsFor, data, esc, fit, isBotId, levelOf, mark, match, nameOf, players,
   randomOrder, refreshStatus, saveSetup, say, screen, seats, setMatch, setScreen, setup, store
@@ -70,10 +71,12 @@ export function closeBull() {
   if (!bull) return;
   clearTimeout(bull.timer);
   clearTimeout(bull.botTimer);
-  const { act } = bull;
+  const { act, play } = bull;
   bull = null;
   if (screen !== 'bull') return;
-  if (act === 'rematch' && match) renderGame(); else renderHome();
+  if (act === 'rematch' && match) renderGame();
+  else if (play.tournament) openTournament(play.tournament.id);
+  else renderHome();
 }
 // Left by Back: no game starts from it.
 export function dropBull() { if (bull) { clearTimeout(bull.timer); bull = null; } }
@@ -163,6 +166,7 @@ export function startMatch(act, play, order) {
     playerIds: ids, darts: ids.map(dartsFor), board: data.wallBoard(), bots: ids.map(levelOf), seq: 0,
   });
   store.set('match', match);
+  if (play.tournament) onMatchStarted(match);
   const opening = compute(match), aim = gameById(match.gameId).aim?.(opening);  // the first thing to aim at (Random Targets, Around the Clock)
   const who = opening.players.length > 1 ? opening.players[opening.current] : '';  // who throws first, when there is more than one
   const opener = aim ? (who ? `${who}, aim for ${aim}` : `Aim for ${aim}`) : who && `${who} to throw first`;

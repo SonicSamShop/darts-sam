@@ -12,6 +12,7 @@ import { x01Stats } from '../stats.js';
 import { renderLanding } from './landing.js';
 import { newPlayerRow, roster } from './playerspanel.js';
 import { pct } from './stats.js';
+import { currentTournament, slotTitle, tourNext } from './tournament.js';
 import {
   $app, BOT, account, api, botAt, cleanSetup, connected, dartsFor, esc, fit, grams, loadStats, match, nameOf,
   pageFoot, pageHead, players, redraw, refreshStatus, screen, seats, setMatch, setScreen, setTotals, setsOf,
@@ -68,16 +69,23 @@ export function renderHome() {
       <div class="step-body"><h2>${name}</h2>${body}</div></section>`;
   };
   const after = id => steps[steps.findIndex(s => s[0] === id) + 1];
+  // A tournament going: the way back to it, with its next match.
+  const cup = currentTournament(), cupNext = cup && tourNext(cup);
+  const going = [
+    match ? '<button class="start" data-act="resume">Resume game in progress</button>' : '',
+    cup ? `<button class="start" data-act="tournament">Back to the tournament: ${esc(cup.name)}${cupNext != null ? `, ${esc(slotTitle(cup, cupNext))}` : ''}</button>` : '',
+  ].join('');
   $app.innerHTML = `<div class="page">
     ${pageHead('home')}
     <div class="home-body">
     <div class="pick ${menu.rulesOpen ? 'rules-on' : ''}">
-    ${match ? '<h2>In progress</h2><button class="start" data-act="resume">Resume game in progress</button>' : ''}
+    ${going ? `<h2>In progress</h2><div class="inprogress">${going}</div>` : ''}
     ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>
     <div class="games">${GAMES.filter(g => g.kind === kind).map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
       <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>`).join('')}
     <p class="blurb muted small">${game.blurb}</p>
     ${howToPlay(game)}`)}
+    ${tourLine()}
     </div>
     <div class="setup">
     ${game.options.length ? step('options', `${game.options.map(o => `<div class="opt"><span>${o.help ? optLabelHelp(o) : o.label}</span>${o.choices ? `<div class="choices">${o.choices.map(([v, l]) =>
@@ -95,6 +103,7 @@ export function renderHome() {
       : '<p class="muted">Add a player to get started.</p>'}
     ${roster.adding || !players.length ? newPlayerRow() : ''}`)}
     ${howToPlay(game, 'how-phone')}
+    ${tourLine('tour-phone')}
     <span class="spacer"></span>
     ${start}
     </div>
@@ -143,6 +152,9 @@ function howToPlay(game, where = '') {
       <button class="link" data-act="rules" aria-expanded="true">${where ? 'Hide the rules' : 'Back to the games'}</button></div>
     <div class="rules-box">${body}</div></div>`;
 }
+// Tournament: a line of its own under the games, since it is not one of them (on a phone, under the steps).
+const tourLine = (where = '') => `<button class="tourline ${where}" data-act="tournament"><b>Tournament</b>
+  <span>A knockout for 3 to 16 players, people and bots</span></button>`;
 // An option's name with its "?" after it, kept on a line with the name's last word.
 function optLabelHelp(o) {
   const cut = o.label.lastIndexOf(' ') + 1;

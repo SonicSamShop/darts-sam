@@ -11,12 +11,13 @@ import { matchSheet } from '../sync.js';
 import { botLevel } from '../bot.js';
 import { renderLanding } from './landing.js';
 import { menu } from './home.js';
+import { onMatchQuit, onMatchUndone, onMatchWon, openTournament } from './tournament.js';
 import {
   achieved, achievementsOn, askPhotos, bases, dropPictures, dropSlips, earnedLine, endedHere, forgetEnded,
   loadBases, photoAsk, photosOn, slipHtml
 } from './earned.js';
 import {
-  $app, account, cameraCount, connected, dartsName, data, esc, fit, goHome, match, phone, queueSync,
+  $app, account, cameraCount, connected, dartsName, data, esc, fit, goHome, mark, match, phone, queueSync,
   refreshStatus, say, screen, setMatch, setScreen, setsOf, settings, store, tracker
 } from '../app.js';
 
@@ -115,6 +116,7 @@ export function push(ev) {
   if (after.winner != null) endedHere();
   store.set('match', match);
   queueSync();
+  if (after.winner != null && match.opts?.tournament) onMatchWon(match);  // the result counts from the winning dart
   // What the next thrower has left, once they are on a finish (X01, 170 or
   // below). Called once, at the start of the visit ("Sam, you require 121"),
   // not again after each dart.
@@ -168,6 +170,7 @@ export function push(ev) {
 export function undo() {
   // Undo is for the people playing: the computer's darts since go with the dart being undone
   // (it throws again when its turn comes back round).
+  const won = compute(match).winner != null;
   while (match.log.at(-1)?.src === 'bot') match.log.pop();
   const gone = match.log.pop();
   flash = null;
@@ -178,6 +181,7 @@ export function undo() {
   dropPictures();
   store.set('match', match);
   queueSync();
+  if (won && match.opts?.tournament) onMatchUndone(match);  // the winning dart undone: so is the result
   renderGame();
 }
 
@@ -212,11 +216,15 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQuit();
 function quitGame(save) {
   if (save) data.saveMatch(match);  // as it stands: every dart of it is already queued
   else data.quitMatch(match);
+  const ofTournament = match.opts?.tournament?.id;
+  if (ofTournament) onMatchQuit(match);  // the bracket offers it again
   setMatch(null);
   store.set('match', null);
   numPad.value = ''; numPad.ask = null; numPad.error = '';
   data.sync();
-  goHome();
+  if (!ofTournament) return goHome();
+  openTournament(ofTournament);
+  mark();
 }
 
 // ---------- number entry ----------
@@ -367,7 +375,9 @@ export function renderGame() {
     <div class="actions ${pad && s.winner == null ? 'solo' : ''}">
       <button data-act="undo" ${match.log.length ? '' : 'disabled'}>Undo</button>
       ${s.winner != null
-        ? '<button data-act="home">Menu</button><button class="primary" data-act="rematch">Play again</button>'
+        ? `<button data-act="home">Menu</button>${match.opts?.tournament
+          ? '<button class="primary" data-act="tour-back">Back to the tournament</button>'
+          : '<button class="primary" data-act="rematch">Play again</button>'}`
         : pad ? '' : `<button data-act="miss" ${botUp(s) ? 'disabled' : ''}>Miss</button>
            <button class="${s.turnOver ? 'primary' : ''}" data-act="next" ${botUp(s) ? 'disabled' : ''}>Next player ›</button>`}
     </div>`;

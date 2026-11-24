@@ -35,6 +35,7 @@ import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, renderBull, startMatch
 } from './screens/start.js';
 import { reportProblem } from './screens/report.js';
+import { openTournament, renderTournament, tourAct, tourView } from './screens/tournament.js';
 import { finishWelcome, nameDue, renderWelcome, welcomeDue, welcomeForm, welcomeNamed } from './screens/welcome.js';
 
 export const $app = document.getElementById('app');
@@ -228,7 +229,7 @@ export function queueSync() {
 let warmed = 0;
 function synced({ remapped, pulled, sent }) {
   tracker.flush();  // the site was just reached: send the trial's notes too
-  const shown = () => JSON.stringify([players, darts, boards, setup, settings]);
+  const shown = () => JSON.stringify([players, darts, boards, setup, settings, data.tournaments()]);
   const before = shown();
   loadPlayers();
   darts = store.get('darts', []);
@@ -253,6 +254,7 @@ function synced({ remapped, pulled, sent }) {
   if (shown() === before) return;
   if (screen === 'home') redraw(renderHome);
   if (screen === 'players') redraw(renderPlayers);
+  if (screen === 'tournament') redraw(renderTournament);
   if (screen === 'settings' && (sectShown('players') || listShown())) redraw(renderSettings);
 }
 // Redraw without losing what is being typed.
@@ -406,7 +408,7 @@ document.fonts?.addEventListener('loadingdone', fit);  // a theme's lettering ar
 //                      otherwise its scoresheet. The first part only says what
 //                      kind of game it is (an X01 game by its start score, the
 //                      others by their id); the match id alone finds the game.
-//   #/stats  #/cameras  #/settings
+//   #/stats  #/cameras  #/settings  #/tournament
 //   #/start            what the program on the cameras' computer opens: see begin()
 // The detail of a screen (whose stats, how far a figure is opened up) is not
 // in the address. It rides along in the browser's history entry instead (see
@@ -432,6 +434,7 @@ function place() {
   }
   if (screen === 'settings') { Object.assign(at, { settingsTab: settingsView.tab, settingsOpen: settingsView.open, fromList: settingsView.fromList }); url = '#/settings'; }
   if (screen === 'cameras') url = '#/cameras';
+  if (screen === 'tournament') { at.tourId = tourView.id; url = '#/tournament'; }
   return [at, '', url];
 }
 // Note where the app is now: as a new history entry (push), or in place of the current one.
@@ -448,6 +451,7 @@ function fromHash() {
   if (a === 'stats' && !b) return { screen: 'players' };
   if (a === 'settings' && !b) return { screen: 'settings' };
   if (a === 'cameras' && !b) return { screen: 'cameras' };
+  if (a === 'tournament' && !b) return { screen: 'tournament' };
   if (a === 'start' && !b) return { screen: 'start' };
   // the link the cameras' computer shows when pairing: Cameras with its code filled in
   if (a === 'pair' && /^[A-Za-z0-9]{6}$/.test(b ?? '')) { pairing.code = b.toUpperCase(); return { screen: 'cameras' }; }
@@ -469,6 +473,7 @@ function show(at) {
   }
   // (the cameras were once a tab of the settings: a history entry from then still finds them)
   if (at.screen === 'cameras' || (at.screen === 'settings' && at.settingsTab === 'cams')) return renderCameras();
+  if (at.screen === 'tournament') return openTournament(at.tourId ?? null);
   if (at.screen === 'settings') { settingsView.tab = at.settingsTab ?? settingsView.tab; settingsView.open = !!at.settingsOpen; settingsView.fromList = !!at.fromList; return renderSettings(); }
   return renderHome();
 }
@@ -709,6 +714,9 @@ $app.addEventListener('click', e => {
     case 'bull-random': return bullRandom();
     case 'bull-start': return bullStart();
     case 'resume': renderGame(); return mark(true);
+    case 'tournament': openTournament(); return mark(true);
+    // A tournament's match is won: to its bracket, in place of the game (the result is in already).
+    case 'tour-back': openTournament(match?.opts?.tournament?.id ?? null); return mark();
     case 'quit': return askQuit();
     case 'home': return goHome();
     case 'settings': settingsView.open = settingsView.fromList = false; renderSettings(); return mark(true);
@@ -773,6 +781,7 @@ $app.addEventListener('click', e => {
     case 'share-delete-no': sharing.deleting = false; return renderSettings();
     case 'share-delete-yes': return deleteShared();
   }
+  if (d.act?.startsWith('tour-')) return tourAct(d.act, d);
 });
 // The stats screen's drop-downs: whose stats, for which game, and with which darts.
 $app.addEventListener('change', e => {
