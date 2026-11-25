@@ -183,6 +183,7 @@
 .t-chalk .bullup .pcard .big small { font-weight: 400; }
 /* the last visit's score, the figure to check from the oche: a name's size; its darts as written */
 .t-chalk .lastvisit b { font-family: var(--font); font-size: var(--sz-name); font-weight: var(--bold); }
+.t-chalk .lastvisit .lastdarts { font-size: var(--sz-small); }
 .t-chalk .tile b { line-height: 1.15; }
 .t-chalk .step-head i { font-size: var(--sz-title); }
 /* a game's rules on the menu: written at the size everything is, under a heading the size of what is picked out */
@@ -190,7 +191,7 @@
 .t-chalk .page .how-head h3 { font-size: var(--sz-pick); }
 /* the scoreboard: who, what they have left, and the darts of the visit */
 .t-chalk .pcard .name { font: 400 var(--sz-head)/1.2 var(--font); }
-.t-chalk .pcard .big { font-size: var(--sz-score); line-height: 1.08; }
+.t-chalk .pcard .big { font-size: var(--sz-score); line-height: 1; }
 .t-chalk .slot { font-size: var(--sz-name); line-height: 1.25; }
 .t-chalk .pad-out { font-size: clamp(36px, 8vh, var(--sz-score)); line-height: 1.15; }
 .t-chalk .pad-keys button { font-size: clamp(18px, 4vh, var(--sz-name)); line-height: 1; }
