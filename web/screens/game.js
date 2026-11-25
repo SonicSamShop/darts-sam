@@ -104,6 +104,33 @@ const flashHtml = s => `<div class="vflash${flash.bust ? ' bust' : ''}${flash.no
   ${s.players.length > 1 ? `<div class="name">${esc(s.players[flash.player])}</div>` : ''}
   <div class="big">${flash.text}</div><div class="small">${flash.noOut ? 'Not enough darts left' : flash.bust ? 'Scores nothing' : 'Scored this visit'}</div></div>`;
 
+// ---------- a visit kept up ----------
+// After a person's visit, their darts can stay in the dart slots (and on the board) for a few
+// seconds, counting down, so a wrongly scored dart is easy to see and put right with Undo before
+// the next visit starts. Play has already moved on underneath: the next dart thrown, an Undo or
+// "Carry on" ends it early. The large score (above) stays up for as long, when it is on.
+// Not after the computer's darts, nor the last visit of a game (its banner stays anyway).
+// A setting (Settings > In a game): 0 to 15 seconds, 0 unless changed (moves on at once).
+export const VISIT_HOLD_MAX = 15;  // seconds
+export function visitHoldSecs() {
+  const n = Math.round(Number(settings.visitHold ?? 0));
+  return Number.isFinite(n) ? Math.min(VISIT_HOLD_MAX, Math.max(0, n)) : 0;
+}
+let held = null;  // {at: match.log.length, player, darts, total, bust, until} while it is up
+let heldTick = 0;
+const holding = () => !!held && held.at === match?.log.length && Date.now() < held.until;
+const heldLeft = () => Math.max(1, Math.ceil((held.until - Date.now()) / 1000));
+export function endHold() { held = null; if (flash) flash.until = Math.min(flash.until, Date.now()); renderGame(); }
+function holdVisit(before, after, ev) {
+  held = null;
+  const secs = visitHoldSecs();
+  if (!secs || ev.t !== 'dart' || ev.src === 'bot' || after.winner != null) return;
+  if (!after.lastVisit?.darts && after.bust == null && after.noOut == null) return;  // the visit isn't over
+  const darts = [...before.turn, ev];
+  held = { at: match.log.length, player: before.current, darts, total: darts.reduce((t, d) => t + value(d), 0),
+    bust: after.bust != null || after.noOut != null, until: Date.now() + secs * 1000 };
+}
+
 // ---------- match actions ----------
 export function push(ev) {
   const before = compute(match);
@@ -162,8 +189,9 @@ export function push(ev) {
   const next = name ? (aim ? `${name}, ${aim}` : name) : aim && `${changed ? 'Next,' : 'Aim for'} ${aim}`;
   const said = [dart, call, ...rest, ...earned, next].filter(x => x !== '');
   if (said.length) say(said.join('. '));
+  holdVisit(before, after, ev);
   const f = visitFlash(game, before, after);
-  if (f) flash = { ...f, until: Date.now() + FLASH_MS };
+  if (f) flash = { ...f, until: Date.now() + Math.max(FLASH_MS, held ? held.until - Date.now() : 0) };
   else if (ev.t === 'dart' || ev.t === 'visit') flash = null;  // the next visit has begun
   renderGame();
 }
@@ -174,6 +202,7 @@ export function undo() {
   while (match.log.at(-1)?.src === 'bot') match.log.pop();
   const gone = match.log.pop();
   flash = null;
+  held = null;
   tracker.undone(match.id, gone?.t === 'dart' ? gone : undefined);  // a camera dart undone may be about to be put right
   // Whatever those darts earned goes with them: it is worked out again from the darts that are left.
   dropSlips();
@@ -336,6 +365,13 @@ export function renderGame() {
   if (flash && Date.now() >= flash.until) flash = null;
   clearTimeout(flashTimer);
   if (flash) flashTimer = setTimeout(() => { if (screen === 'game' && match) renderGame(); }, flash.until - Date.now());
+  if (held && !holding()) held = null;
+  clearInterval(heldTick);
+  if (held) heldTick = setInterval(() => {
+    if (screen !== 'game' || !match || !holding()) { clearInterval(heldTick); if (screen === 'game' && match) renderGame(); return; }
+    const el = document.querySelector('.visithold b');
+    if (el) el.textContent = heldLeft();
+  }, 250);
   const pad = usingPad(game);
   // The TV view: the player cards give way to one scoreboard along the bottom.
   const tv = usingTv(game, s);
@@ -350,14 +386,16 @@ export function renderGame() {
   // Play moves on with the third dart. The dart slots start again empty for the
   // new visit; the board keeps the old darts marked until the next one lands,
   // and the old visit is listed in small print under the slots.
-  const shown = s.turn.length ? s.turn : s.lastVisit?.darts ?? s.turn;
-  const total = s.turn.reduce((t, d) => t + value(d), 0);
+  // While a visit is kept up (above), its darts stay in the slots instead.
+  const inSlots = held ? held.darts : s.turn;
+  const shown = held ? held.darts : s.turn.length ? s.turn : s.lastVisit?.darts ?? s.turn;
+  const total = inSlots.reduce((t, d) => t + value(d), 0);
   const same = seen.id === match.id, grew = same && match.log.length > seen.len, shrank = same && match.log.length < seen.len;
   // a dart that has just come into its slot drops in; one an Undo has given back fades back in
   const came = i => (grew || shrank) && i >= seen.turn ? (grew ? ' pop' : ' back') : '';
-  const slots = [0, 1, 2].map(i => s.turn[i]
-    ? `<div class="slot${came(i)}"><b>${label(s.turn[i])}</b><small>Dart ${i + 1}</small></div>`
-    : `<div class="slot empty${i === s.turn.length && s.winner == null && !s.turnOver ? ' next' : ''}"><b>–</b><small>Dart ${i + 1}</small></div>`).join('');
+  const slots = [0, 1, 2].map(i => inSlots[i]
+    ? `<div class="slot${held ? '' : came(i)}"><b>${label(inSlots[i])}</b><small>Dart ${i + 1}</small></div>`
+    : `<div class="slot empty${!held && i === s.turn.length && s.winner == null && !s.turnOver ? ' next' : ''}"><b>–</b><small>Dart ${i + 1}</small></div>`).join('');
   const prev = previousVisit(s);
   // A typed visit has no single darts to list (the number pad says what it scored).
   // The last visit: who threw it and its darts, small, on the left; what it scored, large, on the right.
@@ -365,7 +403,7 @@ export function renderGame() {
   const lastDarts = prev && prev.darts.map(label).join('<i> · </i>');
   const lastScore = prev && (prev.bust ? '<b class="warn">Bust</b>'
     : game.showTotal === false ? '' : `<b>${prev.darts.reduce((t, d) => t + value(d), 0)}</b>`);
-  const last = prev && !prev.typed ? `<div class="lastvisit"><div><span>Last visit${
+  const last = prev && !prev.typed && !held ? `<div class="lastvisit"><div><span>Last visit${
     s.players.length > 1 ? ` · ${esc(s.players[prev.player])}` : ''}</span><span class="lastdarts">${lastDarts}</span></div>${lastScore}</div>` : '';
   let banner = '';
   if (s.winner != null) banner = `<div class="banner win">${esc(game.result?.(s) ?? `${s.players[s.winner]} wins!`)}</div>`;
@@ -389,10 +427,11 @@ export function renderGame() {
     ((connected && cameraCount > 0) || phone.scoring()) && '<button class="ghost" data-act="report" title="A dart was scored wrongly: save what the cameras saw">Report a dart</button>',
     s.winner == null && '<button class="ghost" data-act="quit">Quit game</button>',
   ].filter(Boolean).join('');
-  const left = s.winner != null || s.turnOver ? '' : `${3 - s.turn.length} dart${s.turn.length === 2 ? '' : 's'} to throw`;
+  const left = held || s.winner != null || s.turnOver ? '' : `${3 - s.turn.length} dart${s.turn.length === 2 ? '' : 's'} to throw`;
   const visit = `<div class="visit${grew && s.bust != null ? ' busted' : ''}">
-      ${pad && !s.turn.length ? '' : `<div class="visit-head"><span>${s.players.length > 1 && s.winner == null ? `${esc(s.players[s.current])}'s visit` : 'This visit'}</span><span class="muted">${left}</span></div>
-      <div class="turn">${slots}<div class="slot total ${s.note ? 'bust' : ''}"><b>${s.note || (game.showTotal === false ? '' : total)}</b><small>${s.note ? '' : 'Total'}</small></div></div>`}
+      ${pad && !s.turn.length && !held ? '' : `<div class="visit-head"><span>${s.players.length > 1 && s.winner == null ? `${esc(s.players[held ? held.player : s.current])}'s visit` : 'This visit'}</span><span class="muted">${left}</span></div>
+      <div class="turn">${slots}<div class="slot total ${held?.bust || !held && s.note ? 'bust' : ''}"><b>${held ? (held.bust ? 'Bust' : game.showTotal === false ? '' : total)
+        : s.note || (game.showTotal === false ? '' : total)}</b><small>${!held && s.note || held?.bust ? '' : 'Total'}</small></div></div>`}
       ${last}</div>`;
   document.querySelector('.side').innerHTML = `
     <div class="top"><button class="ghost" data-act="home">‹ Menu</button>
@@ -408,6 +447,8 @@ export function renderGame() {
     ${game.hint ? `<div class="hint">${s.winner == null ? esc(game.hint(s, { checkouts: settings.checkouts !== false })) : ''}</div>` : ''}
     ${slipHtml()}
     ${banner}${s.winner != null ? earnedLine() : ''}
+    ${held ? `<div class="botwait visithold"><span>${s.players.length > 1 ? `${esc(s.players[held.player])}'s darts` : 'Your darts'} stay up for <b>${heldLeft()}</b>s. Score wrong? Undo it now.</span>
+      <button data-act="holdgo">Carry on</button></div>` : ''}
     ${botHolds(s) ? `<div class="botwait"><span>${esc(s.players[s.current])} throws in <b>${botHold?.at === match.log.length ? botHoldLeft() : botHoldSecs()}</b>s. Score wrong? Undo it now.</span>
       <button data-act="botgo">Throw now</button></div>` : ''}
     <div class="actions ${pad && s.winner == null ? 'solo' : ''}">

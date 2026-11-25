@@ -1,5 +1,5 @@
 {
-  "version": "1.8.1",
+  "version": "1.8.2",
   "unreleased": [],
   "notes": {
     "1.0": [
@@ -93,6 +93,12 @@
     ],
     "1.8.1": [
       "Tournaments: quitting a match now means giving it up. Whoever quits is out, and their opponent goes through with the match won by the full count of legs."
+    ],
+    "1.8.2": [
+      "New setting under Settings › In a game: Keep my darts up after a visit. Your three darts stay on screen for up to 15 seconds, counting down, so a wrongly scored dart is easy to spot and put right with Undo before play moves on.",
+      "A tidier game screen. The three darts of a visit and their total sit together in one box, each labelled, and the last visit shows what it scored in large figures with its darts beside it.",
+      "End turn (it was Next player) is now the main button. Undo and Miss are outlined, and TV view, Type scores and Quit game have moved to a quiet row of links underneath.",
+      "Little touches as you play: the bed a dart lands in lights up for a moment, the remaining score counts down to its new figure, a bust flashes red and a finish gold. Devices set to reduce motion don't get them."
     ]
   }
 }

@@ -29,7 +29,7 @@ import { deep, drawPlayers, renderPlayers, renderSheet, sheet, statsData, statsV
 import { avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, renderHome } from './screens/home.js';
 import { slipTapped } from './screens/earned.js';
 import {
-  askQuit, botThrow, botTimer, botUp, closeQuit, numPad, padCommit, padKey, push, renderGame, undo
+  askQuit, botThrow, botTimer, botUp, closeQuit, endHold, numPad, padCommit, padKey, push, renderGame, undo
 } from './screens/game.js';
 import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, playRemapped, renderBull, startMatch
@@ -755,6 +755,7 @@ $app.addEventListener('click', e => {
       return renderGame();
     case 'tv': settings.view = settings.view === 'tv' ? 'cards' : 'tv'; saveSettings(); return renderGame();
     case 'miss': return botUp() ? undefined : push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
+    case 'holdgo': return endHold();
     case 'botgo': return botUp() ? (clearTimeout(botTimer), botThrow()) : undefined;
     case 'next':
       if (compute(match).lastVisit?.auto || botUp()) return;  // the third dart already moved play on, or the computer is up
@@ -804,6 +805,11 @@ $app.addEventListener('change', e => {
     store.set('voiceName', e.target.value);
     voice.choose(e.target.value);
     say('One hundred and eighty');  // so it can be heard
+    return;
+  }
+  if (e.target.dataset?.visithold !== undefined) {
+    settings.visitHold = +e.target.value;
+    saveSettings();
     return;
   }
   if (e.target.dataset?.bothold !== undefined) {

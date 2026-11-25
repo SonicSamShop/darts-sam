@@ -14,7 +14,7 @@ import {
   $app, THEMES, account, applyTheme, depth, esc, fit, icon, mark, pageFoot, pageHead, players, refreshStatus,
   screen, setScreen, settings, store, voice
 } from '../app.js';
-import { BOT_HOLD_MAX, BOT_HOLD_USUAL, botHoldSecs, flashOn } from './game.js';
+import { BOT_HOLD_MAX, BOT_HOLD_USUAL, VISIT_HOLD_MAX, botHoldSecs, flashOn, visitHoldSecs } from './game.js';
 import { achievementsOn, photosOn } from './earned.js';
 import { aboutPanel, appRelease } from './release.js';
 import { boardsPanel, wallName } from './boardspanel.js';
@@ -27,6 +27,13 @@ const SPLIT = matchMedia('(pointer: coarse) and (orientation: landscape) and (mi
 export const listShown = () => STACKED.matches && (SPLIT.matches || !settingsView.open);  // is the settings' list on screen?
 export const sectShown = id => settingsView.tab === id && (!STACKED.matches || SPLIT.matches || settingsView.open);  // and this section of them?
 
+// How long a person's darts stay up after their visit, to be put right: a drop-down of seconds.
+function visitHoldPicker() {
+  const now = visitHoldSecs();
+  return `<div class="picks"><label class="pick"><span>Keep my darts up after a visit</span><select data-visithold>
+      ${Array.from({ length: VISIT_HOLD_MAX + 1 }, (_, n) =>
+    `<option value="${n}" ${n === now ? 'selected' : ''}>${n ? `${n} second${n > 1 ? 's' : ''}` : 'No, move on at once'}</option>`).join('')}</select></label></div>`;
+}
 // How long the computer waits after a person's visit before it throws: a drop-down of seconds.
 function botHoldPicker() {
   const now = botHoldSecs();
@@ -90,6 +97,7 @@ export function renderSettings(jump) {
     ${settings.voice ? `${switchRow('Call each dart', !!settings.eachDart, `data-eachdart="${settings.eachDart ? 'off' : 'on'}"`, 'Say every dart as it lands too, not just the total. Cricket, Killer and the practice games call each dart anyway.')}
     ${voicePicker()}` : ''}
     ${switchRow('Show each visit\'s score large', flashOn(), `data-visitflash="${flashOn() ? 'off' : 'on'}"`, 'For a couple of seconds after a visit, what it scored takes over the scores, for when the voice can\'t be heard.')}
+    ${visitHoldPicker()}
     ${switchRow('Checkout hints', hints, `data-checkouts="${hints ? 'off' : 'on'}"`, 'Switch off to practise working out your finishes yourself.')}
     ${switchRow('Show achievements as they are earned', achievementsOn(), `data-achievements="${achievementsOn() ? 'off' : 'on'}"`, 'A first 180, a big finish and the like are shown, and called, as they happen. Off, they are still kept on the Stats page.')}
     ${switchRow('Keep a picture of the board with an achievement', photosOn() === true, `data-photos="${photosOn() === true ? 'off' : 'on'}"`, 'When a camera scores the dart that earns one. Kept with your games and nowhere else, and deleted with the game.')}
