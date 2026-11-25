@@ -29,8 +29,10 @@ HEAL_AFTER = 2            # darts scored since the last pull-out before trusting
 STEADY_SCALE = 4          # the pictures are lined up at this fraction of their size (1/4)
 STEADY_REACH_MM = 260.0   # from the bull: what is compared. Beyond the numbers; short of a surround's lights,
                           # which stand in front of the board and so never line up with it
-STEADY_MOST = 0.03        # of the picture's longer side: moved further than this, it was knocked, not shaken
+STEADY_MOST = 0.06        # of the picture's longer side: moved further than this, it was knocked, not shaken
 STEADY_MATCH = 0.75       # how alike the lined-up pictures must be (ECC's 0..1); another view of the room is less
+STEADY_FLIGHT = 0.12      # of the picture's longer side: how far past the board's edge a dart's
+                          # flight can show, when the phone looks across the board from low down
 STEADY_AGAIN = 16         # still frames between lining up again, for a stand that creeps
 
 
@@ -103,8 +105,26 @@ class Tracker:
             self.regions[c] = region
         return self.regions[c]
 
+    def _dart_region(self, c, shape):
+        """Where a change can be a dart: the board, and as far round it as a
+        flight sticks out (STEADY_FLIGHT), still clear of the picture's edges."""
+        key = ("darts", c)
+        if key not in self.regions:
+            h, w = shape[:2]
+            reach = int(STEADY_FLIGHT * max(h, w))
+            ring = [board.polar(deg, STEADY_REACH_MM) for deg in range(0, 360, 3)]
+            outline = np.round(calib.view(self.H[c]).to_picture(ring)).astype(np.int32)
+            grown = np.zeros((h, w), np.uint8)
+            cv2.fillPoly(grown, [outline], 255)
+            cv2.polylines(grown, [outline], True, 255, 2 * reach)  # a thick pen round it: quick on a phone
+            m = int(np.ceil(STEADY_MOST * max(h, w)))
+            grown[:m] = grown[-m:] = 0
+            grown[:, :m] = grown[:, -m:] = 0
+            self.regions[key] = grown
+        return self.regions[key]
+
     def _warp(self, c, frame):
-        """How `frame` lies over camera c's anchor: a 2x3 matrix taking the
+        """How `frame` lies over camera c's anchor: a 3x3 perspective matrix taking the
         anchor's px to this picture's, or None if it can't be told or the
         camera has moved too far for it to be a shake."""
         a, b = self.anchors[c], small_grey(frame)
@@ -115,15 +135,19 @@ class Tracker:
         if not cv2.countNonZero(region):
             return None
         (dx, dy), _ = cv2.phaseCorrelate(np.float32(a), np.float32(b))  # roughly, to start from
-        W = np.float32([[1, 0, dx], [0, 1, dy]])
+        W = np.float32([[1, 0, dx], [0, 1, dy], [0, 0, 1]])
         try:
-            match, W = cv2.findTransformECC(a, b, W, cv2.MOTION_AFFINE,
+            match, W = cv2.findTransformECC(a, b, W, cv2.MOTION_HOMOGRAPHY,
                                             (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 60, 1e-6), region, 5)
         except cv2.error:  # it found nothing to line up
             return None
-        W[:, 2] *= STEADY_SCALE
-        corners = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-        moved = np.abs(corners @ W[:, :2].T + W[:, 2] - corners).max()
+        S = np.diag([STEADY_SCALE, STEADY_SCALE, 1.0])
+        W = S @ W @ np.linalg.inv(S)
+        # How far the board moved: measured round its edge, not at the picture's
+        # corners, which a perspective fit swings about far more than the board.
+        ring = [board.polar(deg, STEADY_REACH_MM) for deg in range(0, 360, 30)]
+        edge = np.float32(calib.view(self.H[c]).to_picture(ring)).reshape(-1, 1, 2)
+        moved = np.abs(cv2.perspectiveTransform(edge, W) - edge).max()
         if match < STEADY_MATCH or moved > STEADY_MOST * max(h, w):
             return None
         return W
@@ -141,7 +165,7 @@ class Tracker:
             if c not in self.warps:
                 self.warps[c] = self._warp(c, f)
             W = self.warps[c]
-            out[c] = f if W is None else cv2.warpAffine(
+            out[c] = f if W is None else cv2.warpPerspective(
                 f, W, (f.shape[1], f.shape[0]), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP, borderMode=cv2.BORDER_REPLICATE)
         return out
 
@@ -152,7 +176,7 @@ class Tracker:
     def _diff(self, c, before, after):
         mask = detect.diff_mask(before, after)
         if self.steady and c in self.H and self.warps.get(c) is not None:
-            mask = cv2.bitwise_and(mask, self._region(c, mask.shape))
+            mask = cv2.bitwise_and(mask, self._dart_region(c, mask.shape))
         return mask
 
     def _area(self, base, frames) -> int:
@@ -220,7 +244,8 @@ class Tracker:
                 self.reset()
             return []
 
-        sightings = {c: detect.find_dart(m, self.H[c])
+        # A phone has one camera, so the tip is all it has: follow the thin point.
+        sightings = {c: detect.find_dart(m, self.H[c], detect.diff_strength(self.ref[c], frames[c]) if self.steady else None)
                      for c, m in masks.items() if c in self.H}
         lines = [s for s in sightings.values() if s is not None]
         if not lines:

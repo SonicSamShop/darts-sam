@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 
 from server import board, phonevision
-from tests.test_calib import camera, render
+from tests.test_calib import K, camera, render
 from tests.test_vision import H, W, dart_at, project
 
 P = camera(angle=30, radius=330, height=120)
@@ -118,6 +118,54 @@ def test_scores_a_dart_when_the_phone_has_shifted():
     assert not phonevision.still_matches(shifted(picture(), 90, -70), W, H, cal)
 
 
+def tipped(dx_deg, dy_deg, dz_deg):
+    """The phone's camera turned a little on its stand: the board's perspective
+    changes, not only its place in the picture."""
+    M = np.linalg.inv(K) @ P
+    R, t = M[:, :3], M[:, 3]
+    C = -R.T @ t
+    R2 = cv2.Rodrigues(np.radians([dx_deg, dy_deg, dz_deg]))[0] @ R
+    return K @ np.hstack([R2, (-R2 @ C).reshape(3, 1)])
+
+
+def real_picture(cam, darts=()):
+    """A dart as a phone sees one: a thin steel point that hardly shows on a
+    cream bed, then barrel, shaft and a big flight."""
+    img = render(cam, RNG)
+    for tip, tail in darts:
+        at = lambda f: tuple(int(round(v)) for v in project(cam, tip + (tail - tip) * f))
+        cv2.line(img, at(0.0), at(0.2), (175, 175, 180), 2, cv2.LINE_AA)
+        cv2.line(img, at(0.2), at(0.45), (90, 95, 100), 6, cv2.LINE_AA)
+        cv2.line(img, at(0.45), at(0.75), (200, 60, 40), 3, cv2.LINE_AA)
+        cv2.line(img, at(0.75), at(1.0), (220, 80, 40), 16, cv2.LINE_AA)
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGBA).tobytes()
+
+
+def test_tipped_phone_finds_the_point():
+    """Each dart tips the phone a little further on its stand (about a degree),
+    and the steel point is thin: each dart is still found, to within a few mm
+    of its point, not where the barrel starts (2026-11-25: darts given to the
+    wrong bed, the phone asking 20 or 1 for a dart in the middle of the 20)."""
+    found = phonevision.calibrate(real_picture(P), W, H, twenty())
+    assert found["ok"], found
+    phonevision.start(found["calibration"])
+    poses = [(0, 0, 0), (0.4, -0.3, 0.2), (-0.5, 0.6, -0.4), (0.9, 0.2, 0.5)]
+    throws = [(-20.0, 60.0), (45.0, 100.0), (-80.0, -30.0)]  # 5, near the treble 1, 8
+    darts = []
+    for _ in range(5):
+        phonevision.feed(real_picture(tipped(*poses[0])), W, H)
+    for (x, y), pose in zip(throws, poses[1:]):
+        darts.append((np.array([x, y, 0.0]), np.array([x + 10, y + 25, 140.0])))
+        events = []
+        for _ in range(5):
+            events += phonevision.feed(real_picture(tipped(*pose), darts), W, H)
+        got = [e for e in events if e["type"] == "dart"]
+        assert len(got) == 1, (x, y, events)
+        assert np.hypot(got[0]["x"] - x, got[0]["y"] - y) < 5.0, (x, y, got)
+        assert (got[0]["seg"], got[0]["mult"]) == (board.score(x, y)["seg"], board.score(x, y)["mult"]), (x, y, got)
+    phonevision.stop()
+
+
 def test_an_old_calibration_still_scores():
     """One saved before pictures were kept: the first still picture stands in."""
     cal = {k: v for k, v in calibrated().items() if k != "anchor"}
@@ -192,9 +240,17 @@ def test_report_replays():
 
 def test_still_matches():
     cal = calibrated()
+    roll = lambda px: np.roll(np.frombuffer(picture(), np.uint8).reshape(H, W, 4), px, axis=1).tobytes()
+    # Not watching: the rings must be where the calibration put them.
+    phonevision.stop()
     assert phonevision.still_matches(picture(), W, H, cal)
-    moved = np.roll(np.frombuffer(picture(), np.uint8).reshape(H, W, 4), 40, axis=1).tobytes()
-    assert not phonevision.still_matches(moved, W, H, cal)
+    assert not phonevision.still_matches(roll(40), W, H, cal)
+    # Watching: a phone that slid 40 px is lined back up and goes on scoring;
+    # one moved a long way was knocked.
+    phonevision.start(cal)
+    assert phonevision.still_matches(roll(40), W, H, cal)
+    assert not phonevision.still_matches(roll(150), W, H, cal)
+    phonevision.stop()
 
 
 def main():
@@ -204,6 +260,7 @@ def main():
     test_nothing_before_start()
     test_scores_a_dart()
     test_scores_a_dart_when_the_phone_has_shifted()
+    test_tipped_phone_finds_the_point()
     test_an_old_calibration_still_scores()
     test_restart_forgets_the_board()
     test_says_when_the_picture_is_still()

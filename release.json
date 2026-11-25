@@ -3,7 +3,9 @@
   "unreleased": [
     "121 Checkout now says \"Can't check out\" when the darts you have left can't finish what's left, instead of \"Bust\", and those darts still count.",
     "Phone camera (Beta): after it finds the board it now says if the board is too dark, too small in the picture or seen too far from the side, and what to change.",
-    "Tournaments: a knockout for 3 to 16 players, people and bots, on one board."
+    "Tournaments: a knockout for 3 to 16 players, people and bots, on one board.",
+    "Phone camera (Beta): far more accurate. It now finds the dart's thin steel point instead of stopping where the barrel starts, lines each picture back up with the board when the phone tips on its stand, and asks \"Which bed?\" less often.",
+    "Phone camera (Beta): the \"Which bed?\" question no longer shows the board through it in the Chalk & Oche and League Scoresheet themes."
   ],
   "notes": {
     "1.0": [

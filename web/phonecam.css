@@ -24,8 +24,10 @@
 /* "Or use this Device Camera" on the Cameras screen: centred like the rest of it, its button under the words. */
 .phoneoffer .row { justify-content: center; margin-top: 16px; }
 
-/* "Which bed?" when the phone camera isn't sure (web/ask.js), over the game. */
-.askpanel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: var(--panel); color: var(--text);
+/* "Which bed?" when the phone camera isn't sure (web/ask.js), over the game.
+   Some themes' panels are see-through (Chalk's is 5% white), so the page's own
+   colour goes under it: the board behind must not show through the words. */
+.askpanel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: linear-gradient(var(--panel), var(--panel)), var(--bg); color: var(--text);
   border-top: 1px solid var(--line); padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); font-size: 18px; }
 .askpanel[hidden], .asktoast[hidden] { display: none; }
 .askpanel p { margin: 2px 0 10px; }
@@ -33,5 +35,5 @@
 .askpanel .pct, .asktoast .pct { margin-left: 8px; font-size: 15px; opacity: .7; }
 /* What it was sure of, for a few seconds, with a way to change it. */
 .asktoast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 59;
-  display: flex; align-items: center; gap: 14px; background: var(--panel2); color: var(--text);
+  display: flex; align-items: center; gap: 14px; background: linear-gradient(var(--panel2), var(--panel2)), var(--bg); color: var(--text);
   border: 1px solid var(--line); border-radius: var(--round); padding: 8px 8px 8px 14px; font-size: 18px; }

@@ -24,6 +24,13 @@ MAX_DART_FRACTION = 0.12  # more of the frame than this changing is a hand/body
 MIN_PART_AREA = 30        # px; a piece of the dart smaller than this is speckle
 MAX_OFF_AXIS = 14         # px; a piece further than this from the dart's line isn't part of it
 MAX_DART_LENGTH = 0.25    # of the picture's width; pieces further apart than this aren't one dart
+# The steel point is thin, and over a cream bed hardly darker, so it is mostly
+# lost from the mask: the tip would be put where the barrel starts, 15-30 mm
+# short. Given how strongly each pixel changed (diff_strength), the dart's
+# line is followed on from there for as long as it still changed this much.
+POINT_CHANGE = 14         # 0-255, in any one colour
+POINT_REACH = 0.05        # of the picture's longer side: the furthest it is followed
+POINT_GAP = 2             # px along the line that may show no change (a wire crossing it)
 
 
 def diff_mask(before: np.ndarray, after: np.ndarray, thresh: int = 28) -> np.ndarray:
@@ -33,6 +40,37 @@ def diff_mask(before: np.ndarray, after: np.ndarray, thresh: int = 28) -> np.nda
     k = np.ones((3, 3), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, k)
     return cv2.morphologyEx(mask, cv2.MORPH_CLOSE, k, iterations=2)
+
+
+def diff_strength(before: np.ndarray, after: np.ndarray) -> np.ndarray:
+    """How much each pixel changed, in whichever colour changed most: a
+    steel point over a cream bed changes the blue far more than the grey."""
+    return cv2.absdiff(before, after).max(axis=2)
+
+
+def _follow_point(strength: np.ndarray, view, tip: np.ndarray, out: np.ndarray) -> np.ndarray:
+    """From `tip` (straightened px), go on in direction `out` for as long as
+    the picture changed along the line: where the thin point really ends."""
+    h, w = strength.shape[:2]
+    reach = int(POINT_REACH * max(h, w))
+    across = np.array([-out[1], out[0]])
+    steps = np.arange(1, reach + 1)
+    offsets = np.arange(-2, 3)
+    pts = tip + steps[:, None, None] * out + offsets[None, :, None] * across
+    px = np.asarray(view.bend(pts.reshape(-1, 2)), np.float64).reshape(len(steps), len(offsets), 2)
+    xi, yi = np.round(px[..., 0]).astype(int), np.round(px[..., 1]).astype(int)
+    inside = (xi >= 0) & (xi < w) & (yi >= 0) & (yi < h)
+    seen = np.where(inside, strength[np.clip(yi, 0, h - 1), np.clip(xi, 0, w - 1)], 0).max(axis=1)
+    seen = np.convolve(seen.astype(np.float64), np.ones(3) / 3, "same")  # one bright speck isn't a point
+    last, gap = 0, 0
+    for i, v in enumerate(seen):
+        if v >= POINT_CHANGE:
+            last, gap = i + 1, 0
+        else:
+            gap += 1
+            if gap > POINT_GAP:
+                break
+    return tip + out * last
 
 
 def changed_fraction(mask: np.ndarray) -> float:
@@ -83,9 +121,11 @@ def _axis(pts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return np.array([x0, y0]), np.array([vx, vy])
 
 
-def find_dart(mask: np.ndarray, H) -> DartLine | None:
+def find_dart(mask: np.ndarray, H, strength: np.ndarray | None = None) -> DartLine | None:
     """Locate the dart blob in a diff mask. H is the camera's calibration: a
-    calib.View, or a bare image px -> board mm homography."""
+    calib.View, or a bare image px -> board mm homography. With `strength`
+    (diff_strength of the same two pictures), the thin point is followed
+    past the end of the blob."""
     view = calib.view(H)
     H = view.H
     n, labels, stats, cents = cv2.connectedComponentsWithStats(mask, connectivity=8)
@@ -132,6 +172,10 @@ def find_dart(mask: np.ndarray, H) -> DartLine | None:
     if len(near):
         across = np.array([-d[1], d[0]])
         tip_img = tip_img + across * float(((near - tip_img) @ across).mean())
+    if strength is not None:
+        other = ends[1 - int(np.argmax(w))]
+        out = (tip_img - other) / max(np.linalg.norm(tip_img - other), 1e-6)
+        tip_img = _follow_point(strength, view, tip_img, out)
 
     a, b = to_board(H, ends)
     direction = b - a
@@ -196,8 +240,8 @@ def locate(lines: list[DartLine]) -> tuple[np.ndarray, float] | None:
 # One camera's tip is unsure mostly ALONG the dart (where along its line the
 # point really is) and much less across it. These are the spreads, in mm, for
 # a dart seen clearly at ODDS_REF_MM_PER_PX; tuned from players' corrections.
-ODDS_ALONG_MM = 6.0
-ODDS_ACROSS_MM = 2.5
+ODDS_ALONG_MM = 4.0
+ODDS_ACROSS_MM = 2.0
 ODDS_REF_MM_PER_PX = 0.6
 _GRID = np.linspace(-3, 3, 21)
 _WEIGHTS = np.exp(-0.5 * (_GRID[:, None] ** 2 + _GRID[None, :] ** 2))
