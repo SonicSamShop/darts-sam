@@ -85,7 +85,7 @@ export function renderHome() {
       <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>`).join('')}
     <p class="blurb muted small">${game.blurb}</p>
     ${howToPlay(game)}`)}
-    ${tourLine()}
+    
     </div>
     <div class="setup">
     ${game.options.length ? step('options', `${game.options.map(o => `<div class="opt"><span>${o.help ? optLabelHelp(o) : o.label}</span>${o.choices ? `<div class="choices">${o.choices.map(([v, l]) =>
