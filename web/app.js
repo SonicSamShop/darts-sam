@@ -35,6 +35,7 @@ import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, playRemapped, renderBull, startMatch
 } from './screens/start.js';
 import { reportProblem } from './screens/report.js';
+import { labEvent, renderAccuracy } from './screens/accuracy.js';
 import { openTournament, renderTournament, tourAct, tourRemapped, tourView } from './screens/tournament.js';
 import { finishWelcome, nameDue, renderWelcome, welcomeDue, welcomeForm, welcomeNamed } from './screens/welcome.js';
 
@@ -120,7 +121,7 @@ export const setScreen = v => { screen = v; counted(); wakeCameras(); };  // for
 // or the Cameras screen, keeps them awake, and wakes them if they are resting.
 let woke = 0;
 function wakeCameras() {
-  if (!['game', 'bull', 'cameras'].includes(screen) || Date.now() - woke < 50000) return;
+  if (!['game', 'bull', 'cameras', 'accuracy'].includes(screen) || Date.now() - woke < 50000) return;
   woke = Date.now();
   api('/cameras/wake', 'POST', undefined, 5000).catch(() => {});
 }
@@ -347,6 +348,7 @@ function connect() {
 }
 // What the cameras saw: from the cameras' computer (/ws) or this phone's own camera (phoneui.js).
 function onBoardEvent(ev) {
+  if (screen === 'accuracy') return labEvent(ev);
   if (screen === 'bull' && bull) { if (ev.type === 'dart') bullDart({ seg: ev.seg, mult: ev.mult, x: ev.x, y: ev.y }); return; }
   if (screen !== 'game' || !match) return;
   if (botUp()) return;  // the computer is throwing: nothing at the board is part of the game
@@ -443,6 +445,7 @@ function place() {
   }
   if (screen === 'settings') { Object.assign(at, { settingsTab: settingsView.tab, settingsOpen: settingsView.open, fromList: settingsView.fromList }); url = '#/settings'; }
   if (screen === 'cameras') url = '#/cameras';
+  if (screen === 'accuracy') url = '#/accuracy';
   if (screen === 'tournament') { at.tourId = tourView.id; at.tourPast = tourView.past; url = '#/tournament'; }
   return [at, '', url];
 }
@@ -460,6 +463,7 @@ function fromHash() {
   if (a === 'stats' && !b) return { screen: 'players' };
   if (a === 'settings' && !b) return { screen: 'settings' };
   if (a === 'cameras' && !b) return { screen: 'cameras' };
+  if (a === 'accuracy' && !b) return { screen: 'accuracy' };
   if (a === 'tournament' && !b) return { screen: 'tournament' };
   if (a === 'start' && !b) return { screen: 'start' };
   // the link the cameras' computer shows when pairing: Cameras with its code filled in
@@ -482,6 +486,7 @@ function show(at) {
   }
   // (the cameras were once a tab of the settings: a history entry from then still finds them)
   if (at.screen === 'cameras' || (at.screen === 'settings' && at.settingsTab === 'cams')) return renderCameras();
+  if (at.screen === 'accuracy') return renderAccuracy();
   if (at.screen === 'tournament') return openTournament(at.tourId ?? null, !!at.tourPast);
   if (at.screen === 'settings') { settingsView.tab = at.settingsTab ?? settingsView.tab; settingsView.open = !!at.settingsOpen; settingsView.fromList = !!at.fromList; return renderSettings(); }
   return renderHome();

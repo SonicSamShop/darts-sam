@@ -38,7 +38,7 @@ export function accountPanel() {
     <div class="row"><button data-act="acct-signout-yes">Sign out</button><button data-act="acct-signout-no">Stay signed in</button></div>`
     : acct.deleting ? '' : '<div class="rows"><button class="srow" data-act="acct-signout"><span><b>Sign out</b></span></button></div>'}
     <p class="muted small"><a href="privacy.html" target="_blank" rel="noopener">What is stored about you</a>${
-      account.account.admin ? ' · <a href="/admin">The trial\'s admin pages</a>' : ''}</p>
+      account.account.admin ? ' · <a href="/admin">The trial\'s admin pages</a> · <a href="#/accuracy">Accuracy test</a>' : ''}</p>
     <div class="setend">${acct.deleting ? `<p>This deletes your account, games and stats for good.</p>
     <div class="row"><button class="danger" data-act="acct-delete-yes">Delete</button><button data-act="acct-delete-no">Keep</button></div>`
     : '<button class="ghost danger" data-act="acct-delete">Delete my account</button>'}</div></div>`;
