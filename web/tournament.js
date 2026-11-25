@@ -183,6 +183,11 @@ export function clearResult(t, i) {
   return out;
 }
 
+// The tournament of `list` that player `id` is still in: one neither finished nor
+// abandoned that they were drawn into, or null. Knocked out or not: their matches are
+// part of it, and it could not be saved without them.
+export const stillIn = (list, id) => list.find(t => !t.finished && !t.abandoned && t.data.entrants.some(e => e.id === id)) ?? null;
+
 // Fills in any slot whose saved match is won but whose result never reached the
 // bracket (the app closed just after the winning dart). matchById gives the
 // saved match, with its playerIds and bots, or null. The match is the truth.

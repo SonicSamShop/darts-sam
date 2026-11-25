@@ -42,4 +42,9 @@ export const BOT = 0, botAt = () => ({ level: 5 }), setup = { first: null };
 export const isBotId = id => id === BOT || bots.some(b => b.id === id);
 export const levelOf = id => (id === BOT ? botAt().level : bots.find(b => b.id === id)?.bot ?? null);
 export const nameOf = id => (players.find(p => p.id === id) ?? bots.find(p => p.id === id))?.name ?? '?';
-export const dartsFor = () => null, randomOrder = ids => ids, saveSetup = () => {}, say = () => {}, seats = () => [];
+export const dartsFor = () => null, randomOrder = ids => ids, saveSetup = () => {}, seats = () => [];
+// What score calling was asked to say, in order.
+export const said = [];
+export const say = text => { said.push(text); };
+// What the players' cards ask of the app as well (web/screens/playerspanel.js).
+export const MAX_PLAYERS = 8, cleanSetup = () => {}, grams = g => `${g} g`, setDarts = () => {}, setsOf = () => [];

@@ -4,7 +4,8 @@
 
 // The Tournament screen: setting one up (name, players and bots, the game, how
 // long each round's matches are), then the bracket, with the next match to play
-// on the board. The rules of the bracket are in ../tournament.js; this screen only
+// on the board, and when its final is won the winner's screen. Under either, the
+// tournaments that are over. The rules of the bracket are in ../tournament.js; this screen only
 // decides what to show and when to save. A match of the bracket is an ordinary
 // match carrying opts.tournament = {id, slot}: the game screen tells this one when
 // it is won, undone or quit (onMatchWon, onMatchUndone, onMatchQuit).
@@ -20,14 +21,15 @@ import { renderLanding } from './landing.js';
 import { askFirst } from './start.js';
 import {
   $app, account, bots, botPlayer, data, esc, fit, mark, match, pageFoot, pageHead, players, redraw, refreshStatus,
-  screen, setMatch, setScreen, store
+  say, screen, setMatch, setScreen, store
 } from '../app.js';
 
 // What the screen shows. id: the tournament on screen (null: the one going, or a new one to set up).
 // setup: the new tournament being set up, kept while the app is open:
 //   {name, ids: people's ids, bots: [level], start, out, rounds: [{legs}], draw: the drawn record or null}.
 // abandoning: "Abandon tournament" has been pressed once and is asking.
-export const tourView = { id: null, setup: null, abandoning: false };
+// past: the one on screen is over and was opened from the list of past tournaments: Back is the way out.
+export const tourView = { id: null, setup: null, abandoning: false, past: false };
 
 const MIN = 3, MAX = 16;
 const x01 = () => gameById('x01');
@@ -301,6 +303,11 @@ function unseen(t) {
   return now.unseen;
 }
 
+// The final's place in the bracket, and whether its result has been shown moving into the
+// Winner's box on this device: only then is the winner's screen up (goingHtml, playOut).
+const finalOf = t => t.data.slots.length - 1;
+const finalSeen = t => !seenResults(t, seenOf(t.id)).unseen.includes(finalOf(t));
+
 const wait = (ms, skip) => new Promise(done => {
   const end = Date.now() + ms, tick = () => (skip() || Date.now() >= end ? done() : setTimeout(tick, 50));
   tick();
@@ -311,12 +318,15 @@ const wait = (ms, skip) => new Promise(done => {
 // (ms) the bracket takes no tap on a match, after a run that was skipped.
 const bracketView = { drawn: 0, watch: null, run: null, quiet: 0 };
 const QUIET = 400;  // ms: a tap that skips is often the first of two
+// The match of t to have in sight where the bracket is wider than its box (a phone): the
+// one marked, or once it is won the final, with the Winner's box beside it. `next`: the one marked.
+const inSight = (t, next) => next ?? (t.finished ? finalOf(t) : null);
 // Tournament t's bracket as it stands, nothing moving: the match to play marked, and
-// (unless taps is false) its matches there to be tapped. Gives back the marked match's slot.
+// (unless taps is false) its matches there to be tapped. Gives back the slot to have in sight.
 function drawAtRest(svg, t, taps = true) {
   const next = tourMarked(t);
   drawBracket(svg, t, { next, taps: taps ? tourTaps(t) : {}, nameOf: id => tourName(t, id) });
-  return next;
+  return inSight(t, next);
 }
 // The bracket on the screen just drawn: the draw being set up, or tournament t, with
 // its results not yet seen here moving on one by one (playOut).
@@ -332,7 +342,7 @@ function mountBracket(t) {
   const next = fill ? tourMarked(t) : null;
   drawBracket(svg, t, { hide: new Set(hidden), next: hidden.length ? null : next, nameOf });
   sizeBracket(box, svg, { fill });
-  showSlot(box, svg, t, hidden[0] ?? next);
+  showSlot(box, svg, t, hidden[0] ?? (fill ? inSight(t, next) : null));
   view.watch = new ResizeObserver(() => sizeBracket(box, svg, { fill }));
   view.watch.observe(box);
   // A long name is cut to fit as it measures, and until the theme's lettering has arrived
@@ -350,7 +360,10 @@ function mountBracket(t) {
 }
 // Shows each result not yet seen moving on, in bracket order; plays out any bot
 // against bot ("Simulating Bot 5 v Bot 9…", then its result moves on); then draws
-// the bracket as it stands. Until then a tap anywhere on the bracket skips to the end
+// the bracket as it stands. When one of those results is the final's, the winner's
+// screen comes up after it, and score calling says who won: once, here, since the
+// device has then seen it (a redraw, a reload or another day finds nothing left to show).
+// Until then a tap anywhere on the bracket skips to the end
 // (the box's own data-act, tour-skip) and does nothing else: its matches are not drawn
 // as buttons until it is at rest, nor for a moment after a tap that skipped (QUIET), so
 // that the second tap of two does not land on a match. Stops if the screen is drawn
@@ -362,7 +375,7 @@ function mountBracket(t) {
 async function playOut(id, box, svg, live) {
   const view = bracketView, run = view.run = { skip: false }, skip = () => run.skip;
   const now = () => (live() ? data.tournament(id) : null);
-  let simulated = false, t;
+  let simulated = false, won = false, t;
   box.dataset.act = 'tour-skip';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const status = $app.querySelector('.tour-status');
@@ -376,6 +389,7 @@ async function playOut(id, box, svg, live) {
       await animate(svg, t, hidden[0], { nameOf, reduced, skip });
       if (!live()) return;
       setSeen(id, [...(seenOf(id) ?? []), hidden[0]]);
+      won ||= hidden[0] === finalOf(t);
       continue;
     }
     const bb = tourBotSlots(t)[0];
@@ -389,8 +403,10 @@ async function playOut(id, box, svg, live) {
     if (tourBotSlots(t).includes(bb)) { simulateSlot(t, bb); simulated = true; }
   }
   if (run.skip) view.quiet = Date.now() + QUIET;
-  // what the bots decided can change the next match, and so the buttons
-  if (simulated) return renderTournament();
+  if (won && t.finished) say(`${tourName(t, t.winner)} wins ${t.name}`);
+  // what the bots decided can change the next match, and so the buttons; and the final,
+  // now shown, brings up the winner's screen
+  if (simulated || won) return renderTournament();
   if (view.quiet > Date.now()) {
     showSlot(box, svg, t, drawAtRest(svg, t, false));
     await wait(view.quiet - Date.now(), () => false);
@@ -403,14 +419,28 @@ async function playOut(id, box, svg, live) {
 }
 const optsLine = t => `${t.data.opts.start} · ${t.data.opts.out === 'straight' ? 'straight' : 'double'} out`;
 
+// The winner's screen is the finished tournament's own, headed with who won it: their name,
+// "wins Christmas 2026", and the final's score (its two players in the bracket's order).
+function winnerHtml(t) {
+  const s = t.data.slots[finalOf(t)], name = id => esc(tourName(t, id));
+  return `<h1 class="tour-champ">${name(t.winner)}</h1><p class="tour-wins">wins ${esc(t.name)}</p>
+    ${s.legs ? `<p class="muted tour-final">Final: ${name(s.a)} ${s.legs[0]} – ${s.legs[1]} ${name(s.b)}</p>` : ''}`;
+}
+
 function goingHtml(t) {
   // The main button: back to the match being played here, whichever it is, or else the next one to play.
   const playing = slotInPlay(t) != null, next = tourMarked(t);
-  let buttons = '';
-  if (t.finished) buttons = `<p class="tour-won">${esc(tourName(t, t.winner))} wins ${esc(t.name)}</p>
-    <div class="row tour-buttons"><button class="primary" data-act="tour-new">New tournament</button></div>`;
-  else if (t.abandoned) buttons = `<p class="muted">Abandoned.</p>
-    <div class="row tour-buttons"><button class="primary" data-act="tour-new">New tournament</button></div>`;
+  // Under one that is over, the way on. Opened from the list of past ones, that is Back. Otherwise
+  // a new one (or, come back to through the history while another is going, that one).
+  const going = currentTournament();
+  const away = `<div class="row tour-buttons">${tourView.past ? '<button class="primary" data-act="up">Back</button>'
+    : going ? `<button class="primary" data-act="tour-current">Back to ${esc(going.name)}</button>`
+    : '<button class="primary" data-act="tour-new">New tournament</button>'}<button data-act="home">Menu</button></div>`;
+  let head = `<h1 class="sub">${esc(t.name)}</h1><p class="muted">${optsLine(t)}</p>`, buttons = '';
+  // Won, but the final's result is still to be shown moving on: who won is not said before it has (playOut).
+  if (t.finished && !finalSeen(t)) buttons = '';
+  else if (t.finished) { head = winnerHtml(t); buttons = away; }
+  else if (t.abandoned) buttons = `<p class="muted">Abandoned.</p>${away}`;
   else if (tourView.abandoning) buttons = `<p>Abandon ${esc(t.name)}? The matches already played stay in the stats.</p>
     <div class="row tour-buttons"><button class="danger" data-act="tour-abandon-yes">Abandon tournament</button>
       <button class="primary" data-act="tour-abandon-no">Keep playing</button></div>`;
@@ -418,8 +448,24 @@ function goingHtml(t) {
       ${next == null ? '' : playing ? `<button class="primary" data-act="resume">Back to ${esc(slotTitle(t, next))}</button>`
         : `<button class="primary" data-act="tour-play" data-i="${next}">Play ${esc(slotTitle(t, next))}</button>`}
       <span class="spacer"></span><button data-act="tour-abandon">Abandon tournament</button></div>`;
-  return `<h1 class="sub">${esc(t.name)}</h1><p class="muted">${optsLine(t)}</p>${bracketHtml()}
+  return `${head}${bracketHtml()}
     <p class="tour-status" aria-live="polite"></p>${buttons}`;
+}
+
+// ---------- past tournaments ----------
+// The day one was played, as the stats write a day: "24 Dec 26".
+const dayOf = ts => new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short', year: '2-digit' });
+// Under the screen, the tournaments that are over, newest first, a line each: its name, the
+// day, and who won it or "abandoned". A line opens that tournament's bracket. `on`: the one
+// on screen, which is not in its own list. Nothing at all when there are none.
+function pastHtml(on) {
+  const past = data.tournaments().filter(t => (t.finished || t.abandoned) && t.id !== on?.id);
+  if (!past.length) return '';
+  return `<h3 class="group">Past tournaments</h3><div class="tour-past">${past.map(t => {
+    const day = dayOf(t.finished || t.created), winner = t.finished ? tourName(t, t.winner) : null;
+    return `<button class="tourline" data-act="tour-open" data-id="${esc(t.id)}" aria-label="${esc(`${t.name}, ${day}, ${winner ? `won by ${winner}` : 'abandoned'}: see the bracket`)}">
+      <b>${esc(t.name)}</b><span class="nb">${day}</span><span>${winner ? esc(winner) : 'abandoned'}</span></button>`;
+  }).join('')}</div>`;
 }
 
 // ---------- the screen ----------
@@ -432,10 +478,18 @@ export function renderTournament() {
   if (t && !t.finished && !t.abandoned) t = catchUp(t);
   if (!t) tourView.setup ??= newSetup();
   tourView.id = t?.id ?? null;
-  if (!t || t.finished || t.abandoned) tourView.abandoning = false;
+  const over = !!t && (!!t.finished || !!t.abandoned);
+  if (!t || over) tourView.abandoning = false;
+  tourView.past &&= over;
+  // One opened from the list is looked up, not watched: whatever of it was never shown moving on
+  // here is not shown now, and its win is not called.
+  if (tourView.past && seenResults(t, seenOf(t.id)).unseen.length) setSeen(t.id, seenResults(t).seen);
+  // The list of past ones is under the screen it is opened from, not under one opened from it. Under
+  // a bracket (which fills the screen) only its heading shows until the screen is scrolled (.peek).
+  const past = tourView.past ? '' : pastHtml(t);
   $app.innerHTML = `<div class="page tourpage">
     ${pageHead('home')}
-    <div class="tour-body fill ${t ? 'going' : ''}">${t ? goingHtml(t) : setupHtml(tourView.setup)}</div>
+    <div class="tour-body fill ${t ? 'going' : ''}">${t ? `<div class="tour-main ${past ? 'peek' : ''}">${goingHtml(t)}</div>` : setupHtml(tourView.setup)}${past}</div>
     ${pageFoot('home')}
   </div>`;
   mountBracket(t ?? tourView.setup.draw);
@@ -443,9 +497,11 @@ export function renderTournament() {
   fit();
 }
 // The way in: tournament `id` (from one of its matches), or from the menu (no id) the
-// tournament going, or setting up a new one.
-export function openTournament(id = null) {
+// tournament going, or setting up a new one. past: `id` is one that is over, opened
+// from the list of past tournaments (or come back to, having been).
+export function openTournament(id = null, past = false) {
   tourView.id = id;
+  tourView.past = past && id != null;
   tourView.abandoning = false;
   renderTournament();
 }
@@ -496,7 +552,15 @@ export function tourAct(act, d) {
       if (t) { save({ ...t, abandoned: true }); data.sync(); }
       tourView.abandoning = false;
       return renderTournament();
-    case 'tour-new': tourView.id = null; tourView.setup = newSetup(); renderTournament(); return mark();
+    case 'tour-new': tourView.id = null; tourView.past = false; tourView.setup = newSetup(); renderTournament(); return mark();
+    // From one that is over, come back to while another is going: to the one going.
+    case 'tour-current': openTournament(); return mark();
+    // A line of "Past tournaments": that tournament's bracket, a step on from this screen, which Back
+    // comes back to. (One that has gone since the list was drawn: the screen as it now is.)
+    case 'tour-open':
+      if (!data.tournament(d.id)) return renderTournament();
+      openTournament(d.id, true);
+      return mark(true);
     // A tap on the bracket while results are moving on it.
     case 'tour-skip': if (bracketView.run) bracketView.run.skip = true; return;
   }

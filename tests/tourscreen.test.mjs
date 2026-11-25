@@ -14,8 +14,9 @@ globalThis.document = { addEventListener() {} };
 const S = await import('../web/screens/tournament.js');
 const app = await import('./tourscreen/app.mjs');
 const start = await import('./tourscreen/start.mjs');
-const { page, buttons, mainButton, frames } = await import('./tourscreen/page.mjs');
-const { makeDraw, readySlots, defaultRounds } = await import('../web/tournament.js');
+const { page, buttons, mainButton, frames, text, acts, pastLines } = await import('./tourscreen/page.mjs');
+const P = await import('../web/screens/playerspanel.js');
+const { makeDraw, readySlots, defaultRounds, recordResult } = await import('../web/tournament.js');
 const { newMatch, compute } = await import('../web/engine.js');
 const { data, store, loadPlayers } = app;
 
@@ -24,15 +25,21 @@ function fresh(people) {
   store.set('match', null);
   app.setMatch(null);
   app.sent.length = 0;
+  app.said.length = 0;
   loadPlayers();
-  Object.assign(S.tourView, { id: null, setup: null, abandoning: false });
+  Object.assign(S.tourView, { id: null, setup: null, abandoning: false, past: false });
+  Object.assign(P.roster, { formError: '', removeArmed: false, renameFailed: null, refused: null, open: null });
   Object.assign(page, { on: false, reduced: true });
 }
 // Everything the screen has set going gets its turn (but no clock moves: a test moves its own).
 const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(done => setImmediate(done)); };
-// The test's own clock, for the screen's waits: on(ms) moves it on.
+// The test's own clock, for the screen's waits: on(ms) moves it on. Each test's starts
+// after the last one's stopped, and all of them before the real one, so that what the
+// screen timed in one test (the pause after a tap that skips) is over in the next.
+let epoch = 1.7e12;
 function clock(t) {
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1.8e12 });
+  epoch += 1e8;
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: epoch });
   return async ms => { t.mock.timers.tick(ms); await settle(); };
 }
 const sam = { id: 1, name: 'Sam' }, phil = { id: 2, name: 'Phil' }, mum = { id: 3, name: 'Mum' }, dad = { id: 4, name: 'Dad' };
@@ -393,4 +400,244 @@ test('tournament screen: a tap that skips a result moving on is not a tap on a m
   await on(250);
   assert.equal(buttons().length, 3);
   assert.equal(page.box.dataset.act, undefined);
+});
+
+// ---------- how it ends, and what is kept ----------
+// Four people's tournament on the device it is played on: both semi-finals watched moving on,
+// then the final won by its player `idx`, and the bracket not yet looked at again.
+async function toTheFinal(on, idx) {
+  going([sam, phil, mum, dad]);
+  Object.assign(page, { on: true, reduced: false });
+  S.openTournament('T1');
+  await settle();
+  for (const i of [0, 1]) { play('T1', i, 0); S.openTournament('T1'); frames(); await on(250); }
+  play('T1', 2, idx);
+  const t = data.tournament('T1'), [a, b] = names(t)(2);
+  assert.ok(t.finished);
+  return { a, b, champ: idx ? b : a, score: idx ? '0 – 1' : '1 – 0' };
+}
+const WINNER = [['tour-new', 'New tournament'], ['home', 'Menu']];
+
+test('tournament screen: the winner\'s screen comes up when the final\'s result has moved on, and the win is called once', async t => {
+  const on = clock(t);
+  const { a, b, champ, score } = await toTheFinal(on, 1);
+  S.openTournament('T1');  // "Back to the tournament": the result is on its way to the Winner's box
+  assert.doesNotMatch(text(), /wins/, 'not before it is there');
+  assert.deepEqual(acts(), [], 'and nothing under the bracket to press yet');
+  assert.deepEqual(app.said, []);
+  frames();
+  await on(250);
+  assert.ok(text().startsWith(`${champ} wins Test Final: ${a} ${score} ${b} `), text());
+  assert.match(app.$app.innerHTML, new RegExp(`<h1 class="tour-champ">${champ}</h1>`), 'the name is the heading');
+  assert.match(app.$app.innerHTML, /class="bracket"/, 'the bracket is still there, under it');
+  assert.deepEqual(acts(), WINNER);
+  assert.doesNotMatch(text(), /See the bracket/);
+  assert.deepEqual(app.said, [`${champ} wins Test`]);
+  assert.equal(buttons().length, 3, 'and every match opens its scorecard');
+
+  // Drawn again (a sync), come back to (a reload, the history), opened another day: said the once.
+  S.renderTournament();
+  S.openTournament('T1');
+  frames();
+  await on(2000);
+  assert.ok(text().startsWith(`${champ} wins Test Final:`));
+  assert.deepEqual(app.said, [`${champ} wins Test`]);
+});
+
+test('tournament screen: the winner\'s screen is straight up with reduced motion, and after a tap that skips', async t => {
+  const on = clock(t);
+  let { champ } = await toTheFinal(on, 0);
+  page.reduced = true;
+  S.openTournament('T1');
+  await settle();
+  assert.ok(text().startsWith(`${champ} wins Test Final:`));
+  assert.deepEqual(acts(), WINNER);
+  assert.deepEqual(app.said, [`${champ} wins Test`]);
+
+  ({ champ } = await toTheFinal(on, 1));
+  S.openTournament('T1');
+  assert.doesNotMatch(text(), /wins/);
+  S.tourAct('tour-skip', {});
+  frames(16);
+  await on(1);
+  assert.ok(text().startsWith(`${champ} wins Test Final:`));
+  assert.deepEqual(app.said, [`${champ} wins Test`]);
+  assert.deepEqual(buttons(), [], 'the tap that skipped is not a tap on a match');
+  await on(450);
+  assert.equal(buttons().length, 3);
+  assert.deepEqual(app.said, [`${champ} wins Test`]);
+});
+
+test('tournament screen: a device that did not see the final won shows the winner and says nothing', async t => {
+  const on = clock(t);
+  const { champ } = await toTheFinal(on, 0);
+  store.set('tourSeen', {});  // (another device: the tournament has never been open on it)
+  S.openTournament('T1');
+  await settle();
+  assert.ok(text().startsWith(`${champ} wins Test Final:`));
+  assert.deepEqual(app.said, []);
+});
+
+// A tournament that is over, as it is saved: every match won by its first player, or abandoned as drawn.
+function over(id, name, created, entrants, abandoned = false) {
+  let t = makeDraw({ id, name, entrants, opts: { start: 301, out: 'straight' }, rounds: defaultRounds(entrants.length).map(() => ({ legs: 1 })), now: created }, () => 0.5);
+  while (!abandoned && !t.finished) { const i = readySlots(t)[0]; t = recordResult(t, i, t.data.slots[i].a, [1, 0], 'played', created + 60000); }
+  data.saveTournament({ ...t, abandoned });
+  return data.tournament(id);
+}
+const dayOf = ts => new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short', year: '2-digit' });
+const winnerOf = t => t.data.entrants.find(e => e.id === t.winner).name;
+
+test('tournament screen: no "Past tournaments" until there is one', () => {
+  fresh([sam, phil, mum]);
+  S.openTournament();
+  assert.match(text(), /^New tournament/);
+  assert.doesNotMatch(text(), /Past tournaments/);
+  going([sam, phil, mum]);
+  assert.match(text(), /^Test/);
+  assert.doesNotMatch(text(), /Past tournaments/, 'the one going is not past');
+  assert.deepEqual(pastLines(), []);
+});
+
+test('tournament screen: past tournaments are listed under it, newest first, with who won or "abandoned"', () => {
+  fresh([sam, phil, mum]);
+  const spring = Date.UTC(2026, 2, 7, 12), summer = Date.UTC(2026, 5, 7, 12), autumn = Date.UTC(2026, 8, 7, 12);
+  const one = over('A', 'Spring', spring, [sam, phil, mum]);
+  over('B', 'Summer', summer, [sam, phil, mum], true);
+  const three = over('C', 'Autumn', autumn, [phil, mum, sam, dad]);
+  const lines = [['C', `Autumn ${dayOf(autumn)} ${winnerOf(three)}`], ['B', `Summer ${dayOf(summer)} abandoned`], ['A', `Spring ${dayOf(spring)} ${winnerOf(one)}`]];
+
+  S.openTournament();  // none going: setting one up
+  assert.match(text(), /^New tournament/);
+  assert.match(text(), /Past tournaments/);
+  assert.deepEqual(pastLines(), lines);
+
+  data.saveTournament(makeDraw({ id: 'D', name: 'Winter', entrants: [sam, phil, mum], opts: { start: 301, out: 'straight' }, rounds: [{ legs: 1 }, { legs: 1 }], now: autumn + 1e9 }, () => 0.5));
+  S.openTournament();  // one going: its bracket
+  assert.match(text(), /^Winter/);
+  assert.deepEqual(pastLines(), lines, 'the same list under the bracket, without the one going');
+});
+
+test('tournament screen: a past tournament opens to its bracket, and Back is the way out of it', () => {
+  fresh([sam, phil, mum]);
+  const one = over('A', 'Spring', Date.UTC(2026, 2, 7, 12), [sam, phil, mum]);
+  over('B', 'Summer', Date.UTC(2026, 5, 7, 12), [sam, phil, mum], true);
+  page.on = true;
+  S.openTournament();
+  S.tourAct('tour-open', { id: 'A' });
+  assert.deepEqual([S.tourView.id, S.tourView.past], ['A', true]);
+  assert.ok(text().startsWith(`${winnerOf(one)} wins Spring Final:`), text());
+  assert.match(app.$app.innerHTML, /class="bracket"/);
+  assert.deepEqual(acts(), [['up', 'Back'], ['home', 'Menu']], 'no "New tournament" on the way through the list');
+  assert.deepEqual(pastLines(), []);
+  assert.deepEqual(app.said, [], 'the win is not called again');
+
+  S.openTournament(null);  // Back: what the history brings back
+  assert.equal(S.tourView.past, false);
+  assert.match(text(), /^New tournament/);
+  S.tourAct('tour-open', { id: 'B' });
+  assert.match(text(), /^Summer .*Abandoned\./);
+  assert.deepEqual(acts(), [['up', 'Back'], ['home', 'Menu']]);
+  assert.deepEqual(app.said, []);
+
+  // (come back to by the history, or a reload: still the one opened from the list)
+  S.openTournament('A', true);
+  assert.deepEqual(acts(), [['up', 'Back'], ['home', 'Menu']]);
+  // and one that has gone (signed out, say) is no dead end
+  S.openTournament('gone', true);
+  assert.deepEqual([S.tourView.id, S.tourView.past], [null, false]);
+  assert.match(text(), /^New tournament/);
+});
+
+test('tournament screen: a finished one come back to while another is going leads on to that one, not to a new one', () => {
+  fresh([sam, phil, mum]);
+  const one = over('A', 'Spring', Date.UTC(2026, 2, 7, 12), [sam, phil, mum]);
+  data.saveTournament(makeDraw({ id: 'D', name: 'Winter', entrants: [sam, phil, mum], opts: { start: 301, out: 'straight' }, rounds: [{ legs: 1 }, { legs: 1 }], now: Date.UTC(2026, 11, 7, 12) }, () => 0.5));
+  S.openTournament('A');  // (as the history has it, from before Winter was started)
+  assert.ok(text().startsWith(`${winnerOf(one)} wins Spring Final:`));
+  assert.deepEqual(acts(), [['tour-current', 'Back to Winter'], ['home', 'Menu']]);
+  S.tourAct('tour-current', {});
+  assert.equal(S.tourView.id, 'D');
+  assert.match(text(), /^Winter/);
+  assert.deepEqual(pastLines().map(l => l[0]), ['A']);
+});
+
+test('tournament screen: opened from the list, a final never shown here is not played out or called', async t => {
+  const on = clock(t);
+  const { champ } = await toTheFinal(on, 0);  // (won here, then Menu instead of "Back to the tournament")
+  S.openTournament();
+  assert.equal(pastLines().length, 1);
+  S.tourAct('tour-open', { id: 'T1' });
+  await settle();
+  assert.ok(text().startsWith(`${champ} wins Test Final:`));
+  assert.equal(buttons().length, 3, 'at rest: its matches open their scorecards');
+  assert.deepEqual(app.said, []);
+});
+
+// ---------- removing a player ----------
+const jake = { id: 9, name: 'Jake' };
+const here = id => store.get('players').some(p => p.id === id);
+function withJake() {
+  store.set('players', [...store.get('players'), jake]);
+  loadPlayers();
+}
+
+test('players: someone in a tournament that is going can\'t be removed, knocked out or not', () => {
+  const t = going([sam, phil, mum, dad]);
+  withJake();
+  const refusal = name => `${name} is still in Test. Finish or abandon it first.`;
+  P.roster.open = 1;
+  P.removePlayer(1);
+  assert.equal(P.roster.removeArmed, false, 'refused before it is armed');
+  assert.equal(P.roster.formError, refusal('Sam'));
+  assert.ok(text(P.playersPanel()).includes(refusal('Sam')), 'said in their card');
+  assert.doesNotMatch(text(P.playersPanel()), /Tap again to remove/);
+  P.removePlayer(1);  // and a second tap is no different
+  assert.ok(here(1));
+  assert.equal(P.roster.formError, refusal('Sam'));
+
+  // knocked out in the first round: their match is still part of it
+  play('T1', 0, 0);
+  const out = t.data.slots[0].b, name = names(t)(0)[1];
+  P.removePlayer(out);
+  P.removePlayer(out);
+  assert.ok(here(out));
+  assert.equal(P.roster.formError, refusal(name));
+  assert.equal(P.roster.removeArmed, false);
+
+  // someone who is not in it goes as before: a tap to arm, a tap to remove
+  P.removePlayer(9);
+  assert.equal(P.roster.removeArmed, 9);
+  assert.equal(P.roster.formError, '');
+  P.removePlayer(9);
+  assert.ok(!here(9));
+});
+
+test('players: once the tournament is finished or abandoned its players can be removed, and it keeps their names', async () => {
+  // abandoned
+  going([sam, phil, mum, dad]);
+  data.saveTournament({ ...data.tournament('T1'), abandoned: true });
+  P.removePlayer(1);
+  assert.equal(P.roster.formError, '');
+  assert.equal(P.roster.removeArmed, 1);
+  P.removePlayer(1);
+  assert.ok(!here(1));
+  assert.equal(S.tourName(data.tournament('T1'), 1), 'Sam');
+
+  // finished: the winner removed
+  going([sam, phil, mum, dad]);
+  for (const i of [0, 1, 2]) play('T1', i, 0);
+  const t = data.tournament('T1'), champ = winnerOf(t);
+  assert.ok(t.finished);
+  P.removePlayer(t.winner);
+  P.removePlayer(t.winner);
+  assert.ok(!here(t.winner));
+  page.on = true;
+  S.openTournament();
+  assert.deepEqual(pastLines(), [['T1', `Test ${dayOf(t.finished)} ${champ}`]]);
+  S.tourAct('tour-open', { id: 'T1' });
+  await settle();
+  assert.ok(text().startsWith(`${champ} wins Test Final:`));
+  const drawn = page.svg.all().filter(e => e.tag === 'text').map(e => e.textContent);
+  assert.ok(drawn.filter(x => x === champ).length >= 3, 'in every round of the bracket, and its Winner\'s box');
 });

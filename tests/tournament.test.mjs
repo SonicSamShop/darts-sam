@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import {
   seedOrder, makeDraw, roundName, roundCount, defaultRounds, suggestName, freeLevel,
   readySlots, nextSlot, botSlots, boardSlots, startSlot, dropMatch, recordResult, clearResult,
-  reconcile, remapIds, simulateMatch, playedMatch, seenResults,
+  reconcile, remapIds, simulateMatch, playedMatch, seenResults, stillIn,
 } from '../web/tournament.js';
 import { compute } from '../web/engine.js';
 
@@ -244,4 +244,20 @@ test('tournament: a bye is never a result to show, and one taken back is shown a
   t = recordResult(t, real, t.data.slots[real].a, [2, 0], 'played');
   assert.deepEqual(seenResults(t, []), { seen: [], unseen: [real] });
   assert.deepEqual(seenResults(clearResult(t, real), [real]), { seen: [], unseen: [] }, 'taken back: no longer seen');
+});
+
+test('tournament: a player is still in one that is going, knocked out or not, and in none that is over', () => {
+  let going = draw(people(4));
+  const other = { ...draw(people(3)), id: 't2', name: 'Other' };
+  assert.equal(stillIn([going], 3)?.id, 't1');
+  assert.equal(stillIn([going], 9), null, 'never drawn into it');
+  assert.equal(stillIn([], 3), null);
+  going = recordResult(going, 0, going.data.slots[0].a, [2, 0], 'played');
+  assert.equal(stillIn([going], going.data.slots[0].b)?.id, 't1', 'knocked out: their match is part of it');
+  assert.equal(stillIn([{ ...going, abandoned: true }], 3), null, 'abandoned');
+  let over = going;
+  while (!over.finished) { const i = readySlots(over)[0]; over = recordResult(over, i, over.data.slots[i].a, [2, 0], 'played'); }
+  assert.equal(stillIn([over], over.winner), null, 'finished');
+  assert.equal(stillIn([over, { ...going, abandoned: true }, other], 3)?.id, 't2', 'any that is going, among those that are not');
+  assert.equal(stillIn([over, other], 4), null, 'in the finished one only');
 });

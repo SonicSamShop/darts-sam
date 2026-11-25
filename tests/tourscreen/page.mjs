@@ -36,6 +36,12 @@ export const page = { on: false, box: null, svg: null, status: null, reduced: tr
 export const buttons = () => page.svg.all().filter(e => e.attrs.role === 'button').map(e => e.attrs['aria-label']);
 // The main button under the bracket: [its data-act, what it says].
 export const mainButton = () => $app.innerHTML.match(/<button class="primary" data-act="([\w-]+)"[^>]*>([^<]+)</)?.slice(1) ?? null;
+// What the screen says, without its markup: every run of blank space one space.
+export const text = (h = $app.innerHTML) => h.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+// Every button of the screen that does something: [its data-act, what it says].
+export const acts = () => [...$app.innerHTML.matchAll(/<button[^>]*data-act="([\w-]+)"[^>]*>(.*?)<\/button>/gs)].map(m => [m[1], text(m[2])]);
+// The lines under "Past tournaments": [the tournament's id, what the line says].
+export const pastLines = () => [...$app.innerHTML.matchAll(/<button[^>]*data-act="tour-open" data-id="([\w-]+)"[^>]*>(.*?)<\/button>/gs)].map(m => [m[1], text(m[2])]);
 
 let html = '';
 Object.defineProperty($app, 'innerHTML', {

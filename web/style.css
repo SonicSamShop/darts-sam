@@ -257,20 +257,34 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .tourline span { color: var(--muted); font-size: 14px; }
 .tour-phone { display: none; }  /* a phone's menu has it under its steps instead (as How to play) */
 .inprogress { display: grid; gap: 10px; }
-/* the Tournament screen: the form to set one up, then the bracket filling the screen (going) */
+/* the Tournament screen: the form to set one up, then the bracket filling the screen (going: .tour-main, its
+   heading, the bracket and its buttons), and under either the list of past ones. Under a bracket that list is
+   scrolled to: its heading shows at the foot of the screen (.peek), and the bracket keeps the rest. */
 .tour-body { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; max-width: 720px; }
 .tour-body.going { max-width: none; display: flex; flex-direction: column; }
-.page .tour-body.going > * { flex: none; }  /* .page: outranks .page h1.sub's flex */
-.page .tour-body > h1.sub { margin: 12px 0 6px; }  /* .page: outranks the themes' headings */
+.page .tour-body.going > * { flex: none; }
+.page .tour-body.going > .tour-main { flex: 1 0 100%; min-width: 0; display: flex; flex-direction: column; }
+.page .tour-body.going > .tour-main.peek { flex-basis: calc(100% - 40px); }
+.page .tour-body .tour-main > * { flex: none; }  /* .page .tour-body: outranks .page h1.sub's flex */
+.page .tour-body h1 { margin: 12px 0 6px; }  /* .page: outranks the themes' headings */
 .tour-body input[type=text] { width: 100%; }
 .tour-body .opt .row { gap: 8px; }
 .tour-buttons { margin: 14px 0; }
-.tour-won { font-size: 20px; color: var(--accent); }
+/* the winner's screen: the finished tournament's own, headed with who won it (in the lettering the theme
+   writes a name in, the app's own), what they won, and the final's score */
+.page .tour-body h1.tour-champ { margin-bottom: 0; overflow-wrap: anywhere; }
+.tour-wins { margin: 0; font-size: 20px; color: var(--accent); overflow-wrap: anywhere; }
+.tour-final { margin: 4px 0 0; }
+/* past tournaments: a line each (as Tournament's own on the menu), its name, the day, and who won it */
+.tour-past { max-width: 720px; padding-bottom: 12px; }
+.tour-past .tourline { margin-top: 6px; }
+.tour-past .tourline:first-child { margin-top: 0; }
+.tour-past .tourline b { min-width: 0; overflow-wrap: anywhere; }
 .tour-status { min-height: 1.4em; margin: 6px 0 0; color: var(--accent); font-size: 14px; }
 /* The bracket (screens/bracket.js): one SVG drawn like a printed draw sheet, scaled to its box by the script,
    and scrolling in the box when that would make its names too small to read. */
 .bracket { overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; min-width: 0; margin-top: 8px; }
-.page .tour-body.going > .bracket { flex: 1 1 0; min-height: 220px; }
+.page .tour-body .tour-main > .bracket { flex: 1 1 0; min-height: 220px; }
 .bracket svg { display: block; }
 .bracket text { font-family: var(--font); fill: var(--text); }
 .bracket text.muted { fill: var(--muted); }

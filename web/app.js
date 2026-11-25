@@ -439,7 +439,7 @@ function place() {
   }
   if (screen === 'settings') { Object.assign(at, { settingsTab: settingsView.tab, settingsOpen: settingsView.open, fromList: settingsView.fromList }); url = '#/settings'; }
   if (screen === 'cameras') url = '#/cameras';
-  if (screen === 'tournament') { at.tourId = tourView.id; url = '#/tournament'; }
+  if (screen === 'tournament') { at.tourId = tourView.id; at.tourPast = tourView.past; url = '#/tournament'; }
   return [at, '', url];
 }
 // Note where the app is now: as a new history entry (push), or in place of the current one.
@@ -478,7 +478,7 @@ function show(at) {
   }
   // (the cameras were once a tab of the settings: a history entry from then still finds them)
   if (at.screen === 'cameras' || (at.screen === 'settings' && at.settingsTab === 'cams')) return renderCameras();
-  if (at.screen === 'tournament') return openTournament(at.tourId ?? null);
+  if (at.screen === 'tournament') return openTournament(at.tourId ?? null, !!at.tourPast);
   if (at.screen === 'settings') { settingsView.tab = at.settingsTab ?? settingsView.tab; settingsView.open = !!at.settingsOpen; settingsView.fromList = !!at.fromList; return renderSettings(); }
   return renderHome();
 }

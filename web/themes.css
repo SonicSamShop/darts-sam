@@ -144,6 +144,7 @@
 /* a screen's title: under the name in rank (.page h1.sub: a title that may be long, so a phone lets it shrink) */
 .t-chalk button + h1, .t-chalk .report h1, .t-chalk .camlead, .t-chalk .paircode { font-size: var(--sz-title); font-weight: 700; }
 .t-chalk .page h1.sub { font-size: clamp(19px, 5vw, var(--sz-title)); }
+.t-chalk .tour-wins { font-size: var(--sz-head); }  /* what a tournament's winner won, under their name */
 /* the logo: a chalk dart after the name */
 .t-chalk .page > .row > h1:first-child::after {
   content: ""; display: inline-block; width: 52px; height: 20px; margin-left: 12px; vertical-align: 1px;

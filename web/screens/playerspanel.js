@@ -10,6 +10,7 @@ import {
   setup, store
 } from '../app.js';
 import { DARTS_DETAILS } from '../sync.js';
+import { stillIn } from '../tournament.js';
 import { renderHome } from './home.js';
 import { renderSettings } from './settings.js';
 
@@ -18,6 +19,7 @@ export const roster = {
   adding: false,  // home: the "new player" box is out of sight until asked for
   removeArmed: false,  // the id of the player whose Remove has been tapped once
   renameFailed: null,  // the id of the player whose new name was refused (formError says why)
+  refused: null,  // the id of the player whose Remove was refused (formError says why)
   open: null,  // the id of the player whose card is open
   dartsForm: null,  // in that card: the id of the set being changed, 'new' for one being added, or null
   dartsError: null,  // {at: a set's id or a player's id (adding), text}
@@ -41,11 +43,11 @@ export const detailsLine = d => d?.details
 export function newPlayerRow() {
   return `<div class="player-row"><input type="text" id="newplayer" placeholder="New player name" maxlength="16">
     <button data-act="addplayer">Add</button></div>
-    ${roster.formError && roster.renameFailed == null ? `<p class="warn">${esc(roster.formError)}</p>` : ''}`;
+    ${roster.formError && roster.renameFailed == null && roster.refused == null ? `<p class="warn">${esc(roster.formError)}</p>` : ''}`;
 }
 export function addPlayer() {
   const input = document.getElementById('newplayer');
-  roster.renameFailed = null;
+  roster.renameFailed = roster.refused = null;
   const name = input.value.trim();
   if (!name) return input.focus();
   try {
@@ -102,7 +104,8 @@ export function playersPanel() {
         <span>${said(d)}${d.retired ? ' <small>· put away</small>' : ''}${detailsLine(d) ? `<small class="dline">${esc(detailsLine(d))}</small>` : ''}</span><u>Change</u></button>`).join('')}
       ${roster.dartsForm === 'new' ? form(p) : '<button class="chip ghost" data-act="newdarts">+ Add darts</button>'}
       <div class="who-end"><button class="ghost danger" data-act="remove" data-id="${p.id}">${roster.removeArmed === p.id ? 'Tap again to remove' : `Remove ${esc(p.name)}`}</button>
-        ${roster.removeArmed === p.id ? '<p class="muted small">They leave the lists. Their throws are kept, and adding the same name again brings them back.</p>' : ''}</div>
+        ${roster.removeArmed === p.id ? '<p class="muted small">They leave the lists. Their throws are kept, and adding the same name again brings them back.</p>' : ''}
+        ${roster.formError && roster.refused === p.id ? `<p class="warn">${esc(roster.formError)}</p>` : ''}</div>
     </div>`;
   };
   return `<div class="editplayers">
@@ -119,6 +122,7 @@ export function playersPanel() {
 export function renamePlayer(id) {
   const name = document.querySelector(`[data-rename="${id}"]`).value.trim();
   if (!name || name === nameOf(id)) return;
+  roster.refused = null;
   try {
     data.renamePlayer(id, name);
     loadPlayers();
@@ -131,7 +135,19 @@ export function renamePlayer(id) {
   }
   renderSettings();
 }
+// Remove, tapped: once to ask, again to do it. Not for someone still in a tournament that is
+// going, though (knocked out or not): the app drops a removed player from its lists, and the
+// tournament could no longer be played or saved. Said under their Remove, before anything is asked.
 export function removePlayer(id) {
+  const cup = stillIn(data.tournaments(), id);
+  if (cup) {
+    roster.removeArmed = false;
+    roster.renameFailed = null;
+    roster.refused = id;
+    roster.formError = `${nameOf(id)} is still in ${cup.name}. Finish or abandon it first.`;
+    return renderSettings();
+  }
+  if (roster.refused != null) { roster.refused = null; roster.formError = ''; }  // (refused a moment ago, and over since)
   if (roster.removeArmed !== id) { roster.removeArmed = id; return renderSettings(); }
   roster.removeArmed = false;
   data.removePlayer(id);
