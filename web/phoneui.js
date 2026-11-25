@@ -244,7 +244,10 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
     set('finding');
     let r;
     try { r = await cam.calibrate(pt); } catch (e) { r = { ok: false, reason: String(e?.message || e) }; }
-    if (!r?.ok) return set('failed', { reason: r?.reason });
+    if (!r?.ok) {
+      note('calibrated', { ok: false, how: 'phone', why: r?.reason ?? null });
+      return set('failed', { reason: r?.reason });
+    }
     if (r.checks?.length) {
       note('phone-check', { kinds: r.checks.map(c => c.kind) });
       pending = r.calibration;
@@ -255,6 +258,7 @@ export function createPhoneUi({ onEvent = () => {}, onChange = () => {}, store, 
 
   function use(cal) {
     pending = null;
+    note('calibrated', { ok: true, how: 'phone' });
     calibration = cal;
     store.set(KEY, { calibration, savedAt: Date.now() });
     watch(calibration);

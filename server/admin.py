@@ -83,7 +83,8 @@ def page(title: str, body: str) -> HTMLResponse:
 COLUMNS = [
     ("who", "Who", False, lambda p: (p["nickname"] or "").lower()),
     ("path", "Path", False, lambda p: sum(p["steps"])),
-    ("setup", "Set-up", False, lambda p: None if not p["helper"] else (p["helper"]["cameras"] or 0)),
+    ("setup", "Set-up", False, lambda p: None if not (p["helper"] or p["phone"]["used"])
+     else ((p["helper"] or {}).get("cameras") or 0, p["phone"]["games"])),
     ("games", "Games", True, lambda p: p["n"]["games"]),
     ("darts", "Darts", True, lambda p: p["n"]["darts"]),
     ("kept", "Camera darts kept", True, lambda p: p["n"]["kept"]),
@@ -101,7 +102,7 @@ COLUMNS = [
 ]
 SORTS = {key: value for key, _, _, value in COLUMNS}
 SETUPS = {"": "Anyone", "none": "No cameras", "paired": "Has cameras", "connected": "Connected now",
-          "1": "1 camera", "2": "2 cameras", "3": "3 cameras", "4": "4+ cameras"}
+          "1": "1 camera", "2": "2 cameras", "3": "3 cameras", "4": "4+ cameras", "phone": "Phone camera"}
 SEEN = {"": "Any time", "1": "Last 24 hours", "7": "Last 7 days", "30": "Last 30 days", "old": "Over 30 days ago"}
 
 
@@ -121,9 +122,12 @@ def filter_rows(rows: list[dict], q: str, setup: str, reached: str, seen: str, n
         h = p["helper"]
         if q and q not in (p["nickname"] or "").lower():
             return False
-        if setup == "none" and h:
+        phone = p["phone"]["used"]
+        if setup == "none" and (h or phone):
             return False
-        if setup == "paired" and not h:
+        if setup == "paired" and not (h or phone):
+            return False
+        if setup == "phone" and not phone:
             return False
         if setup == "connected" and not p["connected"]:
             return False
@@ -162,9 +166,14 @@ def make_router(store, relay, account) -> APIRouter:
         for acc in store.accounts():
             helper = store.helper(acc["id"])
             n = insight.numbers(store.account_db(acc["id"]), store.count_events(acc["id"], "correction"))
-            calibrated = sum(1 for ev in store.events(acc["id"], "calibrated") if ev["detail"].get("ok"))
-            out.append({**acc, "helper": helper, "connected": relay.connected(acc["id"]), "n": n,
-                        "steps": insight.steps(acc, helper, n, calibrated),
+            found = [ev["detail"] for ev in store.events(acc["id"], "calibrated") if ev["detail"].get("ok")]
+            calibrated = sum(1 for d in found if d.get("how") != "phone")
+            phone = {"found": len(found) - calibrated, "games": store.count_events(acc["id"], "phone-game"),
+                     "checks": store.count_events(acc["id"], "phone-check")}
+            # only the phone camera asks "Which bed?": that shows it was used before games were counted
+            phone["used"] = phone["found"] > 0 or phone["games"] > 0 or store.count_events(acc["id"], "asked") > 0
+            out.append({**acc, "helper": helper, "connected": relay.connected(acc["id"]), "n": n, "phone": phone,
+                        "steps": insight.steps(acc, helper, n, calibrated, phone["found"]),
                         # signing up signs you in; sign-ins after that were only counted from 1.4 on
                         "signins": store.count_events(acc["id"], "signup") + store.count_events(acc["id"], "signin"),
                         "reports": len(store.reports(acc["id"]))})
@@ -195,19 +204,27 @@ def make_router(store, relay, account) -> APIRouter:
                   f' {sum(p["n"]["sets"] for p in rows)} sets</div>')
         tiles += (f'<div class="tile"><b>{sum(p["n"]["comparing_boards"] for p in rows)}</b>Players with 2+ boards to compare,'
                   f' {sum(1 for p in rows if p["n"]["boards"] > 1)} accounts with 2+ boards</div>')
+        # Someone with both a computer's cameras and a phone is put with the computer's.
         by_cams = {}
         for p in rows:
             if p["helper"] and p["helper"]["cameras"] is not None:
                 by_cams.setdefault(p["helper"]["cameras"], []).append(p)
-        split = "".join(f"<tr><td>{e(str(cams))} camera{'s' if cams != 1 else ''}</td><td class=n>{len(group)}</td>"
+            elif p["phone"]["used"] and not p["helper"]:
+                by_cams.setdefault("phone", []).append(p)
+        named = lambda cams: "Phone camera" if cams == "phone" else f"{cams} camera{'s' if cams != 1 else ''}"  # noqa: E731
+        split = "".join(f"<tr><td>{e(named(cams))}</td><td class=n>{len(group)}</td>"
                         f"<td class=n>{pct(accuracy(group)[0])}</td><td class=n>{accuracy(group)[1]}</td></tr>"
-                        for cams, group in sorted(by_cams.items()))
+                        for cams, group in sorted(by_cams.items(), key=lambda kv: (kv[0] == "phone", str(kv[0]).zfill(3))))
 
         def row(p):
-            h, n = p["helper"], p["n"]
-            setup = "no cameras" if not h else (
+            h, n, ph = p["helper"], p["n"], p["phone"]
+            parts = [] if not h else [
                 f'{e(str(h["cameras"] if h["cameras"] is not None else "?"))} cameras ({e(str(h["calibrated"] or 0))} calibrated), '
-                f'{e(str(h["platform"] or "?"))}{", connected now" if p["connected"] else ""}')
+                f'{e(str(h["platform"] or "?"))}{", connected now" if p["connected"] else ""}']
+            if ph["used"]:
+                warned = f', {ph["checks"]} warned' if ph["checks"] else ""
+                parts.append(f'phone camera ({ph["found"]} found the board{warned}, {ph["games"]} game{"s" if ph["games"] != 1 else ""})')
+            setup = "; ".join(parts) or "no cameras"
             steps = "".join(f'<span class="{"on" if on else ""}" title="{e(name)}"></span>' for on, name in zip(p["steps"], insight.STEPS))
             games = ", ".join(f"{e(g)} {c}" for g, c in n["by_game"].items())
             comparing = f' ({n["comparing"]} comparing)' if n["comparing"] else ""
@@ -244,8 +261,10 @@ def make_router(store, relay, account) -> APIRouter:
                   "camera darts undone and entered by hand. Missed: darts entered by hand in a game the cameras were "
                   "scoring. Accuracy = kept ÷ (kept + corrected + missed). Time played: every game from its start to its winning "
                   "(or, if not finished, last) dart. Sign-ins: times they signed in, sign-up included; staying signed in "
-                  "(90 days on a device) is not a new one, and sign-ins before version 1.4 were not counted. Times are UTC.</p>")
-        cams = (f"<h2>Accuracy by number of cameras</h2><table style='width:auto'><tr><th>Set-up</th><th class=n>People</th>"
+                  "(90 days on a device) is not a new one, and sign-ins before version 1.4 were not counted. Phone camera: times "
+                  "it found the board, times it warned the picture was too dark, small or steep, and games it scored darts "
+                  "in; counted from the release after 1.8.2. Times are UTC.</p>")
+        cams = (f"<h2>Accuracy by set-up</h2><table style='width:auto'><tr><th>Set-up</th><th class=n>People</th>"
                 f"<th class=n>Accuracy</th><th class=n>Camera darts</th></tr>{split}</table>") if split else ""
         return page("People", f'<div class="tiles">{tiles}</div>{form}{table}{legend}{cams}')
 

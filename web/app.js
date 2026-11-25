@@ -53,7 +53,16 @@ export const store = {
 };
 navigator.storage?.persist?.().catch(() => {});  // ask the browser not to clear it when space runs short
 // Scoring with this phone's own camera (Beta): its screen is a sheet of its own (phoneui.js).
-export const phone = createPhoneUi({ onEvent: onBoardEvent, onChange: refreshStatus, store,
+// Once a game has a dart from this phone's camera, the trial is told (admin's Set-up).
+let phoneGame = null;
+function onPhoneEvent(ev) {
+  if (ev.type === 'dart' && screen === 'game' && match && !botUp() && phoneGame !== match.id) {
+    phoneGame = match.id;
+    tracker.track('phone-game', { match: match.id, game: match.gameId });
+  }
+  onBoardEvent(ev);
+}
+export const phone = createPhoneUi({ onEvent: onPhoneEvent, onChange: refreshStatus, store,
   inGame: () => screen === 'game' && !!match && !botUp(), say: text => say(text),
   note: (kind, detail) => tracker.track(kind, { match: match?.id, ...detail }), undoLast: () => undo(),
   dartCount: () => (match ? match.log.filter(e => e.t === 'dart').length : 0) });

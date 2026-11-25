@@ -128,6 +128,7 @@ def main():
         assert s.add_events(b["id"], [{"kind": "open", "ts": i} for i in range(80)]) == 50
         assert s.count_events(b["id"], "open") == 51 and s.count_events(b["id"], "correction") == 1
         assert s.count_events(b["id"], "signup") == 0                # only the host says that
+        assert s.add_events(b["id"], [{"kind": "phone-check"}, {"kind": "phone-game", "detail": {"match": "m"}}]) == 2
         s.event(b["id"], "signup")
         s.event(b["id"], "paired", {"platform": "linux"})
         assert s.count_events(b["id"], "signup") == 1

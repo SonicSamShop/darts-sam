@@ -95,6 +95,9 @@ def main():
     assert insight.steps(acc, {"calibrated": None}, none, 1) == [True, True, True, False, False]
     assert insight.steps(acc, {"calibrated": 2}, {"kept": 4, "days_played": 1}, 0) == [True, True, True, True, False]
     assert insight.steps(acc, {"calibrated": 2}, {"kept": 4, "days_played": 2}, 0) == [True, True, True, True, True]
+    # the phone's own camera: finding the board is pairing and calibrating in one
+    assert insight.steps(acc, None, none, 0, phone_found=1) == [True, True, True, False, False]
+    assert insight.steps(acc, None, none, 3, phone_found=0) == [True, False, False, False, False]
     assert insight.STEPS == ["Signed up", "Paired", "Calibrated", "First camera dart", "Played 2+ days"]
     print("OK")
 

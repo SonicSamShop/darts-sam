@@ -318,6 +318,17 @@ def main():
         assert 'name="sort" value="games"' in only and "q=bob" in only   # sorting keeps the filter, filtering keeps the sort
         assert "Nobody matches" in bob.get("/admin?q=zzz").text
         assert bob.get("/admin?sort=nonsense&setup=nonsense&reached=99&seen=x").status_code == 200
+        # scoring with the phone's own camera: shown under Set-up, filtered, and given its own accuracy row
+        # Ann's phone already asked "Which bed?" above: that alone shows she has used it
+        assert "phone camera (0 found the board, 0 games)" in bob.get("/admin").text
+        ann.post("/api/events", json={"events": [
+            {"kind": "calibrated", "detail": {"ok": True, "how": "phone"}}, {"kind": "calibrated", "detail": {"ok": False, "how": "phone"}},
+            {"kind": "phone-check", "detail": {"kinds": ["dark"]}}, {"kind": "phone-game", "detail": {"match": "m1"}}]})
+        home = bob.get("/admin").text
+        assert "phone camera (1 found the board, 1 warned, 1 game)" in home and "<td>Phone camera</td>" in home
+        phones = bob.get("/admin?setup=phone").text
+        assert "&lt;b&gt;Ann" in phones and "<b>Bob" not in phones
+        assert "&lt;b&gt;Ann" not in bob.get("/admin?setup=none").text and "&lt;b&gt;Ann" in bob.get("/admin?setup=paired").text
         assert "<script" not in only.lower()
         said_page = bob.get("/admin/feedback").text
         assert "The 20s are &lt;b&gt;great&lt;/b&gt;" in said_page and "<b>great</b>" not in said_page

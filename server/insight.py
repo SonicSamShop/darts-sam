@@ -75,8 +75,9 @@ def numbers(db_file: Path, corrected: int) -> dict:
         }
 
 
-def steps(account: dict, helper: dict | None, n: dict, calibrated_events: int) -> list[bool]:
-    """How far along the trial's path the account is, one True/False per STEPS entry."""
-    paired = helper is not None
-    calibrated = paired and (bool(helper.get("calibrated")) or calibrated_events > 0)
+def steps(account: dict, helper: dict | None, n: dict, calibrated_events: int, phone_found: int = 0) -> list[bool]:
+    """How far along the trial's path the account is, one True/False per STEPS entry.
+    A phone that found the board counts as paired and calibrated: it is the camera."""
+    paired = helper is not None or phone_found > 0
+    calibrated = phone_found > 0 or (helper is not None and (bool(helper.get("calibrated")) or calibrated_events > 0))
     return [True, paired, calibrated, n["kept"] > 0, n["days_played"] >= 2]

@@ -38,7 +38,9 @@ CODE_MS = 10 * 60 * 1000  # a pairing code works for ten minutes
 EMAIL_MS = 15 * 60 * 1000  # so does the code in a sign-in email, with a little longer for the post
 EMAIL_AGAIN_MS = 60 * 1000  # one email a minute to an address
 EMAIL_TRIES = 5  # wrong codes before a new email is needed
-APP_EVENTS = ("open", "correction", "calibrated", "report", "asked")  # what an app may record; the rest is the host's to say ("asked": the phone camera asked which bed)
+APP_EVENTS = ("open", "correction", "calibrated", "report", "asked", "phone-check", "phone-game")
+# what an app may record; the rest is the host's to say. From the phone camera: "asked" (it asked which bed),
+# "phone-check" (the board was found but looked too dark, small or steep), "phone-game" (a game it scored darts in).
 EVENTS_AT_ONCE, DETAIL_MAX, FEEDBACK_MAX = 50, 2000, 2000
 REPORT_ROOM = 2**30  # bytes of problem reports kept per account
 INSTALL_REPORT_ROOM = 200 * 2**20  # ...per install, which anyone can make without signing in
