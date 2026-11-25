@@ -360,10 +360,14 @@ export function renderGame() {
     : `<div class="slot empty${i === s.turn.length && s.winner == null && !s.turnOver ? ' next' : ''}"><b>–</b><small>Dart ${i + 1}</small></div>`).join('');
   const prev = previousVisit(s);
   // A typed visit has no single darts to list (the number pad says what it scored).
-  const last = prev && !prev.typed ? `<div class="lastvisit">Last ${prev.darts.length === 1 ? 'dart' : `${prev.darts.length} darts`}${
-    s.players.length > 1 ? ` (${esc(s.players[prev.player])})` : ''}: <b>${prev.darts.map(label).join(' · ')}</b>${
-    prev.bust ? ' <span class="warn">bust</span>'
-      : game.showTotal === false ? '' : ` = ${prev.darts.reduce((t, d) => t + value(d), 0)}`}</div>` : '';
+  // The last visit: what it scored, large, and the darts that made it, small, after it.
+  // A bust says so in place of the score; a game that keeps no totals shows the darts alone.
+  const lastDarts = prev && prev.darts.map(label).join(' · ');
+  const lastScore = prev && (prev.bust ? '<b class="warn">Bust</b>'
+    : game.showTotal === false ? '' : `<b>${prev.darts.reduce((t, d) => t + value(d), 0)}</b>`);
+  const last = prev && !prev.typed ? `<div class="lastvisit">Last visit${
+    s.players.length > 1 ? ` (${esc(s.players[prev.player])})` : ''} ${lastScore
+    ? `${lastScore} <span class="lastdarts">${lastDarts}</span>` : `<b>${lastDarts}</b>`}</div>` : '';
   let banner = '';
   if (s.winner != null) banner = `<div class="banner win">${esc(game.result?.(s) ?? `${s.players[s.winner]} wins!`)}</div>`;
   else if (s.legWon) banner = `<div class="banner win">${s.legWon.set ? 'Set' : 'Leg'} to ${esc(s.players[s.legWon.player])}!${

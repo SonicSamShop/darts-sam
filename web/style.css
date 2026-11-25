@@ -589,7 +589,9 @@ svg.heat .b-num { fill: #d9dce3; }
 .slot.total { background: none; border: 1px solid var(--line); color: var(--accent); }
 .slot.bust { color: var(--warn); border-color: var(--warn); }
 .lastvisit { color: var(--muted); font-size: 20px; line-height: 1.2; text-align: center; text-wrap: balance; }
-.lastvisit b { color: var(--text); font-weight: 700; }
+.lastvisit b { color: var(--text); font-family: var(--display); font-size: 1.6em; font-weight: 700; line-height: 1; vertical-align: -.1em; margin: 0 .25em; }
+.lastvisit b.warn { color: var(--warn); }
+.lastvisit .lastdarts { font-size: .9em; white-space: nowrap; }
 .hint { min-height: 26px; color: var(--gold); font-size: 18px; text-align: center; }
 .botwait { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 12px; color: var(--muted); font-size: 18px; text-align: center; }
 .botwait b { color: var(--text); }
@@ -708,14 +710,6 @@ table.cricket tr.dead { opacity: .35; }
 .b-dark, .b-light, .b-red, .b-green { stroke: var(--b-wire); stroke-width: .6; }
 .b-num { fill: var(--b-num); font-family: var(--display); font-size: 20px; font-weight: 700; pointer-events: none; }
 .b-mark { fill: var(--mark); stroke: #fff; stroke-width: 1.5; pointer-events: none; }
-#board .b-mark text { fill: #111; stroke: none; font: 800 9.5px var(--font); }
-/* a dart stuck in the board (showDarts in board.js), under its numbered dot */
-.b-pin { pointer-events: none; filter: drop-shadow(1px 2px 1.5px rgba(0, 0, 0, .6)); }
-.b-pin path { fill: none; stroke-linecap: round; }
-.b-pin .point { stroke: #d9dde2; stroke-width: 1.6; }
-.b-pin .barrel { stroke: #9aa3ad; stroke-width: 5; }
-.b-pin .shaft { stroke: #23272c; stroke-width: 2.4; }
-.b-pin .flight { fill: #e9e6dd; stroke: #000; stroke-width: .8; stroke-linejoin: round; }
 /* a dart just landed: its bed lit for a moment, a puff of chalk where it went in */
 .b-hit { fill: #fff; fill-opacity: .55; stroke: #fff; stroke-width: 1.5; pointer-events: none; }
 .b-puff { pointer-events: none; }

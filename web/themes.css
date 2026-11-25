@@ -74,6 +74,7 @@
 .t-stage .players:has(.pcard:nth-child(3)) .pcard .big { min-width: 96px; font-size: 44px; padding: 6px 10px; }
 .t-stage .turn { padding: 0 8px; }
 .t-stage .slot { border-radius: 0; transform: skewX(-9deg); font-weight: 400; font-size: 34px; }
+.t-stage .lastvisit b { font-weight: 400; }  /* Anton has the one weight */
 .t-stage .slot.empty { background: none; border: 2px solid #33333a; }
 .t-stage .slot.total { background: #0e7a43; border: 0; color: #fff; }
 .t-stage .slot.bust { background: var(--b-red); color: #fff; }
@@ -178,8 +179,10 @@
 .t-chalk .actions button, .t-chalk .banner, .t-chalk .hint { font-size: var(--sz-pick); }
 /* a figure, and what goes with one, is the size of a heading */
 .t-chalk .tile b, .t-chalk .stepper b, .t-chalk .stepper button, .t-chalk .start, .t-chalk .banner.win,
-.t-chalk .lastvisit b, .t-chalk .bullup .pcard .big small { font-size: var(--sz-head); }
-.t-chalk .lastvisit b, .t-chalk .bullup .pcard .big small { font-weight: 400; }  /* the darts just thrown, a unit: bigger, not bolder */
+.t-chalk .bullup .pcard .big small { font-size: var(--sz-head); }
+.t-chalk .bullup .pcard .big small { font-weight: 400; }
+/* the last visit's score, the figure to check from the oche: a name's size; its darts as written */
+.t-chalk .lastvisit b { font-family: var(--font); font-size: var(--sz-name); font-weight: var(--bold); }
 .t-chalk .tile b { line-height: 1.15; }
 .t-chalk .step-head i { font-size: var(--sz-title); }
 /* a game's rules on the menu: written at the size everything is, under a heading the size of what is picked out */

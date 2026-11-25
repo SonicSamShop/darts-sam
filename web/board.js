@@ -287,28 +287,11 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
     // comes in from in front of the board and its mark appears where it sticks.
     // Not for anyone who has asked their device for less movement.
     showDarts(darts, r = 5, fly = false, fresh = false) {
-      // Each dart: a small dart stuck in the board, its flight out to the lower right the way the
-      // computer's flies in, and over its point a dot numbered 1, 2, 3 in the order thrown.
-      // The darts first and the dots over them, so a tight group never hides a dot.
-      const put = darts.map((d, i) => ({ d, i })).filter(({ d }) => d.x != null);
-      const pins = put.map(({ d }) => {
-        const g = el('g', { class: 'b-pin', transform: `translate(${d.x} ${-d.y}) scale(.78)` });
-        g.append(el('path', { d: 'M0 0L9 12', class: 'point' }), el('path', { d: 'M9 12L21 28', class: 'barrel' }),
-          el('path', { d: 'M21 28L30 40', class: 'shaft' }), el('path', { d: 'M27 36L24 50L33 44L43 49L36 37Z', class: 'flight' }));
-        return g;
-      });
-      const dots = put.map(({ d, i }) => {
-        const g = el('g', { class: 'b-mark' + (i === darts.length - 1 ? ' last' : ''), transform: `translate(${d.x} ${-d.y})` });
-        const n = el('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central' });
-        n.textContent = i + 1;
-        g.append(el('circle', { r: r * 1.35 }), n);
-        return g;
-      });
-      marks.replaceChildren(...pins, ...dots);
-      const last = darts.at(-1), mark = dots.at(-1), still = matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      marks.replaceChildren(...darts.filter(d => d.x != null).map((d, i) =>
+        el('circle', { cx: d.x, cy: -d.y, r, class: 'b-mark' + (i === darts.length - 1 ? ' last' : '') })));
+      const last = darts.at(-1), mark = marks.lastChild, still = matchMedia?.('(prefers-reduced-motion: reduce)').matches;
       if (fresh && !fly && last?.x != null && !still) land(last);
       if (!fly || !mark || last?.x == null || !mark.animate || still) return;
-      pins.at(-1).style.opacity = 0;
       // The dart, drawn with its point at the spot and its flight down to the right.
       const at = el('g', { transform: `translate(${last.x} ${-last.y})` }), dart = el('g', { class: 'b-dart' });
       dart.append(el('path', { d: 'M0 0L9 12', class: 'point' }), el('path', { d: 'M9 12L21 28', class: 'barrel' }),
@@ -322,7 +305,8 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
         { transform: 'translate(0, 0) scale(1)', opacity: 1 },
       ], { duration: 420, easing: 'cubic-bezier(.45, 0, .85, .55)' });
       flown.onfinish = flown.oncancel = () => {
-        mark.style.opacity = ''; pins.at(-1).style.opacity = '';
+        mark.style.opacity = '';
+        mark.animate?.([{ r: r * 2.2 }, { r }], { duration: 220, easing: 'ease-out' });  // the thud
         if (fresh) land(last);
         dart.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }).onfinish = () => at.remove();
       };
