@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Stand-in for web/app.js, enough for the Tournament screen: the real data layer
-// (web/sync.js) on a store in memory, and a Pi that numbers new players.
+// (web/sync.js) on a store in memory, and a server that numbers new players.
 import { createSync } from '../../web/sync.js';
 
 const mem = {};
 export const store = { get: (k, f) => (k in mem ? structuredClone(mem[k]) : f), set: (k, v) => { mem[k] = structuredClone(v); } };
 let nextId = 100;
-export const sent = [];  // everything put on the Pi: [path, body]
+export const sent = [];  // everything put on the server: [path, body]
 export const api = async (path, method, body) => {
   if (path === '/players' && method === 'POST') return { id: nextId++, ...body };
   if (!method || method === 'GET') throw new Error('not reached');  // (no pull: the store stays as the test made it)

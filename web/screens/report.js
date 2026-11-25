@@ -8,10 +8,10 @@
 import { compute, previousVisit } from '../engine.js';
 import { label } from '../board.js';
 import { share } from './sharing.js';
-import { account, api, cameraCount, connected, esc, match, phone, pi, tracker } from '../app.js';
+import { account, api, cameraCount, connected, esc, match, phone, machine, tracker } from '../app.js';
 
 // ---------- problem reports ----------
-// A dart scored wrongly, or not seen at all: the Pi saves what its cameras saw
+// A dart scored wrongly, or not seen at all: the server saves what its cameras saw
 // over the last few darts and says what it made of them (server/report.py).
 // It is asked for straight away, while the darts are still in the board; what
 // really happened is typed in afterwards and added to the saved report.
@@ -40,7 +40,7 @@ export async function reportProblem() {
     } }, 30000);
   } catch (err) {
     if (reportBox !== box) return;
-    return show(`<p class="warn">The report could not be saved: ${esc(err.status ? err.message : `${pi()} did not answer`)}.</p>
+    return show(`<p class="warn">The report could not be saved: ${esc(err.status ? err.message : `${machine()} did not answer`)}.</p>
       <div class="row"><button data-rep="close">Close</button></div>`);
   }
   if (reportBox !== box) return;
@@ -69,7 +69,7 @@ async function saveReport() {
     await api(`/reports/${reportBox.dataset.id}`, 'PATCH', { expected: val('#rep-expected'), note: val('#rep-note') });
     closeReport();
   } catch {
-    reportBox.querySelector('#rep-error').textContent = `Not saved: ${pi()} did not answer.`;
+    reportBox.querySelector('#rep-error').textContent = `Not saved: ${machine()} did not answer.`;
   }
 }
 document.addEventListener('click', e => {

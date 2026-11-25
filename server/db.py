@@ -273,7 +273,7 @@ def remove_player(player_id: int):
 # ---------- darts ----------
 # Each player can have several sets of darts and say which they threw with in
 # each game, so their stats can be seen set by set. The app makes up a set's id
-# (as it does a match's), so a set added with no Pi needs no renumbering later.
+# (as it does a match's), so a set added with no server needs no renumbering later.
 DARTS_NAME_MAX = 24
 _ID = re.compile(r"^[\w-]{1,64}$")
 # What else can be said about a set, every part of it optional: each field and

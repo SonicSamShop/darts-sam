@@ -6,17 +6,17 @@
 // and Settings → About, which says which version this is.
 
 import { renderSettings } from './settings.js';
-import { SOURCE, api, appBuild, esc, match, pi, screen } from '../app.js';
+import { SOURCE, api, appBuild, esc, match, machine, screen } from '../app.js';
 
 // ---------- a newer desktop app (server/release.py) ----------
 // The desktop app asks the site once, when it starts, whether there is a newer
 // version. If there is, this offers it with what has changed since this one.
-// The Pi and the hosted version never have one to offer.
+// The server and the hosted version never have one to offer.
 let release = null;  // {version, checked, available, download, page} from the server at home
 let releaseAsk = null;
 let releaseDismissed = false;
 export async function loadRelease(tries = 0) {
-  try { release = await api('/update', 'GET', undefined, 4000); } catch { return; }  // a Pi from before this
+  try { release = await api('/update', 'GET', undefined, 4000); } catch { return; }  // a server from before this
   if (screen === 'settings') renderSettings();  // the version shows there
   if (!release.checked && tries < 8) return setTimeout(() => loadRelease(tries + 1), 2500);
   if (release.available && !releaseDismissed && !(screen === 'game' && match)) showRelease();
@@ -67,7 +67,7 @@ document.addEventListener('click', async e => {
   if (act === 'later') { releaseDismissed = true; releaseAsk?.remove(); releaseAsk = null; }
   if (act === 'update') {
     try { release = await api('/update', 'POST', undefined, 10000); } catch (err) {
-      release.download = { state: 'failed', error: err.status ? err.message : `${pi()} did not answer` };
+      release.download = { state: 'failed', error: err.status ? err.message : `${machine()} did not answer` };
     }
     showRelease();
     followDownload();

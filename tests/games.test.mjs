@@ -475,7 +475,7 @@ test('x01: legs and sets', () => {
   assert.deepEqual(s.legs, [1, 1]); assert.equal(s.current, 0); assert.equal(s.winner, null);
   s = play('x01', ['A', 'B'], o, three);
   assert.equal(s.winner, 0); assert.deepEqual(s.legs, [2, 1]); assert.equal(s.legWon, null);
-  // Every visit is still one player in one round, so the Pi can tell them apart.
+  // Every visit is still one player in one round, so the server can tell them apart.
   const visits = new Set(s.throws.map(t => `${t.player}/${t.round}`));
   assert.equal(visits.size, 3);
   s = play('x01', ['A'], o, [...WIN, ...WIN]);         // alone: the same player starts every leg

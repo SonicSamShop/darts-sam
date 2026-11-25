@@ -2,7 +2,7 @@
 // AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Deep stats, worked out on this device from the visit-by-visit history the Pi
+// Deep stats, worked out on this device from the visit-by-visit history the server
 // sends with a player's stats ("matches", see _history() in server/db.py).
 //
 // The X01 figures follow the ones the PDC publishes for its matches: three-dart
@@ -20,7 +20,7 @@ const most = (list, f) => list.reduce((m, x) => Math.max(m, f(x)), -Infinity);
 const avg3 = (points, darts) => darts ? points / darts * 3 : null;
 const one = n => n == null ? null : n.toFixed(1);
 
-// A match's visits as objects, in the order thrown. The Pi sends each one as
+// A match's visits as objects, in the order thrown. The server sends each one as
 // [player, round, ts, bust, darts] with a dart as seg * 10 + mult, or, for a
 // visit typed in as one number, [player, round, ts, bust, null, total, darts used].
 //   i      where the visit comes in the match (what a scoresheet highlights)

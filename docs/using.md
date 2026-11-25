@@ -133,14 +133,14 @@ And about the rest:
 - X01 is double out; its checkout hints follow the standard published chart.
 - With **Sound** on (Settings › In a game; off to begin with), scores are called
   in the device's own voice: each visit's total, and each dart as well if **Call
-  each dart** is on. A device with no voice (a Pi, most Linux PCs) stays quiet.
+  each dart** is on. A device with no voice (most Linux PCs) stays quiet.
 
 ## Backing up
 
-Copy the database file. From a Pi to your laptop:
+Copy the database file. From a Linux computer running it from the code, to your laptop:
 
 ```bash
-scp pi@raspberrypi.local:dartssam/data/dartssam.db dartssam-backup.db
+scp me@my-computer.local:dartssam/data/dartssam.db dartssam-backup.db
 ```
 
 The desktop apps keep theirs in their data folder ([setup.md](setup.md#3-or-the-desktop-app)

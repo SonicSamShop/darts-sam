@@ -32,7 +32,7 @@ const { data, store, loadPlayers } = app;
 const sam = { id: 1, name: 'Sam' }, phil = { id: 2, name: 'Phil' };
 // "Who throws first?" answered: 'bull', 'random' or 'cancel'.
 const answer = first => listeners.click.forEach(f => f({ target: { closest: sel => (sel.includes('[data-first]') ? { dataset: { first } } : null) } }));
-// What the app does when a sync is over (app.js, synced): its lists again, and the Pi's numbers passed on.
+// What the app does when a sync is over (app.js, synced): its lists again, and the server's numbers passed on.
 function synced(remapped) {
   loadPlayers();
   S.tourRemapped(remapped);
@@ -41,7 +41,7 @@ function synced(remapped) {
 const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(done => setImmediate(done)); };
 
 // Sam, Phil and a bot at a level never played here (made on this device, under a number of
-// its own until the Pi gives it one) in a tournament going: Sam has the bye, the bot plays
+// its own until the server gives it one) in a tournament going: Sam has the bye, the bot plays
 // Phil. Gives back the bot's number, and that match as the bracket asks for it (tour-play).
 async function going() {
   await settle();  // (a sync an earlier test set going is over)
@@ -65,7 +65,7 @@ async function going() {
   assert.deepEqual(asked.asked.play.ids, [made, 2]);
   return { made, play: asked.asked.play };
 }
-// The Pi numbers the bot (sync.js, remap) and the app hears of it. Gives back the new number.
+// The server numbers the bot (sync.js, remap) and the app hears of it. Gives back the new number.
 async function number(made) {
   await data.sync();
   const id = store.get('players').find(p => p.bot === 5).id;
@@ -74,13 +74,13 @@ async function number(made) {
   return id;
 }
 
-test('starting a tournament match: a bot the Pi numbers while the bull is being thrown for still throws its own dart', async t => {
+test('starting a tournament match: a bot the server numbers while the bull is being thrown for still throws its own dart', async t => {
   const { made, play } = await going();
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1.8e12 });
   B.openBull('start', play);
   assert.equal(app.screen, 'bull');
   const id = await number(made);
-  assert.deepEqual(B.bull.ids, [id, 2], 'the bull goes by the number the Pi gave');
+  assert.deepEqual(B.bull.ids, [id, 2], 'the bull goes by the number the server gave');
 
   t.mock.timers.tick(BOT_WAIT);
   assert.equal(B.bull.darts.length, 1, 'the bot throws for the bull itself');
@@ -92,7 +92,7 @@ test('starting a tournament match: a bot the Pi numbers while the bull is being 
   assert.equal(data.tournament('T1').data.slots[1].match, app.match.id, 'which is the bracket\'s');
 });
 
-test('starting a tournament match: "Who throws first?" answered after the Pi has numbered a player starts it with both', async () => {
+test('starting a tournament match: "Who throws first?" answered after the server has numbered a player starts it with both', async () => {
   const { made, play } = await going();
   B.askFirst('start', play);
   const id = await number(made);
@@ -122,7 +122,7 @@ test('starting a tournament match: one asked for before the bracket moved on is 
   assert.equal(data.tournament('T1').data.slots[1].match, 'theirs');
 });
 
-// The tail of a sync: the Pi has numbered the bot, and the saved lists and the tournament go by the new number,
+// The tail of a sync: the server has numbered the bot, and the saved lists and the tournament go by the new number,
 // but the app's own lists go by the old one until the sync is over (app.js, synced). Gives back the new number.
 async function tail() {
   await data.sync();
@@ -132,7 +132,7 @@ async function tail() {
   return id;
 }
 
-test('starting a tournament match: Random pressed while the Pi is numbering a new bot goes back to the bracket, which says why', async () => {
+test('starting a tournament match: Random pressed while the server is numbering a new bot goes back to the bracket, which says why', async () => {
   const { made } = await going();
   const id = await tail();
   S.tourAct('tour-play', { i: '1' });  // Play, in that moment: the match as the bracket now has it
@@ -152,7 +152,7 @@ test('starting a tournament match: Random pressed while the Pi is numbering a ne
   assert.deepEqual([app.match.playerIds, app.match.bots], [[id, 2], [5, null]]);
 });
 
-test('starting a tournament match: asked before the Pi numbered the bot and answered before the app heard, it says the same', async () => {
+test('starting a tournament match: asked before the server numbered the bot and answered before the app heard, it says the same', async () => {
   const { play } = await going();
   B.askFirst('start', play);  // the question is up, for the bot under its old number
   await tail();
@@ -165,7 +165,7 @@ test('starting a tournament match: asked before the Pi numbered the bot and answ
   assert.doesNotMatch(app.$app.innerHTML, /One moment/);
 });
 
-test('starting a tournament match: at the bull, a bot the Pi is still numbering goes by its name in the tournament, not "?"', async () => {
+test('starting a tournament match: at the bull, a bot the server is still numbering goes by its name in the tournament, not "?"', async () => {
   await going();
   const id = await tail();
   S.tourAct('tour-play', { i: '1' });

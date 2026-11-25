@@ -33,7 +33,7 @@ body:
     attributes:
       label: Your set-up
       description: The cameras (which, how many, where they sit), the computer they plug into, the board and its surround, and the lighting.
-      placeholder: 3 × OV9732 100° on a Corona Vision ring, Raspberry Pi 5, Winmau Blade 6 with a black surround.
+      placeholder: 3 × OV9732 100° on a Corona Vision ring, Windows laptop, Winmau Blade 6 with a black surround.
     validations:
       required: true
   - type: textarea

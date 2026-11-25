@@ -4,7 +4,7 @@
 
 // The caller's voice: the device's own, picking its most natural-sounding
 // English voice rather than whatever comes first. A device with no voices of
-// its own (a Pi, most Linux PCs) stays quiet; the scores are still on screen.
+// its own (a server, most Linux PCs) stays quiet; the scores are still on screen.
 
 // The device's voice broke, rather than being cut off or not yet allowed to speak.
 const BROKEN = ['synthesis-unavailable', 'synthesis-failed', 'voice-unavailable', 'language-unavailable'];

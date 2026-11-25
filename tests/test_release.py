@@ -55,7 +55,7 @@ def main():
     assert release.app_id("darwin", "x86_64") == "mac-x86_64"
     assert release.app_id("win32", "AMD64") == "windows"
     assert release.app_id("linux", "x86_64") == "linux"
-    assert release.app_id("linux", "aarch64") is None  # a Pi: no download for it
+    assert release.app_id("linux", "aarch64") is None  # ARM Linux: no download for it
 
     # only what changed after the version you have, newest first
     assert release.since(NOTES, "1.0") == [{"version": "1.2", "changes": ["Cricket", "Quicker cameras"]},

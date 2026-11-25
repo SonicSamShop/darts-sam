@@ -94,7 +94,7 @@ export function tourTaps(t) {
 const matchById = id => (match?.id === id ? match : store.get('pending', {})[id]?.m ?? null);
 const save = t => { data.saveTournament(t); return data.tournament(t.id); };
 
-// A player made on this device (a new bot, a new person) is given a number by the Pi in the first sync
+// A player made on this device (a new bot, a new person) is given a number by the server in the first sync
 // after. From that moment the saved lists, and any tournament they are in, go by the new number, but
 // the app's own lists go by the old one until that sync is over (app.js, synced). In between, neither
 // Start nor a match's start can be trusted with them, and both are put off (start, below; start.js).
@@ -208,7 +208,7 @@ const shape = n => ({ data: { slots: { length: 2 ** n - 1 } } });
 const sizeOf = n => 2 ** Math.max(1, Math.ceil(Math.log2(n)));
 
 // The draw with the numbers its players go by now: a bot made at Draw may since have
-// been numbered by the Pi (it is found again by its level). null if one of its people
+// been numbered by the server (it is found again by its level). null if one of its people
 // or bots has gone since (removed on another screen, say): the draw is out of date.
 function currentDraw(d) {
   if (!d) return null;
@@ -225,7 +225,7 @@ function freshen(st) {
   st.ids = st.ids.filter(id => players.some(p => p.id === id));
   st.draw = currentDraw(st.draw);
 }
-// After a sync, players made offline go by the Pi's numbers (app.js passes [[old, new]]). The app's own lists
+// After a sync, players made offline go by the server's numbers (app.js passes [[old, new]]). The app's own lists
 // have just caught up with them, so whatever was put off for that can go ahead: the screen stops saying
 // "One moment" (waitNote). It is drawn again here, since the app does not do it for a bot's number alone.
 export function tourRemapped(remapped) {
@@ -295,7 +295,7 @@ function start() {
   const st = tourView.setup;
   if (st) freshen(st);
   if (!st?.draw || notReady(st)) return renderTournament();
-  // Someone in the draw the Pi numbered a moment ago, in a sync still running: the saved
+  // Someone in the draw the server numbered a moment ago, in a sync still running: the saved
   // lists go by the new number, this screen by the old one until the sync is over (app.js,
   // synced; tourRemapped). Started now, the old number would be saved, which nobody has any
   // more. Not yet: the screen says so (waitNote), and Start is there to press again.
@@ -415,7 +415,7 @@ function mountBracket(t) {
 // again (live() false).
 // The tournament is read again after every wait, and never used from before one: it
 // can change while this waits. The sync that Start sets going gives its new bots the
-// Pi's numbers while "Simulating…" is up (sync.js, remap), and a copy from before that,
+// server's numbers while "Simulating…" is up (sync.js, remap), and a copy from before that,
 // saved back with a result, would put back numbers that no player has any more.
 async function playOut(id, box, svg, live) {
   const view = bracketView, run = view.run = { skip: false }, skip = () => run.skip;

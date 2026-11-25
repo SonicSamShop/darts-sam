@@ -60,7 +60,7 @@ def _mac():
 def _linux():
     if not shutil.which("systemd-inhibit"):
         return lambda: None
-    # A service on a Pi may not be allowed to ask; a Pi doesn't sleep anyway.
+    # A system service may not be allowed to ask.
     return _until_we_stop(["systemd-inhibit", "--what=idle:sleep", "--who=Darts S.A.M", f"--why={WHY}",
                            "--mode=block", "tail", f"--pid={os.getpid()}", "-f", "/dev/null"])
 

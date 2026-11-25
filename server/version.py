@@ -4,7 +4,7 @@
 
 """A stamp for the app's files that changes whenever any of them does.
 
-The app compares the stamp it was loaded with against the one the Pi has now,
+The app compares the stamp it was loaded with against the one the server has now,
 and reloads itself when they differ (web/update.js).
 """
 import hashlib
@@ -40,8 +40,8 @@ def vision_files(app) -> None:
 
 def web_version(folder: Path) -> str:
     """Built from each file's name, size and time of last change: quick enough
-    to work out afresh every time it is asked for, so copying new files to the
-    Pi is noticed without restarting the server."""
+    to work out afresh every time it is asked for, so copying new files over
+    is noticed without restarting the server."""
     h = hashlib.sha1()
     for p in sorted(folder.rglob("*")):
         if p.is_file() and not p.name.startswith("."):

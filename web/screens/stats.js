@@ -13,7 +13,7 @@ import { boardName } from '../boards.js';
 import { renderLanding } from './landing.js';
 import { achTab, achievementView, achievementsPane } from './achievements.js';
 import {
-  $app, Pi, account, boards, connected, dartsName, data, esc, grams, loadStats, mark, nameOf, pageFoot, pageHead, pi,
+  $app, Machine, account, boards, connected, dartsName, data, esc, grams, loadStats, mark, nameOf, pageFoot, pageHead, machine,
   players, refreshStatus, screen, setScreen, setsOf, shelf, statsPath
 } from '../app.js';
 
@@ -35,8 +35,8 @@ export const statsView = {
 export let statsData = null;
 let statsFailed = false;
 // (The list of players, to add to, rename and remove from, and their darts, is a tab of the settings: see playersPanel().)
-// Each game's own figures, in the order shown: [label, field in the Pi's reply, unit].
-// (X01's are worked out here instead, from the history the Pi sends: see stats.js.)
+// Each game's own figures, in the order shown: [label, field in the server's reply, unit].
+// (X01's are worked out here instead, from the history the server sends: see stats.js.)
 const GAME_TILES = {
   cricket: [['Marks per round', 'mpr'], ['Best round (marks)', 'best_round'], ['Rounds of 5+ marks', 'big_rounds'],
     ['Marks scored', 'marks']],
@@ -74,7 +74,7 @@ export async function renderPlayers(id = statsView.player) {
   if (statsView.player == null) return;
   const wanted = statsView.player, game = statsView.game, set = statsView.darts, board = statsView.board;
   let data = null;
-  // A player made offline has no stats on the Pi yet. With no link to the Pi, don't wait long for it.
+  // A player made offline has no stats on the server yet. With no link to the server, don't wait long for it.
   if (wanted > 0) try {
     data = await loadStats(statsPath(wanted, game, set, board), connected ? 10000 : 2500);
   } catch { /* shown as unavailable */ }
@@ -116,7 +116,7 @@ function x01Tiles(s, only) {
 //   {v: 'matches', name}   the finished games of one game type
 //   {v: 'match', id, at}   one game's scoresheet (at: the visit to point out)
 // A list's entry also holds how it is sorted: {by: a column, desc}.
-const DEEP = new WeakMap();  // what is worked out from a reply of the Pi's, kept while that reply is
+const DEEP = new WeakMap();  // what is worked out from a reply of the server's, kept while that reply is
 export function deep(st) {
   if (!DEEP.has(st)) {
     const matches = st.matches ?? [];  // stats saved by an older version have no history
@@ -285,12 +285,12 @@ export function drawPlayers() {
   if (statsView.player == null) return drawNoPlayers();
   const tab = statsView.tab;
   const wait = statsFailed ? `<p class="muted">No stats saved on this device${statsView.player < 0 ? ' for this player' : ''} yet.
-      Stats are worked out on ${pi()} and kept here once it has been reached.</p>`
+      Stats are worked out on ${machine()} and kept here once it has been reached.</p>`
     : !st ? '<p class="muted">Loading…</p>' : '';
   const none = wait || (st.darts || st.detail || x ? '' : `<p class="muted">No throws recorded yet${game ? ` in ${game.name}` : ''}.</p>`);
   const message = tab === 'games' || tab === 'achievements' ? wait : none;
   const owed = data.waitingGames();
-  const old = st?.saved ? `<p class="muted small stale">${Pi()} can't be reached: these are the stats
+  const old = st?.saved ? `<p class="muted small stale">${Machine()} can't be reached: these are the stats
     from ${new Date(st.saved).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}${
     owed ? `, without the ${owed === 1 ? 'game' : `${owed} games`} waiting to sync` : ''}.</p>` : '';
   // Where a tile leads: the darts tiles to the numbers hit, a game's own tiles to its games.
@@ -440,7 +440,7 @@ function drawNoPlayers() {
 // ---------- one game's scoresheet ----------
 // A game that is over, opened by its own address: by a link to it, or
 // by back, forward or a reload landing on a game that has since finished. It
-// is looked for among the games waiting here to be sent, then on the Pi, then
+// is looked for among the games waiting here to be sent, then on the server, then
 // in the stats kept on this device.
 export let sheet = null;  // {id, name: the first part of its address, m: the match once found, gone: why it wasn't}
 export async function renderSheet(id, name = 'game') {
@@ -456,7 +456,7 @@ export async function renderSheet(id, name = 'game') {
   } catch (e) {
     want.m = e.status ? null : await shelved(id).catch(() => null);
     want.gone = e.status ? 'This game is no longer saved.'
-      : `${Pi()} can't be reached, and this game isn't among the stats kept on this device.`;
+      : `${Machine()} can't be reached, and this game isn't among the stats kept on this device.`;
   }
   if (screen !== 'sheet' || sheet !== want) return;
   drawSheet();
@@ -478,7 +478,7 @@ function drawSheet() {
   $app.innerHTML = `<div class="page">
     ${pageHead('players')}
     <div class="row under"><button class="ghost" data-act="up">‹ Back</button><h1 class="sub">${m ? matchTitle(m) : 'Game'}</h1></div>
-    ${m?.saved ? `<p class="muted small stale">${Pi()} can't be reached: this is the copy
+    ${m?.saved ? `<p class="muted small stale">${Machine()} can't be reached: this is the copy
       from ${new Date(m.saved).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}.</p>` : ''}
     <div class="fill drill">${m ? matchHtml(m, {}) : `<p class="muted">${sheet.gone ?? 'Loading…'}</p>`}</div>
     ${pageFoot('players')}

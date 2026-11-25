@@ -6,7 +6,7 @@
 // next, worked out by achievements.js from their games.
 
 import { ACHIEVEMENTS, GROUPS, byId, timeline, totalOf, visitOf } from '../achievements.js';
-import { connected, esc, loadStats, nameOf, pi, screen, statsPath } from '../app.js';
+import { connected, esc, loadStats, nameOf, machine, screen, statsPath } from '../app.js';
 import { badge, gamesHere, photoUrl } from './earned.js';
 import { drawPlayers, opens, statsData, statsView } from './stats.js';
 
@@ -52,7 +52,7 @@ export function achievementsPane(game) {
   const st = achStats();
   if (st === undefined) { loadAchAll(); return '<div class="p-achievements"><p class="muted">Loading…</p></div>'; }
   if (!st) return `<div class="p-achievements"><p class="muted">Achievements are worked out from every game on record, and those
-    aren't on this device yet. They will be here once ${pi()} has been reached.</p></div>`;
+    aren't on this device yet. They will be here once ${machine()} has been reached.</p></div>`;
   const { got, total } = achievementsOf(st);
   const list = ACHIEVEMENTS.filter(a => !game || a.game === game.id);
   const line = a => {

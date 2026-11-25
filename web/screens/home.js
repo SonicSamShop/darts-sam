@@ -293,5 +293,5 @@ export async function loadTotals() {
     setTotals(t);
     store.set('totals', totals);
     showTotals();
-  } catch { /* no Pi: the last figures stay */ }
+  } catch { /* no server: the last figures stay */ }
 }

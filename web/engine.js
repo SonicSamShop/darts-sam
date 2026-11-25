@@ -15,10 +15,10 @@
 //               which only differs from 3 on a finish.
 //
 // compute() also returns `throws`: one record per dart saying who threw it and
-// in which round. That list is what the Pi stores for stats. A typed visit is
+// in which round. That list is what the server stores for stats. A typed visit is
 // stored as src 'visit': the first record carries the whole total and the rest
 // score nothing, so the visit still adds up and counts the right number of
-// darts. The Pi leaves those records out of per-dart stats.
+// darts. The server leaves those records out of per-dart stats.
 //
 // A game module provides:
 //   id, name, blurb, options[]

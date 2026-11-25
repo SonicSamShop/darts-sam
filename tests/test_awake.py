@@ -32,7 +32,7 @@ def main():
         assert started and started[0][0] == "systemd-inhibit" and "--what=idle:sleep" in started[0]
         release()
 
-        # no systemd-inhibit (some Linux, a Pi's own setup): nothing asked
+        # no systemd-inhibit (some Linux): nothing asked
         started.clear()
         awake.shutil.which = lambda name: None
         awake.keep_awake("linux")()

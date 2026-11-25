@@ -5,7 +5,7 @@
 // Sharing without an account: the server at home only (see server/share.py).
 // The question asked the first time the app is opened, and Settings → Sharing.
 
-import { api, appVersion, esc, pi, screen, store, tracker } from '../app.js';
+import { api, appVersion, esc, machine, screen, store, tracker } from '../app.js';
 import { onAccountTab, renderSettings, switchRow } from './settings.js';
 
 // The server at home only: has its owner agreed to send what it records to Darts
@@ -32,7 +32,7 @@ export const sharing = {
 };
 export let shareAsk = null;       // the question, while it is on screen
 export async function loadShare() {
-  try { share = await api('/share', 'GET', undefined, 4000); } catch { return; }  // no Pi, or one from before this
+  try { share = await api('/share', 'GET', undefined, 4000); } catch { return; }  // no server, or one from before this
   if (share.on) { tracker.track('open', openDetail()); tracker.flush(); }
   // Paired with an online account, what the cameras record goes with that account already.
   if (!share.asked && !share.paired) askShare();
@@ -63,7 +63,7 @@ export async function setShare(on) {
     if (screen === 'welcome') document.getElementById('welcome-name')?.focus();  // the next question
     if (share.on) { tracker.track('open', openDetail()); tracker.flush(); }
   } catch (e) {
-    sharing.note = e.status ? e.message : `Not saved: ${pi()} did not answer.`;
+    sharing.note = e.status ? e.message : `Not saved: ${machine()} did not answer.`;
     const line = shareAsk?.querySelector('#share-error');
     if (line) line.textContent = sharing.note;
   }
@@ -77,13 +77,13 @@ export async function deleteShared() {
     store.set('events', []);  // notes not yet sent
     sharing.note = 'Deleted. Nothing more is sent.';
   } catch (e) {
-    sharing.note = e.status ? e.message : `Nothing was deleted: ${pi()} did not answer.`;
+    sharing.note = e.status ? e.message : `Nothing was deleted: ${machine()} did not answer.`;
   }
   sharing.deleting = false;
   if (onAccountTab()) renderSettings();
 }
 export function sharePanel() {
-  if (!share) return '<p class="muted">Not connected to the Pi.</p>';
+  if (!share) return `<p class="muted">Not connected to ${machine()}.</p>`;
   return `<div class="settings">
     <div class="rows">${switchRow('Send to Darts S.A.M', share.on, `data-act="share-${share.on ? 'off' : 'on'}"`)}</div>
     ${sharing.note ? `<p class="warn">${esc(sharing.note)}</p>` : ''}

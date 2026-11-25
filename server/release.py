@@ -17,7 +17,7 @@ is, and Update. Update downloads the file into Downloads and then
   Windows: starts the new .exe and quits this one (both can't have the port)
   Linux:   shows the file, to unpack and run install.sh as the first time
 
-Nothing is sent but the kind of computer. The Pi and the code run by hand never
+Nothing is sent but the kind of computer. The code run by hand never
 ask, unless DARTSSAM_UPDATES=1 is set (to try it out).
 
 A download is only installed if it is genuine: GitHub signs each build when it

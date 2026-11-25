@@ -61,9 +61,9 @@ phone.offered();  // is it offered here? (asked once, before the Cameras screen 
 
 // ---------- saved data ----------
 // Players, settings, finished games and every throw live in a database on the
-// Pi (server/db.py), but the app never waits for it: every change is saved on
-// this device first and sent to the Pi when it can be reached (see sync.js).
-// So the whole app works with no Pi and no network, and catches up later.
+// server (server/db.py), but the app never waits for it: every change is saved on
+// this device first and sent to the server when it can be reached (see sync.js).
+// So the whole app works with no server and no network, and catches up later.
 // (api.js says what a refusal means to the queue of changes waiting to be sent.)
 export const call = (url, method, body, timeout) => request((u, o) => fetch(u, o), url, method, body, timeout)
   .catch(e => { if (e.signedOut) account.expired(); throw e; });
@@ -86,9 +86,9 @@ export const tracker = createTracker({
   send: batch => call(account.hosted ? '/api/events' : '/api/share/events', 'POST', { events: batch }),
 });
 setInterval(() => tracker.flush(), 60000);
-// What the app calls the machine it talks to: at home a Raspberry Pi, hosted just "the server".
-export const pi = () => account.hosted ? 'the server' : 'the Pi';
-export const Pi = () => account.hosted ? 'The server' : 'The Pi';
+// What the app calls the machine it talks to: at home the computer the cameras are on, hosted "the server".
+export const machine = () => account.hosted ? 'the server' : 'the computer';
+export const Machine = () => account.hosted ? 'The server' : 'The computer';
 
 export let match = store.get('match', null);
 export const setMatch = v => { match = v; };  // for screens/home.js, screens/game.js, screens/start.js
@@ -112,7 +112,7 @@ export let setup = store.get('setup', { gameId: 'x01', players: [], opts: {} });
 // Sound starts off; once on, the visit's total is called, and each dart only if asked for.
 export let settings = store.get('settings', { voice: false });
 delete settings.board;  // (the one board there was, before boards had a list of their own: the server has made it the first)
-export let totals = store.get('totals', null);  // {darts, reports}: everything on the Pi, as it last said
+export let totals = store.get('totals', null);  // {darts, reports}: everything on the server, as it last said
 export const setTotals = v => { totals = v; };  // for screens/home.js
 export let screen = match ? 'game' : 'home';
 export const setScreen = v => { screen = v; counted(); wakeCameras(); };  // for screens/*.js: each sets its own
@@ -165,9 +165,9 @@ export function applyTheme() {
 // A game that has a bot() can be played against the computer (bot.js has its levels and how it
 // throws). On the menu the computer is one more player to tap, BOT in setup.players, at the level
 // in setup.bot. A game needs a real player to keep its darts under, so each level is a player of
-// its own on the Pi ("Bot 7"), made the first time that level is played and never listed with the
+// its own on the server ("Bot 7"), made the first time that level is played and never listed with the
 // people. In a game, match.bots says which seats the computer has: its level, or null for a person.
-export const BOT = 0;  // (no player has this id: the Pi's start at 1, and one made offline is below zero)
+export const BOT = 0;  // (no player has this id: the server's start at 1, and one made offline is below zero)
 export const botAt = () => botLevel(setup.bot ?? 5);
 const botsPlay = () => !!gameById(setup.gameId)?.bot;
 // Who is down to play, in throwing order: the computer only in a game it can play.
@@ -213,7 +213,7 @@ export function randomOrder(ids) {
   const at = Math.floor(Math.random() * ids.length);
   return [...ids.slice(at), ...ids.slice(0, at)];
 }
-// (renumbered: the game in progress is saved whole after every dart, queueSync below. When the Pi numbers one of
+// (renumbered: the game in progress is saved whole after every dart, queueSync below. When the server numbers one of
 // its players, the saved copy has the new number at once and this one is picked up from it there and then, not
 // when the sync is over: a dart thrown in between would save the old number back, and the game could never be sent.)
 export const data = createSync({ store, api, changed: synced, renumbered: () => { match = store.get('match', null); } });
@@ -227,8 +227,8 @@ export function queueSync() {
   data.saveMatch(match);
   data.sync();
 }
-// After each sync: pick up what it changed (the Pi's numbers for players made
-// offline, the Pi's lists) and redraw if anything on screen is different.
+// After each sync: pick up what it changed (the server's numbers for players made
+// offline, the server's lists) and redraw if anything on screen is different.
 let warmed = 0;
 function synced({ remapped, pulled, sent, tournaments }) {
   tracker.flush();  // the site was just reached: send the trial's notes too
@@ -274,8 +274,8 @@ export function redraw(draw) {
   if (input) { input.value = typed; input.focus(); }
 }
 
-// Stats are worked out on the Pi. Each answer is kept on this device, so the
-// last known stats can still be shown when the Pi can't be reached.
+// Stats are worked out on the server. Each answer is kept on this device, so the
+// last known stats can still be shown when the server can't be reached.
 export const shelf = () => window.caches ? caches.open('dartssam-data') : Promise.reject();
 export const statsPath = (id, game, set, board) => `/players/${id}/stats${
   game || set || board ? `?${new URLSearchParams({ ...(game && { game }), ...(set && { darts: set }), ...(board && { board }) })}` : ''}`;
@@ -299,7 +299,7 @@ async function warmStats() {
   warmed = Date.now();
   try {
     for (const p of players) for (const g of [null, ...GAMES]) if (p.id > 0) await freshStats(statsPath(p.id, g?.id));
-  } catch { warmed = 0; }  // the Pi went away: try again after the next sync
+  } catch { warmed = 0; }  // the server went away: try again after the next sync
   warming = false;
 }
 
@@ -309,11 +309,11 @@ export const setCameraCount = v => { cameraCount = v; };  // for screens/cameras
 export let helperLinked = false;  // hosted: the person's cameras' computer is connected to the site
 
 // ---------- new versions ----------
-// When the app's files on the Pi change while the app is open, it reloads onto
+// When the app's files on the server change while the app is open, it reloads onto
 // them, but never under a game: only on the menu, with no game in progress.
 export const updater = createUpdater({
   reload: () => {
-    navigator.serviceWorker?.controller?.postMessage({ fresh: true });  // sw.js: ask the Pi, not the saved copy
+    navigator.serviceWorker?.controller?.postMessage({ fresh: true });  // sw.js: ask the server, not the saved copy
     location.reload();
   },
   idle: () => screen === 'landing' || (screen === 'home' && !match),
@@ -331,7 +331,7 @@ if (location.host) fetch('version.json').then(r => r.ok ? r.json() : null)
 // Where anybody using the app can get its source (the AGPL asks for this).
 export const SOURCE = 'https://github.com/SonicSamShop/darts-sam';
 
-// ---------- link to the Pi ----------
+// ---------- link to the server ----------
 export let liveLine = null;
 function connect() {
   if (!location.host) return;
@@ -856,7 +856,7 @@ const asked = account.load().then(() => {
 if (account.undecided) Promise.race([asked, new Promise(done => setTimeout(done, 1500))]).then(begin);
 else begin();
 
-// Sync on opening, whenever the Pi or the network comes back, and when the
+// Sync on opening, whenever the server or the network comes back, and when the
 // app is brought to the front. Anything still queued is retried every so often.
 data.sync(true);
 addEventListener('online', () => data.sync(true));

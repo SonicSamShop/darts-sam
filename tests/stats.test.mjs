@@ -4,7 +4,7 @@
 
 // node --test tests/
 // The deep stats (web/stats.js): X01 figures and the lists behind them, worked
-// out from the history the Pi sends.
+// out from the history the server sends.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith, setsSideBySide, boardsSideBySide } from '../web/stats.js';
@@ -30,7 +30,7 @@ const lost = match('b', [
   [0, 3, 5500, 0, null, 40, 2],
 ], { opts: { start: 101, out: 'double' }, players: ['Alex', 'Sam'], me: 1, winner: 0, started: 5000 });
 
-test('a visit as the Pi sends it', () => {
+test('a visit as the server sends it', () => {
   const [first, , , , , , last] = visitsOf(quick);
   assert.deepEqual(first.darts, [{ seg: 20, mult: 3 }, { seg: 20, mult: 3 }, { seg: 20, mult: 3 }]);
   assert.equal(first.total, 180);

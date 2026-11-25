@@ -7,10 +7,10 @@
 The server has no sign-in: anything on the home network may use it. Two ways a
 page on some other website could still reach it through the owner's browser:
 
-- DNS rebinding: the page's own name is made to point at the Pi (or at this
+- DNS rebinding: the page's own name is made to point at this server (or at this
   computer), so the browser lets it read the answers. Its requests still carry
   that name in their Host header, so only names a home network uses are let
-  in: an IP address, localhost, a name with no dots (raspberrypi), and names
+  in: an IP address, localhost, a name with no dots (my-computer), and names
   ending .local, .lan, .home, .home.arpa or .internal.
 - A form or fetch sent from the page: the browser can't be stopped from sending
   it, but it says which site sent it (Origin), and a change from a page that
@@ -26,7 +26,7 @@ SAFE = ("GET", "HEAD", "OPTIONS")
 
 
 def _name(host: str) -> str:
-    """The name in a Host header, without its port: "raspberrypi.local:8000" -> "raspberrypi.local"."""
+    """The name in a Host header, without its port: "my-computer.local:8000" -> "my-computer.local"."""
     host = host.strip().lower()
     if host.startswith("["):  # [::1]:8000
         return host[1:host.find("]")] if "]" in host else host

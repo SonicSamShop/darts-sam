@@ -47,7 +47,7 @@ export function gamesHere(id) {
     .map(g => ({ sheet: g.sheet, me: g.ids.indexOf(id) }));
 }
 // Each person's total before this game, from the stats kept on this device (asked for again if the
-// Pi answers quickly). Until it is here, and for anyone with nothing to go on, nothing is shown:
+// server answers quickly). Until it is here, and for anyone with nothing to go on, nothing is shown:
 // better no slip than a "first" for something they already hold.
 export async function loadBases() {
   if (!match || bases?.id === match.id) return;
@@ -115,7 +115,7 @@ async function boardPicture() {
   const picture = await createImageBitmap(await r.blob());
   return jpegOf(picture, picture.width, picture.height);
 }
-// Never in the way of the game: if the camera or the Pi doesn't answer, there is no picture.
+// Never in the way of the game: if the camera or the server doesn't answer, there is no picture.
 async function keepPicture(forSlips, id, visit, at) {
   try {
     const blob = await boardPicture();
@@ -130,7 +130,7 @@ async function keepPicture(forSlips, id, visit, at) {
         return;
       }
       if (r.status !== 404) return;
-      await new Promise(done => setTimeout(done, 1500));  // the game itself may not have reached the Pi yet
+      await new Promise(done => setTimeout(done, 1500));  // the game itself may not have reached the server yet
     }
   } catch { /* no picture */ }
 }

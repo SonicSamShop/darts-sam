@@ -98,7 +98,7 @@ test('tournament screen: undoing the final\'s winning dart takes the result back
   assert.equal(t.data.slots[final].winner, b);
 });
 
-test('tournament screen: a bot numbered by the Pi between Draw and Start goes in under its new number', async () => {
+test('tournament screen: a bot numbered by the server between Draw and Start goes in under its new number', async () => {
   fresh([sam, phil]);
   S.renderTournament();
   S.tourAct('tour-pick', { id: '1' });
@@ -118,7 +118,7 @@ test('tournament screen: a bot numbered by the Pi between Draw and Start goes in
   assert.deepEqual(t.data.entrants.map(e => e.id).sort((x, y) => x - y), [1, 2, numbered]);
   assert.ok(t.data.slots.every(s => ![s.a, s.b, s.winner].includes(made.id)));
   await data.sync();
-  assert.deepEqual(store.get('tournamentsq', []), [], 'sent to the Pi');
+  assert.deepEqual(store.get('tournamentsq', []), [], 'sent to the server');
 });
 
 test('tournament screen: a person removed between Draw and Start makes the draw out of date', () => {
@@ -136,7 +136,7 @@ test('tournament screen: a person removed between Draw and Start makes the draw 
   assert.deepEqual(S.tourView.setup.ids, [1, 2]);
 });
 
-test('tournament screen: a person numbered by the Pi between Draw and Start keeps their place', async () => {
+test('tournament screen: a person numbered by the server between Draw and Start keeps their place', async () => {
   fresh([sam, phil]);
   const jake = data.addPlayer('Jake');
   loadPlayers();
@@ -246,11 +246,11 @@ function begin(id, i) {
 }
 const below = t => [...t.data.entrants.map(e => e.id), ...t.data.slots.flatMap(s => [s.a, s.b, s.winner]), t.winner].filter(id => id < 0);
 
-test('tournament screen: bots the Pi numbers while their match is being simulated keep their new numbers', async t => {
+test('tournament screen: bots the server numbers while their match is being simulated keep their new numbers', async t => {
   await settle();  // (a sync an earlier test set going is over)
   const on = clock(t);
   fresh([sam]);
-  // two bots at levels never played here: made on this device, under numbers of its own until the Pi gives them theirs
+  // two bots at levels never played here: made on this device, under numbers of its own until the server gives them theirs
   const made = [app.botPlayer(5), app.botPlayer(6)];
   assert.ok(made.every(id => id < 0));
   data.saveTournament(makeDraw({
@@ -262,7 +262,7 @@ test('tournament screen: bots the Pi numbers while their match is being simulate
   S.openTournament('T1');
   assert.equal(page.status.textContent, 'Simulating Bot 6 v Bot 5…');
 
-  // While that line is up the sync that Start set going reaches the Pi, which numbers the bots (sync.js, remap);
+  // While that line is up the sync that Start set going reaches the server, which numbers the bots (sync.js, remap);
   // the app then picks its lists up again, as after every sync.
   await data.sync();
   loadPlayers();
@@ -276,7 +276,7 @@ test('tournament screen: bots the Pi numbers while their match is being simulate
   assert.equal(s.how, 'simulated');
   assert.ok(numbered.includes(s.winner), 'the result is on the bots\' own match');
   assert.deepEqual([now.data.slots[2].a, now.data.slots[2].b], [1, s.winner], 'and its winner is through to the final');
-  // The Pi has the match, under the numbers it gave, and the tournament as it now stands.
+  // The server has the match, under the numbers it gave, and the tournament as it now stands.
   const match = app.sent.find(([path]) => path === `/matches/${s.match}`)?.[1];
   assert.deepEqual(match?.players.toSorted(), numbered);
   assert.equal(app.sent.findLast(([path]) => path === '/tournaments/T1')?.[1].seq, now.seq);
@@ -305,7 +305,7 @@ test('tournament screen: a bot match decided elsewhere while "Simulating" is up 
   assert.equal(Object.keys(store.get('pending', {})).length + app.sent.filter(([path]) => path.startsWith('/matches/')).length, 0, 'no second match is made');
 });
 
-test('tournament screen: Start waits for a number the Pi has just given to reach the screen', async () => {
+test('tournament screen: Start waits for a number the server has just given to reach the screen', async () => {
   await settle();
   fresh([sam, phil]);
   S.renderTournament();
@@ -315,7 +315,7 @@ test('tournament screen: Start waits for a number the Pi has just given to reach
   S.tourAct('tour-draw', {});
   const made = app.bots[0].id;
   assert.ok(made < 0);
-  // The app's timer syncs while the draw is looked at. The Pi has numbered the bot, and the saved lists
+  // The app's timer syncs while the draw is looked at. The server has numbered the bot, and the saved lists
   // go by that number; the app's own lists do not until the sync is over. Start is pressed in that moment.
   assert.doesNotMatch(text(), /One moment/);
   await data.sync();
@@ -334,7 +334,7 @@ test('tournament screen: Start waits for a number the Pi has just given to reach
   assert.doesNotMatch(text(), /One moment/);
 });
 
-test('tournament screen: Start bounced for a person the Pi is numbering says "players", and a draw gone out of date says nothing', async () => {
+test('tournament screen: Start bounced for a person the server is numbering says "players", and a draw gone out of date says nothing', async () => {
   await settle();
   fresh([sam, phil]);
   const jake = data.addPlayer('Jake');
@@ -342,7 +342,7 @@ test('tournament screen: Start bounced for a person the Pi is numbering says "pl
   S.renderTournament();
   for (const id of [1, 2, jake.id]) S.tourAct('tour-pick', { id: String(id) });
   S.tourAct('tour-draw', {});
-  await data.sync();  // Jake has the Pi's number in the saved lists; the app's own still go by the old one
+  await data.sync();  // Jake has the server's number in the saved lists; the app's own still go by the old one
   S.tourAct('tour-start', {});
   assert.deepEqual(data.tournaments(), []);
   assert.match(text(), /One moment: saving the new players\./);
@@ -382,7 +382,7 @@ test('tournament screen: with a match in play, the way back to it is the only ma
 
 test('tournament screen: a won match whose result the bracket never heard of is filled in as the bracket opens, sent or not', async () => {
   // The app closed on the winning dart, before the bracket had the result; opened again, it is on the
-  // won game, with "Back to the tournament". The match has gone to the Pi meanwhile (it is not waiting
+  // won game, with "Back to the tournament". The match has gone to the server meanwhile (it is not waiting
   // here any more), so the game on screen is the only copy this device has of it.
   let t = going([sam, phil, mum, dad]);
   const of = names(t), m = begin('T1', 1);
@@ -428,7 +428,7 @@ test('tournament screen: a match that is quit leaves its place in the bracket to
   assert.deepEqual(mainButton(), ['tour-play', `Play ${of(0).join(' v ')}`]);
   assert.deepEqual(S.tourTaps(t)[1], { label: `Play ${of(1).join(' v ')}`, act: 'tour-play', i: 1 });
   await settle();
-  assert.deepEqual(app.sent.slice(before).map(([path, body]) => [path, body.data.slots[1].match]), [['/tournaments/T1', null]], 'and the Pi is told');
+  assert.deepEqual(app.sent.slice(before).map(([path, body]) => [path, body.data.slots[1].match]), [['/tournaments/T1', null]], 'and the server is told');
 
   // Only its own match, and only while there is no result: anything else is left as it is.
   const seq = () => data.tournament('T1').seq;

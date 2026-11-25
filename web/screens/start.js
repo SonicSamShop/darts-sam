@@ -48,7 +48,7 @@ export function closeFirst() { firstAsk?.remove(); firstAsk = null; firstPlay = 
 // say): then it is not this one's to play any more, and it is back to the bracket
 // (playBounced, which says why when new players being saved are the reason).
 const moved = play => !!play.tournament && !playStands(play);
-// And after a sync, players made offline go by the Pi's numbers (app.js passes [[old, new]]):
+// And after a sync, players made offline go by the server's numbers (app.js passes [[old, new]]):
 // so do the ones the question or the bull is for. Otherwise the game would start without
 // them, and a tournament's new bot, under a number no longer its own, would be taken for a
 // person: left for someone to throw its dart at the bull, and its match not started at all.
@@ -82,7 +82,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFirst()
 export let bull = null;  // {act: 'start' or 'rematch', play, ids: the players, darts: each dart thrown, timer: the game about to start}
 const BULL_PAUSE = 4000;  // ms the result stays up before the game starts by itself
 // What a player throwing for the bull is called. In a tournament's match that is the name the tournament
-// knows them by: a new bot the Pi numbered a moment ago is not yet in the app's own lists under that number
+// knows them by: a new bot the server numbered a moment ago is not yet in the app's own lists under that number
 // (they catch up when the sync is over), and would be "?" for that moment.
 function bullName(id) {
   const t = bull?.play.tournament && data.tournament(bull.play.tournament.id);

@@ -9,13 +9,11 @@ phone or TV:
                   out the segment                              tap-to-score fallback
 ```
 
-The computer by the board can be a Raspberry Pi, a Mac, a Windows PC or a Linux
-PC. There are two ways to run it:
+The computer by the board can be a Mac, a Windows PC or a Linux PC. There are two ways to run it:
 
 - **The desktop app** ([Mac](#on-a-mac-dartssamapp), [Windows](#on-windows-dartssamexe),
   [Linux](#on-linux-dartssam-linux-x86_64targz)): one download, no Python.
-- **From the code** ([below](#2-run-it-from-the-code)): on a Raspberry Pi, or
-  on anything else if you want to change it.
+- **From the code** ([below](#2-run-it-from-the-code)): if you want to change it.
 
 With no cameras at all the app still works: score by tapping the board.
 
@@ -24,9 +22,8 @@ With no cameras at all the app still works: score by tapping the board.
 | Part | What to search for | Notes |
 |---|---|---|
 | 3 × camera | "OV9732 USB camera module 100 degree" | 720p, MJPEG, manual-focus lens. The de-facto standard for DIY dart scoring. Get the 100° "no distortion" lens, not the fisheye. |
-| Computer | Raspberry Pi 4 (2 GB+) or Pi 5 | One camera per USB port, no hub needed. |
+| Computer | A Mac, Windows or Linux PC | One camera per USB port is safest. On Windows several can share one hub. |
 | Mounts | "Target Corona Vision OV9732 mount" on MakerWorld / Cults3D | Printable clips made for your exact light ring exist. No printer: use a print service. |
-| Power/SD | Official Pi PSU, 16 GB+ card | Under-powered Pis drop USB cameras. |
 
 Placement:
 
@@ -39,7 +36,7 @@ Placement:
 
 ## 2. Run it from the code
 
-It needs Python 3.11 or newer (Raspberry Pi OS has it). On a Raspberry Pi:
+It needs Python 3.11 or newer and git. On Debian or Ubuntu, first:
 
 ```bash
 sudo apt install -y python3-venv git
@@ -57,7 +54,7 @@ cd dartssam && python3 -m venv .venv && .venv/bin/pip install -r requirements.tx
 .venv/bin/python -m server.app
 ```
 
-Then on an iPad open `http://raspberrypi.local:8000` (or the Pi's IP address),
+Then on an iPad open `http://my-computer.local:8000` (the computer's name or IP address),
 tap Share → **Add to Home Screen**. It then launches full-screen like a native
 app: no Mac, Xcode or Apple developer account needed. On a phone or tablet the
 app shows a reminder bar with these steps when it is opened in a browser tab
@@ -67,12 +64,11 @@ On an Android phone, open the same address in Chrome and use the menu **⋮ →
 Add to Home screen**. Chrome only offers a one-tap **Install** button if the
 page is served over https.
 
-On any other computer the steps are the same (on Windows the programs are in
-`.venv\Scripts` instead of `.venv/bin`), and the app is at
-`http://localhost:8000` on that computer.
+On Windows the programs are in `.venv\Scripts` instead of `.venv/bin`. On the
+computer itself the app is at `http://localhost:8000`.
 
 The server has no sign-in, so it only answers to the names a home network uses:
-an IP address, `localhost`, a name with no dots (`raspberrypi`), or one ending
+an IP address, `localhost`, a name with no dots (`my-computer`), or one ending
 `.local`, `.lan`, `.home`, `.home.arpa` or `.internal`. This stops web pages on
 other sites from reaching it through your browser. If you reach it by some
 other name (through a reverse proxy, say), list it in `config.json`:
@@ -80,25 +76,25 @@ other name (through a reverse proxy, say), list it in `config.json`:
 
 ### Working offline (needs https)
 
-The app is offline-first: once installed it opens and runs with no Pi and no
-network (at the pub, or with the Pi switched off). Games, new players and
-settings are saved on the device and sent to the Pi the next time it can be
+The app is offline-first: once installed it opens and runs with no computer and no
+network (at the pub, or with the computer switched off). Games, new players and
+settings are saved on the device and sent to the computer the next time it can be
 reached; the top bar shows how many changes are waiting. Only the cameras and
-calibration need the Pi.
+calibration need the computer.
 
 Browsers only let a web app store itself on the device when it comes over
-**https** (or from `localhost`). Plain `http://raspberrypi.local:8000` scores
-and syncs fine while the app is open, but it cannot be *opened* without the Pi.
+**https** (or from `localhost`). Plain `http://my-computer.local:8000` scores
+and syncs fine while the app is open, but it cannot be *opened* without the computer.
 To serve https, give the server a certificate:
 
 ```bash
 .venv/bin/python -m server.app --cert cert.pem --key key.pem
 ```
 
-then use `https://raspberrypi.local:8000`. The certificate must be one the
+then use `https://my-computer.local:8000`. The certificate must be one the
 iPad or phone trusts. For a home network the usual way is
 [mkcert](https://github.com/FiloSottile/mkcert) on your laptop:
-`mkcert raspberrypi.local` makes the two files to copy to the Pi, and
+`mkcert my-computer.local` makes the two files to copy to the computer, and
 `mkcert -CAROOT` shows where its `rootCA.pem` is. Send that file to the iPad,
 install it (Settings → General → VPN & Device Management) and switch it on
 under Settings → General → About → Certificate Trust Settings. If you start
@@ -106,11 +102,11 @@ the server from `dartssam.service`, add the two options to `ExecStart` there.
 
 What works offline: every game, tap and typed scoring, undo, adding, renaming
 and removing players, settings and themes. Stats
-come from the Pi, so offline you see them as they were at the last sync (the
+come from the computer, so offline you see them as they were at the last sync (the
 screen says so), lists and scoresheets included; they catch up once the queued
 games have been sent.
 
-### Starting it when the Pi starts
+### Starting it when the computer starts (Linux)
 
 Edit the paths in `dartssam.service`, then:
 
@@ -125,15 +121,15 @@ cd dartssam && git pull && .venv/bin/pip install -r requirements.txt
 ```
 
 then start the server again (`sudo systemctl restart dartssam` if it starts
-with the Pi). Your players, games and calibration are in `data/` and
+with the computer). Your players, games and calibration are in `data/` and
 `config.json`, which git leaves alone. Open apps notice the new files and
 reload themselves when no game is being played.
 
-If you change the code on another computer and copy it to the Pi instead,
-leave the Pi's data alone:
+If you change the code on another computer and copy it across instead,
+leave the data alone:
 
 ```bash
-rsync -av --exclude .venv --exclude .git --exclude __pycache__ --exclude data --exclude config.json ./ pi@raspberrypi.local:dartssam/
+rsync -av --exclude .venv --exclude .git --exclude __pycache__ --exclude data --exclude config.json ./ me@my-computer.local:dartssam/
 ```
 
 ## 3. Or the desktop app
@@ -219,15 +215,15 @@ opens its page in the browser; closing that window stops it.
 It is built on GitHub by `.github/workflows/linux.yml`, which also checks the
 program starts and that `install.sh` installs and uninstalls it. On Linux,
 `pip install -r requirements.txt pyinstaller` then `python tools/build_exe.py`
-builds it. A Raspberry Pi runs it from the code instead (section 2). **Not yet
+builds it. **Not yet
 tried:** real USB cameras with the built program.
 
 ## 4. Cameras
 
-USB cameras are found by themselves, on a Pi, a Mac or Windows (where they
+USB cameras are found by themselves, on Linux, a Mac or Windows (where they
 are opened through DirectShow, so several can share one USB hub). A camera you
 don't want used (a laptop's own webcam) can be switched off on the app's
-**Cameras** screen. On a Pi a camera that comes back under another number
+**Cameras** screen. On Linux a camera that comes back under another number
 after being replugged shows **No picture**: press **Look again**. Its
 calibration stays with the old number, so press **Find the board** for it and
 tap the 20 once more.

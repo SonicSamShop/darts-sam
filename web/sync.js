@@ -5,14 +5,14 @@
 // Saved data, offline first.
 //
 // Everything the app saves (players, settings, matches) is written to this
-// device straight away and queued for the Pi. The queue is sent whenever the
-// Pi can be reached, in the order it happened, and then the Pi's copy is
+// device straight away and queued for the server. The queue is sent whenever the
+// server can be reached, in the order it happened, and then the server's copy is
 // fetched back. Nothing here waits for the network, so the app behaves the
-// same with or without the Pi.
+// same with or without the server.
 //
 // Kept in the store (the browser's localStorage, see app.js):
 //   players   [{id, name}]   a player made offline has a negative id until the
-//                            Pi has given them a real one. A computer player
+//                            server has given them a real one. A computer player
 //                            also has bot: its level (see bot.js)
 //   ops       [{n, op: 'add'|'rename'|'remove', id, name?, bot?}]  player changes to send
 //   darts     [{id, player, name, grams, created, retired, details}]  every player's sets of
@@ -32,7 +32,7 @@
 //   tournamentsq [id]        tournaments changed here, to send
 //   dirty     {setup?, settings?}   settings changed here since they were last sent
 //   pending   {matchId: {seq, m: match} | {seq, quit: true}}  matches to send
-//   recent    finished games as the Pi last listed them
+//   recent    finished games as the server last listed them
 import { gameById, compute, elapsed } from './engine.js';
 import { remapIds } from './tournament.js';
 
@@ -92,10 +92,10 @@ export function cleanDetails(details) {
 }
 const same = (a, b) => a.toLowerCase() === b.toLowerCase();
 const byName = list => list.sort((a, b) => a.name.localeCompare(b.name));
-// The Pi answered and said no (as opposed to: the Pi could not be reached).
+// The server answered and said no (as opposed to: the server could not be reached).
 const refused = e => e.status >= 400 && e.status < 500;
 
-// What the Pi stores for a match: the log, plus one record per dart for stats.
+// What the server stores for a match: the log, plus one record per dart for stats.
 export function matchBody(m) {
   const s = compute(m);
   return {
@@ -105,7 +105,7 @@ export function matchBody(m) {
   };
 }
 
-// A match on this device as the Pi would send it back for a scoresheet: the
+// A match on this device as the server would send it back for a scoresheet: the
 // same shape as an entry of a player's history (see _history() in
 // server/db.py), so the app shows either the same way.
 export function matchSheet(m) {
@@ -125,15 +125,15 @@ export function matchSheet(m) {
 }
 
 // store: {get(key, fallback), set(key, value)}
-// api(path, method, body): resolves with the Pi's reply; rejects with an error
-//   that has .status if the Pi refused, and no .status if it wasn't reached
+// api(path, method, body): resolves with the server's reply; rejects with an error
+//   that has .status if the server refused, and no .status if it wasn't reached
 // changed({remapped, pulled, sent, tournaments}): called after every sync attempt.
-//   remapped: [[old id, new id]] for players the Pi has now numbered
-//   tournaments: the Pi's list had a tournament this device did not have, or a different copy of
+//   remapped: [[old id, new id]] for players the server has now numbered
+//   tournaments: the server's list had a tournament this device did not have, or a different copy of
 //     one (started or played on another screen). Not for one changed here: whoever changed it has
-//     drawn it. By the time this is called the store already has the Pi's copy, so the app could
+//     drawn it. By the time this is called the store already has the server's copy, so the app could
 //     not tell by looking.
-// renumbered(old id, new id): called the moment the Pi has numbered a player made
+// renumbered(old id, new id): called the moment the server has numbered a player made
 //   offline, part way through a sync that may run on for a while yet. For what is
 //   held outside the store and saved back whole, like the game in progress: saved
 //   again before the sync is over, it would put the old number back.
@@ -247,7 +247,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
   }
   // Games started from `start` up to `end` (ms; null: open) were on this board; with `only`,
   // just those on one of those boards (null: on none). The games waiting here change at once,
-  // and the Pi is told to change its own.
+  // and the server is told to change its own.
   function moveGames(id, start, end, only = null) {
     const fits = m => m && (start == null || m.started >= start) && (end == null || m.started < end)
       && (!only || only.includes(m.board ?? null));
@@ -287,22 +287,22 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
   function saveMatch(match) {
     set('pending', { ...get('pending', {}), [match.id]: { seq: match.seq, m: match } });
   }
-  // A game that was quit: the Pi is told to forget it.
+  // A game that was quit: the server is told to forget it.
   function quitMatch(match) {
     set('pending', { ...get('pending', {}), [match.id]: { seq: (match.seq || 0) + 1, quit: true } });
   }
 
   // ---------- tournaments ----------
-  // Saved whole, with a seq one more than before, so the Pi keeps the newest copy.
+  // Saved whole, with a seq one more than before, so the server keeps the newest copy.
   const byCreated = list => list.sort((a, b) => b.created - a.created || (a.id < b.id ? -1 : 1));
   // Whether a record is a tournament the app can read: every screen that lists them reads their players
-  // and their matches. One without them (made by hand, or by a version still to come; the Pi refuses
+  // and their matches. One without them (made by hand, or by a version still to come; the server refuses
   // them too, db.py) is left out here, where the app gets its tournaments, so it can never stop a screen
   // being drawn.
   const things = list => Array.isArray(list) && list.every(x => x && typeof x === 'object');
   const sound = t => !!t && typeof t === 'object' && things(t.data?.entrants) && things(t.data?.slots);
   const tournaments = () => get('tournaments', []).filter(sound);
-  // A list of them written out the same whatever order each record's fields are in (the Pi's copy
+  // A list of them written out the same whatever order each record's fields are in (the server's copy
   // has them in its own), to tell whether two lists are the same.
   const written = list => JSON.stringify(list, (key, v) => (v && typeof v === 'object' && !Array.isArray(v)
     ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v));
@@ -313,18 +313,18 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
     set('tournamentsq', [...get('tournamentsq', []).filter(id => id !== t.id), t.id]);
   }
 
-  // How many changes have not reached the Pi yet, and how many of them are games.
+  // How many changes have not reached the server yet, and how many of them are games.
   const waiting = () => get('ops', []).length + get('dartsq', []).length + get('boardsq', []).length + get('moves', []).length
     + get('tournamentsq', []).length
     + Object.keys(get('dirty', {})).length
     + Object.keys(get('pending', {})).length;
   const waitingGames = () => Object.values(get('pending', {})).filter(i => !i.quit).length;
-  // Those games as history entries, each with its players' ids: what the Pi's history hasn't got
+  // Those games as history entries, each with its players' ids: what the server's history hasn't got
   // yet, for working out achievements (achievements.js).
   const waitingSheets = () => Object.values(get('pending', {})).filter(i => i.m)
     .map(i => ({ sheet: matchSheet(i.m), ids: i.m.playerIds }));
 
-  // Finished games, newest first: the ones still waiting here, then the Pi's list.
+  // Finished games, newest first: the ones still waiting here, then the server's list.
   function recent(limit = 8) {
     const mine = Object.entries(get('pending', {})).flatMap(([id, item]) => {
       if (!item.m) return [];
@@ -345,8 +345,8 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
     return item?.m ? matchSheet(item.m) : null;
   }
 
-  // ---------- sending to the Pi ----------
-  // The Pi has numbered a player who was made offline: swap the number everywhere.
+  // ---------- sending to the server ----------
+  // The server has numbered a player who was made offline: swap the number everywhere.
   function remap(old, id) {
     const swap = ids => ids.map(i => i === old ? id : i);
     const mine = get('players', []).find(p => p.id === old);
@@ -370,7 +370,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
     set('tournaments', tournaments().map(t => remapIds(t, old, id)));
     set('ops', get('ops', []).map(o => o.id === old ? { ...o, id } : o));
   }
-  // The Pi will never accept this new player: drop them and what depends on them.
+  // The server will never accept this new player: drop them and what depends on them.
   function forget(id) {
     set('players', get('players', []).filter(p => p.id !== id));
     set('ops', get('ops', []).filter(o => o.id !== id));
@@ -394,7 +394,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
         if (op.op === 'add') {
           let p;
           try { p = await api('/players', 'POST', op.bot ? { name: op.name, bot: op.bot } : { name: op.name }); } catch (e) {
-            // The name is already on the Pi (added from another device, or our
+            // The name is already on the server (added from another device, or our
             // own earlier try got there but its reply didn't): use that player.
             if (e.status !== 400) throw e;
             p = (await api('/players')).find(o => same(o.name, op.name));
@@ -409,7 +409,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
         }
       } catch (e) {
         if (!refused(e)) throw e;
-        if (op.op === 'add') forget(op.id);  // other refusals: the Pi's list puts things right
+        if (op.op === 'add') forget(op.id);  // other refusals: the server's list puts things right
       }
       set('ops', get('ops', []).filter(o => o.n !== op.n));
     }
@@ -423,7 +423,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
       if (d) try {
         await api(`/darts/${id}`, 'PUT', { player: d.player, name: d.name, grams: d.grams, created: d.created, retired: d.retired, details: d.details ?? null });
       } catch (e) {
-        if (!refused(e)) throw e;  // refused: the Pi's list puts it right
+        if (!refused(e)) throw e;  // refused: the server's list puts it right
       }
       // Sent, unless it was changed again meanwhile: then it goes next time.
       if (JSON.stringify(now(id)) === JSON.stringify(d)) set('dartsq', get('dartsq', []).filter(o => o !== id));
@@ -439,7 +439,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
         if (b) await api(`/boards/${id}`, 'PUT', { brand: b.brand, model: b.model, bought: b.bought, notes: b.notes, created: b.created, ...(placed && { up: b.up, down: b.down }) });
         else await api(`/boards/${id}`, 'DELETE');
       } catch (e) {
-        if (!refused(e)) throw e;  // refused: the Pi's list puts it right
+        if (!refused(e)) throw e;  // refused: the server's list puts it right
       }
       if (JSON.stringify(now(id)) === JSON.stringify(b)) {
         set('boardsq', get('boardsq', []).filter(o => o !== id));
@@ -495,7 +495,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
         await api(`/tournaments/${id}`, 'PUT', { seq, name, data, created, finished, abandoned, winner });
       } catch (e) {
         if (!refused(e)) throw e;
-        // A Pi too old to know them: kept to send once it does. (One still running the code from before
+        // A server too old to know them: kept to send once it does. (One still running the code from before
         // them answers 405: an address it has never heard of falls to the app's own files, which take no PUT.)
         if (e.status === 404 || e.status === 405) continue;
         // other refusals: it never will be accepted, and stays on this device only
@@ -505,11 +505,11 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
     }
   }
 
-  // The Pi's copy replaces ours, except for anything changed here since we sent.
+  // The server's copy replaces ours, except for anything changed here since we sent.
   // Gives back whether that changed the tournaments here (see `changed`, above).
   async function pull() {
     let cupsChanged = false;
-    const older = e => { if (refused(e)) return null; throw e; };  // (a Pi too old to know them: keep ours)
+    const older = e => { if (refused(e)) return null; throw e; };  // (a server too old to know them: keep ours)
     const [players, saved, games, darts, boards, cups] = await Promise.all([api('/players'), api('/settings'), api('/matches?limit=8'),
       api('/darts').catch(older), api('/boards').catch(older), api('/tournaments').catch(older)]);
     if (!get('ops', []).length) set('players', players);
@@ -522,8 +522,8 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
       set('boards', [...boards.filter(b => !q.includes(b.id)), ...mine].sort((a, b) => a.created - b.created || (a.id < b.id ? -1 : 1)));
     }
     if (cups) {
-      // (none is ever deleted, so one the Pi hasn't got is kept: still to send, or refused. And one of
-      // the Pi's that is no tournament, see `sound`, counts as one it hasn't got.)
+      // (none is ever deleted, so one the server hasn't got is kept: still to send, or refused. And one of
+      // the server's that is no tournament, see `sound`, counts as one it hasn't got.)
       const theirs = cups.filter(sound);
       const q = get('tournamentsq', []), mine = tournaments().filter(t => q.includes(t.id) || !theirs.some(c => c.id === t.id));
       const was = tournaments(), now = byCreated([...theirs.filter(t => !mine.some(m => m.id === t.id)), ...mine]);
@@ -537,7 +537,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
   }
 
   // One sync runs at a time; asking again while one is running queues another
-  // straight after it. Resolves true if the Pi was reached and took everything.
+  // straight after it. Resolves true if the server was reached and took everything.
   let running = null, again = false, wantPull = false;
   function sync(withPull = false) {
     wantPull ||= withPull;
@@ -555,7 +555,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
         if (report.pull) { report.tournaments = await pull(); report.pulled = true; }
         return true;
       } catch {
-        wantPull ||= report.pull;  // still owed, next time the Pi answers
+        wantPull ||= report.pull;  // still owed, next time the server answers
         return false;
       } finally {
         running = null;

@@ -84,7 +84,7 @@ itself.
 
 ### Run it from the code
 
-On a Raspberry Pi, or any computer with Python 3.11 or newer:
+On any computer with Python 3.11 or newer:
 
 ```bash
 git clone https://github.com/SonicSamShop/darts-sam.git && cd darts-sam
@@ -93,7 +93,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
 Then open `http://localhost:8000` (from another device, the computer's name or
-address, such as `http://raspberrypi.local:8000`). It finds the USB cameras
+address, such as `http://my-computer.local:8000`). It finds the USB cameras
 that are plugged in, and runs happily with none.
 [docs/setup.md](docs/setup.md) has the hardware to buy and the rest.
 
@@ -101,7 +101,7 @@ that are plugged in, and runs happily with none.
 
 | | |
 |---|---|
-| [Setting it up at home](docs/setup.md) | The cameras and computer to buy, installing on a Raspberry Pi, the desktop apps, calibrating, using your cameras with the website. |
+| [Setting it up at home](docs/setup.md) | The cameras and computer to buy, running it from the code, the desktop apps, calibrating, using your cameras with the website. |
 | [Using the app](docs/using.md) | Players, stats, what happens when a dart is scored wrongly, backing up. |
 | [How the cameras find the board](docs/calibration.md) | The automatic calibration, step by step, and using it by itself. |
 | [How a dart is found](docs/detection.md) | From a camera's picture to "treble 20", problem reports, and the numbers to tune. |
@@ -138,7 +138,7 @@ on your own board ([what to tune](docs/detection.md#tuning)), and please
 - X01 is double out; its checkout hints follow the standard published chart.
 - With **Sound** on (Settings › In a game; off to begin with), scores are called
   in the device's own voice: each visit's total, and each dart as well if **Call
-  each dart** is on. A device with no voice (a Pi, most Linux PCs) stays quiet.
+  each dart** is on. A device with no voice (most Linux PCs) stays quiet.
 
 **Not yet tried:** the Windows app on a real PC, and real USB cameras on
 Windows; real USB cameras with the Linux app; a build signed by Apple; and

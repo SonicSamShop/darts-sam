@@ -5,7 +5,7 @@
 // Google Analytics on the hosted site, only for people who say yes to it.
 // The site adds this script to each page it sends when "google_analytics_id" is
 // set in its settings (server/host.py), but not to pages for the addresses in
-// "analytics_skip_ips". The desktop and Pi apps never have it.
+// "analytics_skip_ips". The desktop app never has it.
 //
 // Until someone answers, a bar at the foot of the page asks. Google's script is
 // only fetched after "Allow": before that, and after "No thanks", nothing is sent

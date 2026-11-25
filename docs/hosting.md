@@ -176,7 +176,7 @@ counts from the day it is switched on.
    restart the site (`systemctl restart dartssam-host`).
 
 The site adds the counter to every page it sends, on both addresses; the app's
-own files and the desktop and Pi apps never carry it. Visits show in Cloudflare
+own files and the desktop app never carries it. Visits show in Cloudflare
 under Web Analytics after a few minutes, and can be split by address there.
 
 ### Google Analytics

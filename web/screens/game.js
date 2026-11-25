@@ -188,7 +188,7 @@ export function undo() {
 // Quit the game in progress, once the player has said they are sure. Its results
 // are saved unless they untick the box: the darts thrown so far stay in the stats,
 // as an unfinished game. Unticked (or with nothing thrown yet), nothing from it is
-// kept, here or on the Pi.
+// kept, here or on the server.
 let quitAsk = null;  // the question, while it is on screen
 const thrown = m => m.log.some(e => e.t === 'dart' || e.t === 'visit');
 export function askQuit() {

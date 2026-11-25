@@ -34,9 +34,9 @@ export const camScreen = {
   note: '',  // why the cameras could not be changed
   step: '',  // adding one: '' which kind, then 'usb' or 'phone'
 };
-let calibBusy = false;  // the Pi is looking for the board in a camera's picture
-let camSearch = false;  // the Pi is looking for its cameras again
-export let camStatus = null;  // what the Pi last said about its cameras
+let calibBusy = false;  // the server is looking for the board in a camera's picture
+let camSearch = false;  // the server is looking for its cameras again
+export let camStatus = null;  // what the server last said about its cameras
 let camAddress = '';  // an address typed into "Add a phone", kept while it is refused
 export async function renderCameras() {
   if (account.locked) return renderLanding();
@@ -45,7 +45,7 @@ export async function renderCameras() {
   if (account.hosted && account.account) await account.refresh().catch(() => {});  // are their cameras connected?
   if (!account.hosted) linkInfo = await api('/link', 'GET', undefined, 4000).catch(() => null);
   let status = null;
-  try { status = await api('/status', 'GET', undefined, 6000); } catch { /* no Pi, or no cameras connected */ }
+  try { status = await api('/status', 'GET', undefined, 6000); } catch { /* no server, or no cameras connected */ }
   if (account.hosted) await phone.offered();
   if (screen !== 'cameras') return;
   watchLink();
@@ -400,7 +400,7 @@ function watchLink() {
   }, 2000);
 }
 
-// Have the Pi look for its cameras again, as restarting it would: for one plugged
+// Have the server look for its cameras again, as restarting it would: for one plugged
 // in late, or one that came back under another number. With a path and body,
 // first change which cameras it uses (add, remove, switch off or on).
 export const refreshCameras = () => changeCameras('/cameras/refresh');
@@ -431,7 +431,7 @@ export function addCamera() {
 }
 
 // Auto-calibrate one camera. `twenty` is a tapped pixel in the 20 segment; left
-// out, the Pi uses the camera's existing calibration to know which way is up.
+// out, the server uses the camera's existing calibration to know which way is up.
 export async function autoCalibrate(camId, twenty) {
   camScreen.autoCal = null; camScreen.finding = camId;
   calibBusy = true; camScreen.calibNote = ''; camScreen.calibFailed = false;

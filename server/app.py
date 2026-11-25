@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 """Darts S.A.M server: runs on the computer the cameras are plugged into (a
-Raspberry Pi, or a Mac or PC; the desktop apps are this in a window).
+Mac or PC; the desktop apps are this in a window).
 
   python -m server.app            # finds USB cameras; add a phone on the app's Cameras screen
 
@@ -883,7 +883,7 @@ def main():
         ap.error('--pair needs the hosted site\'s address: add --host URL, or set "host" in config.json')
     pair_at_start = args.pair
     if paths.FROZEN or os.environ.get("DARTSSAM_UPDATES") == "1":
-        updater.start_check()  # only the built desktop app: the Pi is updated another way
+        updater.start_check()  # only the built desktop app: running from the code is updated with git
     else:
         updater.checked = True  # nothing to wait for
     if not args.no_cameras:

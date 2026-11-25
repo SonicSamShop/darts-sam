@@ -320,7 +320,7 @@ Help with any of these is welcome ([CONTRIBUTING.md](../CONTRIBUTING.md)):
   take out camera noise, which is most of what moves a real calibration from
   one try to the next.
 - **Boards that aren't red and green**, and telling apart a surround that is.
-- **Speed on a Raspberry Pi.** Each bend tried is a whole fit of its own.
+- **Speed on a slow computer.** Each bend tried is a whole fit of its own.
 
 ## Licence
 

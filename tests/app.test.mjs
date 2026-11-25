@@ -48,17 +48,17 @@ const { newMatch } = await import('../web/engine.js');
 const { server, calls, asked, tourView } = S;
 const { data, store } = app;
 
-// ---------- a pretend Pi ----------
+// ---------- a pretend server ----------
 // players and tournaments as it has them; hold: a request whose address starts with this waits until let go.
-const pi = { players: [], tournaments: [], nextId: 1, hold: null, letGo: null };
+const srv = { players: [], tournaments: [], nextId: 1, hold: null, letGo: null };
 server.answer = async (path, method, body) => {
-  if (pi.hold && path.startsWith(pi.hold)) await new Promise(done => { pi.letGo = done; });
-  if (path === '/players' && method === 'GET') return pi.players.map(p => ({ ...p }));
-  if (path === '/players' && method === 'POST') { pi.players.push({ id: pi.nextId++, ...body }); return { ...pi.players.at(-1) }; }
-  if (path === '/tournaments') return structuredClone(pi.tournaments);
+  if (srv.hold && path.startsWith(srv.hold)) await new Promise(done => { srv.letGo = done; });
+  if (path === '/players' && method === 'GET') return srv.players.map(p => ({ ...p }));
+  if (path === '/players' && method === 'POST') { srv.players.push({ id: srv.nextId++, ...body }); return { ...srv.players.at(-1) }; }
+  if (path === '/tournaments') return structuredClone(srv.tournaments);
   if (path.startsWith('/tournaments/')) {
-    const id = path.split('/')[2], at = pi.tournaments.findIndex(t => t.id === id);
-    if (!(pi.tournaments[at]?.seq >= body.seq)) pi.tournaments.splice(at < 0 ? pi.tournaments.length : at, at < 0 ? 0 : 1, { id, ...structuredClone(body) });
+    const id = path.split('/')[2], at = srv.tournaments.findIndex(t => t.id === id);
+    if (!(srv.tournaments[at]?.seq >= body.seq)) srv.tournaments.splice(at < 0 ? srv.tournaments.length : at, at < 0 ? 0 : 1, { id, ...structuredClone(body) });
     return { ok: true };
   }
   if (path === '/settings') return {};
@@ -67,11 +67,11 @@ server.answer = async (path, method, body) => {
 };
 // Everything set going gets its turn, and any sync still running is over.
 const settle = async () => { for (let i = 0; i < 30; i++) await new Promise(done => setImmediate(done)); };
-// A new device, at the menu, with these people on the Pi and nothing else anywhere.
+// A new device, at the menu, with these people on the server and nothing else anywhere.
 async function fresh(people = []) {
   await settle();
   for (const k of ['players', 'ops', 'pending', 'tournaments', 'tournamentsq', 'tourSeen', 'match']) store.set(k, null);
-  Object.assign(pi, { players: people.map(p => ({ ...p })), tournaments: [], nextId: 50, hold: null, letGo: null });
+  Object.assign(srv, { players: people.map(p => ({ ...p })), tournaments: [], nextId: 50, hold: null, letGo: null });
   app.setMatch(null);
   Object.assign(tourView, { id: null, past: false });
   app.setScreen('home');
@@ -86,7 +86,7 @@ const drawn = () => calls.map(c => c[0]).filter(n => /^render/.test(n));
 // A tap on something of the app's with these data- attributes.
 const tap = dataset => onApp.click({ target: { tagName: 'BUTTON', closest: sel => (sel === '.camview' ? null : { tagName: 'BUTTON', dataset }) }, preventDefault() {} });
 
-test('app: it starts at the menu, and has the Pi\'s players once its first sync is over', async () => {
+test('app: it starts at the menu, and has the server\'s players once its first sync is over', async () => {
   await fresh([sam, phil]);
   assert.equal(app.screen, 'home');
   assert.deepEqual(app.players, [sam, phil]);
@@ -103,8 +103,8 @@ test('app: a pull that brings a tournament changed on another screen draws the b
   assert.deepEqual(drawn(), [], 'nothing new: nothing drawn again');
 
   // Another screen plays the first match. This one is brought to the front, which syncs and pulls.
-  const theirs = pi.tournaments[0], i = theirs.data.slots.findIndex(s => s.winner == null && s.a != null && s.b != null);
-  pi.tournaments[0] = { ...recordResult(theirs, i, theirs.data.slots[i].a, [1, 0], 'played'), seq: theirs.seq + 1 };
+  const theirs = srv.tournaments[0], i = theirs.data.slots.findIndex(s => s.winner == null && s.a != null && s.b != null);
+  srv.tournaments[0] = { ...recordResult(theirs, i, theirs.data.slots[i].a, [1, 0], 'played'), seq: theirs.seq + 1 };
   tell('visibilitychange');
   await settle();
   assert.equal(data.tournament('T1').data.slots[i].winner, theirs.data.slots[i].a, 'the result is here');
@@ -113,32 +113,32 @@ test('app: a pull that brings a tournament changed on another screen draws the b
   await data.sync(true);
   assert.deepEqual(drawn(), [], 'drawn the once');
 
-  // A change made here is drawn by the screen that made it, not again when the Pi hands it back.
+  // A change made here is drawn by the screen that made it, not again when the server hands it back.
   data.saveTournament({ ...data.tournament('T1'), name: 'Renamed here' });
   await data.sync(true);
   await settle();
-  assert.equal(pi.tournaments[0].name, 'Renamed here');
+  assert.equal(srv.tournaments[0].name, 'Renamed here');
   assert.deepEqual(drawn(), []);
 });
 
 test('app: and the menu, for its line about the tournament going; the other screens are left alone', async () => {
   await fresh([sam, phil, mum]);
   // One started on another screen while this one is at the menu.
-  pi.tournaments.push({ ...cup('T1'), seq: 1 });
+  srv.tournaments.push({ ...cup('T1'), seq: 1 });
   await data.sync(true);
   assert.deepEqual(drawn(), ['renderHome'], '"Back to the tournament" appears');
   // And abandoned there, while this one is in the stats, then the settings.
   for (const [at, seq] of [['players', 2], ['settings', 3], ['game', 4]]) {
     app.setScreen(at);
     calls.length = 0;
-    pi.tournaments[0] = { ...pi.tournaments[0], seq, name: `Test ${seq}` };
+    srv.tournaments[0] = { ...srv.tournaments[0], seq, name: `Test ${seq}` };
     await data.sync(true);
     assert.equal(data.tournament('T1').name, `Test ${seq}`);
     assert.deepEqual(drawn(), [], `${at}: nothing of a tournament is on it`);
   }
 });
 
-test('app: the game in progress goes by a player\'s new number the moment the Pi gives it, not when the sync is over', async () => {
+test('app: the game in progress goes by a player\'s new number the moment the server gives it, not when the sync is over', async () => {
   await fresh([sam]);
   const jake = data.addPlayer('Jake');
   assert.equal(jake.id, -1);
@@ -146,11 +146,11 @@ test('app: the game in progress goes by a player\'s new number the moment the Pi
   app.setMatch(m);
   store.set('match', m);
   data.saveMatch(m);
-  pi.hold = '/matches/';  // the Pi numbers Jake, and is then slow to take the game
+  srv.hold = '/matches/';  // the server numbers Jake, and is then slow to take the game
   const syncing = data.sync();
   try {
     while (store.get('ops', []).length) await null;
-    assert.equal(pi.letGo, null, 'the sync is not over');
+    assert.equal(srv.letGo, null, 'the sync is not over');
     assert.deepEqual(store.get('match').playerIds, [1, 50], 'the saved game has the number');
     assert.deepEqual(app.match.playerIds, [1, 50], 'and so has the app\'s own copy of it, which the next dart saves whole');
     // That dart, as the game screen saves it (queueSync): the old number is not put back.
@@ -158,9 +158,9 @@ test('app: the game in progress goes by a player\'s new number the moment the Pi
     app.queueSync();
     assert.deepEqual(store.get('pending')['m1'].m.playerIds, [1, 50]);
   } finally {
-    while (!pi.letGo) await null;
-    pi.hold = null;
-    pi.letGo();
+    while (!srv.letGo) await null;
+    srv.hold = null;
+    srv.letGo();
     await syncing;
     await settle();
   }

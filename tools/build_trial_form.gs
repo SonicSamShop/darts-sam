@@ -79,7 +79,7 @@ function buildTrialForm() {
   choice('How comfortable are you with tech setup?', [
     'I just want to install an app',
     'I can follow a step-by-step guide',
-    'Happy with a Raspberry Pi or the command line'
+    'Happy with the command line'
   ]);
 
   // ---------- Section 2: What you use now ----------
@@ -132,7 +132,6 @@ function buildTrialForm() {
   text('If they are on a light ring, which one?', false, 'For example "Target Corona Vision".');
 
   choice('What are the cameras plugged into?', [
-    'Raspberry Pi',
     'Windows PC',
     'Mac',
     'Linux PC',
@@ -159,14 +158,11 @@ function buildTrialForm() {
   dropdown('Which would be your main one?', deviceOptions);
 
   choice('Is there a computer that could stay switched on near the board?', [
-    'Yes, a Raspberry Pi',
     'Yes, a Windows PC',
     'Yes, a Mac',
     'Yes, a Linux PC',
     'No, phone or tablet only'
   ]);
-
-  text('If it is a Raspberry Pi, which model?', false, 'For example "Pi 4, 4 GB" or "Pi 5".');
 
   choice('Roughly how old is your main device?', [
     'Under 2 years',

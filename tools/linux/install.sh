@@ -34,7 +34,7 @@ fi
 
 if [ "$(uname -m)" != "x86_64" ]; then
   echo "This Darts S.A.M is for 64-bit Intel and AMD PCs (x86_64), and this one is $(uname -m)."
-  echo "On a Raspberry Pi, run it from the code instead: see the README."
+  echo "On other computers, run it from the code instead: see the README."
   exit 1
 fi
 

@@ -2,7 +2,7 @@
 # (Python) and the app's (Node). The same as `python -m tests` on your own
 # computer (CONTRIBUTING.md).
 #
-# On Linux, with the oldest Python the code is meant for (what Raspberry Pi OS
+# On Linux, with the oldest Python the code is meant for (the one Debian 12
 # has) and the one the desktop apps are built with. The vision tests draw their
 # own cameras' pictures, so no cameras are needed. Building the apps is
 # separate (mac.yml, windows.yml, linux.yml) and only happens for a release.

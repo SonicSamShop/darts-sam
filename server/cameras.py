@@ -12,8 +12,8 @@ import cv2
 
 
 def backend() -> int:
-    """Which OpenCV camera system opens USB cameras. V4L2 is Linux's (the
-    Raspberry Pi). On Windows it is DirectShow, not OpenCV's default Media
+    """Which OpenCV camera system opens USB cameras. V4L2 is Linux's.
+    On Windows it is DirectShow, not OpenCV's default Media
     Foundation: Media Foundation starts each camera uncompressed before MJPG
     can be asked for, and two uncompressed cameras sharing one USB hub don't
     fit, so the second won't open and only one camera ever shows a picture.
@@ -117,7 +117,7 @@ class Camera:
 
 
 def discover(max_index: int = 10, size: tuple = (1280, 720, 15)) -> list[int]:
-    """Find the camera numbers that deliver pictures. On Linux (the Pi) each
+    """Find the camera numbers that deliver pictures. On Linux each
     UVC camera usually exposes two /dev/video nodes, only one of which does, so
     every number is tried. On a Mac or Windows cameras are numbered from 0
     without gaps and trying a missing one is slow, so the search stops after

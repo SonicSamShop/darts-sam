@@ -45,7 +45,7 @@ test('new version mid-game: waits until idle', () => {
   assert.equal(r.reloads, 1);
 });
 
-test('the Pi heard from first stands in until the page\'s own version is known', () => {
+test('the server heard from first stands in until the page\'s own version is known', () => {
   const r = rig();
   r.up.seen('b');            // the link came up before version.json was read
   assert.equal(r.reloads, 0);
@@ -72,7 +72,7 @@ test('a reload that came back with old files is not repeated', () => {
   assert.equal(r.reloads, 1);
 });
 
-test('an old Pi that sends no version changes nothing', () => {
+test('an old server that sends no version changes nothing', () => {
   const r = rig();
   r.up.running('a');
   r.up.seen(undefined);
