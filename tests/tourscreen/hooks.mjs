@@ -9,9 +9,9 @@
 // And web/screens/playerspanel.js (the players' cards, for removing a player): the app,
 // the menu and the settings it is drawn in.
 // And web/screens/home.js (the menu itself, for its lines about tournaments): the app, the
-// landing page and the stats screen. Asked for as home.js?tournament-on-menu it is a copy
-// of its own with the TOURNAMENT_ON_MENU constant turned on (load, below): the file itself
-// is committed with it off.
+// landing page and the stats screen. Asked for as home.js?tournament-on-menu or
+// ?tournament-off-menu it is a copy of its own with the TOURNAMENT_ON_MENU constant set
+// that way (load, below), so both menus are tried whichever way the file has it.
 const here = new URL('./', import.meta.url).href;
 const swap = {
   'tournament.js': { '../app.js': 'app.mjs', './start.js': 'start.mjs', './landing.js': 'landing.mjs' },
@@ -23,10 +23,13 @@ export async function resolve(spec, ctx, next) {
   const file = ctx.parentURL?.match(/\/web\/screens\/(\w+\.js)(\?.*)?$/)?.[1], to = swap[file]?.[spec];
   return to ? { url: here + to, shortCircuit: true } : next(spec, ctx);
 }
-const OFF = 'const TOURNAMENT_ON_MENU = false;';
+// home.js?tournament-on-menu and home.js?tournament-off-menu: a copy with the constant
+// set that way, whichever way the file itself has it.
+const SET = /const TOURNAMENT_ON_MENU = (true|false);/;
 export async function load(url, ctx, next) {
-  if (!url.endsWith('/web/screens/home.js?tournament-on-menu')) return next(url, ctx);
+  const way = url.match(/\/web\/screens\/home\.js\?tournament-(on|off)-menu$/)?.[1];
+  if (!way) return next(url, ctx);
   const got = await next(url, ctx), source = String(got.source);
-  if (!source.includes(OFF)) throw new Error(`home.js has no "${OFF}" to turn on`);
-  return { ...got, source: source.replace(OFF, OFF.replace('false', 'true')) };
+  if (!SET.test(source)) throw new Error('home.js has no TOURNAMENT_ON_MENU constant to set');
+  return { ...got, source: source.replace(SET, `const TOURNAMENT_ON_MENU = ${way === 'on'};`) };
 }

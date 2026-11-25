@@ -1,12 +1,6 @@
 {
-  "version": "1.7.3",
-  "unreleased": [
-    "121 Checkout now says \"Can't check out\" when the darts you have left can't finish what's left, instead of \"Bust\", and those darts still count.",
-    "Phone camera (Beta): after it finds the board it now says if the board is too dark, too small in the picture or seen too far from the side, and what to change.",
-    "Tournaments: a knockout for 3 to 16 players, people and bots, on one board.",
-    "Phone camera (Beta): far more accurate. It now finds the dart's thin steel point instead of stopping where the barrel starts, lines each picture back up with the board when the phone tips on its stand, and asks \"Which bed?\" less often.",
-    "Phone camera (Beta): the \"Which bed?\" question no longer shows the board through it in the Chalk & Oche and League Scoresheet themes."
-  ],
+  "version": "1.8",
+  "unreleased": [],
   "notes": {
     "1.0": [
       "First release."
@@ -89,6 +83,13 @@
     "1.7.3": [
       "Fixed: after updating to 1.7.2 a camera could score every dart as the wrong number, with its green 20 in the wrong place. A camera lined up at another picture size is now scaled to the size in use.",
       "Find the board now asks you to tap the 20 every time you press it, so a camera whose numbers have come out turned round is put right with one tap."
+    ],
+    "1.8": [
+      "Tournaments: a knockout for 3 to 16 players, people and bots, on one board.",
+      "121 Checkout now says \"Can't check out\" when the darts you have left can't finish what's left, instead of \"Bust\", and those darts still count.",
+      "Phone camera (Beta): after it finds the board it now says if the board is too dark, too small in the picture or seen too far from the side, and what to change.",
+      "Phone camera (Beta): far more accurate. It now finds the dart's thin steel point instead of stopping where the barrel starts, lines each picture back up with the board when the phone tips on its stand, and asks \"Which bed?\" less often.",
+      "Phone camera (Beta): the \"Which bed?\" question no longer shows the board through it in the Chalk & Oche and League Scoresheet themes."
     ]
   }
 }

@@ -6,9 +6,9 @@
 // The menu's lines about tournaments (web/screens/home.js) without a browser, over the
 // real Tournament screen and data layer; the rest of the app is the stand-ins in
 // tests/tourscreen. "Tournament" itself is on the menu only when home.js's
-// TOURNAMENT_ON_MENU constant is on. The file is committed with it off, so the menu with
-// it on is tried on a copy of the file that the loader makes (tests/tourscreen/hooks.mjs:
-// home.js?tournament-on-menu), and the file itself is never changed.
+// TOURNAMENT_ON_MENU constant is on (it is, since 1.8). The menu each way is tried on a
+// copy of the file that the loader makes (tests/tourscreen/hooks.mjs:
+// home.js?tournament-off-menu and ?tournament-on-menu); the file itself is never changed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
@@ -16,7 +16,7 @@ import { register } from 'node:module';
 register('./tourscreen/hooks.mjs', import.meta.url);
 const body = { scrollTop: 0 };  // what the menu scrolls in
 globalThis.document = { addEventListener() {}, querySelector: sel => (sel === '.home-body' ? body : null), getElementById: () => null };
-const H = await import('../web/screens/home.js');
+const H = await import('../web/screens/home.js?tournament-off-menu');
 const On = await import('../web/screens/home.js?tournament-on-menu');
 const S = await import('../web/screens/tournament.js');
 const app = await import('./tourscreen/app.mjs');
@@ -44,7 +44,7 @@ function going() {
   return i => [t.data.slots[i].a, t.data.slots[i].b].map(id => t.data.entrants.find(e => e.id === id).name).join(' v ');
 }
 
-test('menu: Tournament is not on it while TOURNAMENT_ON_MENU is off, as the file is committed', () => {
+test('menu: Tournament is not on it while TOURNAMENT_ON_MENU is off', () => {
   fresh();
   H.renderHome();
   assert.match(text(), /Matches/, 'the menu is drawn');

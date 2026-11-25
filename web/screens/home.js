@@ -19,8 +19,8 @@ import {
   setup, statsPath, store, totals, updater
 } from '../app.js';
 
-// Whether "Tournament" is on the menu (a computer's line and a phone's). Off until tournaments are ready for everyone.
-const TOURNAMENT_ON_MENU = false;
+// Whether "Tournament" is on the menu (a computer's line and a phone's). On since 1.8.
+const TOURNAMENT_ON_MENU = true;
 
 // What is open on the menu. step: on a phone, the step that is open ('game', 'options' or
 // 'players'), or null for none. Not chosen yet (undefined): none when somebody is down to
