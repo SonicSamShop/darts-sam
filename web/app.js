@@ -29,7 +29,7 @@ import { deep, drawPlayers, renderPlayers, renderSheet, sheet, statsData, statsV
 import { avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, renderHome } from './screens/home.js';
 import { slipTapped } from './screens/earned.js';
 import {
-  askQuit, botThrow, botTimer, botUp, closeQuit, endHold, numPad, padCommit, padKey, push, renderGame, undo
+  askQuit, botThrow, botTimer, botUp, closeQuit, endHold, numPad, padCommit, padKey, push, renderGame, toggleMatchStats, undo
 } from './screens/game.js';
 import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, playRemapped, renderBull, startMatch
@@ -753,6 +753,7 @@ $app.addEventListener('click', e => {
       numPad.value = ''; numPad.ask = null; numPad.error = '';
       saveSettings();
       return renderGame();
+    case 'matchstats': return toggleMatchStats();
     case 'tv': settings.view = settings.view === 'tv' ? 'cards' : 'tv'; saveSettings(); return renderGame();
     case 'miss': return botUp() ? undefined : push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
     case 'holdgo': return endHold();

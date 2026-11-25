@@ -1,6 +1,8 @@
 {
   "version": "1.8.2",
-  "unreleased": [],
+  "unreleased": [
+    "Match stats when a game is over: everyone's 3-dart and first 9 averages, 180s, 140+ and 100+, checkout rate, highest checkout, best leg, trebles, doubles and more, side by side, with each leg's average in X01. Tap Show the board to see the board again. The same summary now heads every game's scoresheet in Stats."
+  ],
   "notes": {
     "1.0": [
       "First release."

@@ -144,3 +144,27 @@ test('boards side by side: the same figures, grouped by the board each game was 
   assert.equal(side.get('new').x01Darts, 6);
   assert.equal(side.get('old').average, null);  // not enough yet, as for sets
 });
+
+test('matchSummary: everyone side by side, the best marked, X01 leg by leg', async () => {
+  const { matchSummary } = await import('../web/stats.js');
+  // 101, first to 2 legs. A: T20 S11 (40 left), then D20 out; B: 60 (41 left). Leg 2 unfinished, B typed a visit.
+  const m = { game: 'x01', opts: { start: 101, legs: 2 }, players: ['A', 'B'], started: 0, visits: [
+    [0, 1, 1, 0, [203, 11, 0]], [1, 1, 2, 0, [201, 201, 201]], [0, 2, 3, 0, [202]],
+    [0, 1, 4, 0, [201, 0, 0]], [1, 1, 5, 0, null, 45, 3]] };
+  const { rows, legs } = matchSummary(m);
+  const line = label => rows.find(r => r.label === label);
+  assert.deepEqual(line('Legs won').cells, ['1', '0']);
+  assert.equal(line('Legs won').best, 0);
+  assert.deepEqual(line('Highest checkout').cells, ['40', '–']);
+  assert.deepEqual(line('Checkout rate').cells, ['50% (1/2)', '–']);  // the miss left on 40 was a dart at D20
+  assert.deepEqual(line('Trebles').cells, ['1', '0']);
+  assert.deepEqual(line('Darts thrown').cells, ['7', '6']);
+  assert.equal(line('Darts thrown').best, null);  // more or fewer is neither better nor worse
+  assert.equal(line('Highest checkout').best, null);  // only one player has one
+  assert.equal(legs.length, 2);
+  assert.deepEqual(legs[0], { n: 1, set: 1, winner: 0, cells: [{ avg: '75.8', darts: 4 }, { avg: '60.0', darts: 3 }] });
+  assert.equal(legs[1].winner, null);
+  // other games: the darts alone
+  assert.deepEqual(matchSummary({ ...m, game: 'cricket' }).rows.map(r => r.label),
+    ['Darts thrown', 'Trebles', 'Doubles', 'Bulls (25 and 50)', 'Misses']);
+});

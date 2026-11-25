@@ -11,6 +11,7 @@ import { matchSheet } from '../sync.js';
 import { botLevel } from '../bot.js';
 import { renderLanding } from './landing.js';
 import { menu } from './home.js';
+import { summaryHtml } from './stats.js';
 import { onMatchQuit, onMatchUndone, onMatchWon, openTournament, quitTerms } from './tournament.js';
 import {
   achieved, achievementsOn, askPhotos, bases, dropPictures, dropSlips, earnedLine, endedHere, forgetEnded,
@@ -339,7 +340,14 @@ function tvHtml(game, s) {
 // ---------- game ----------
 export const gameBoard = {
   ui: null,
+  boardBack: null,  // the id of a won game whose board has been asked back in place of its match stats
 };
+// Once a game is won its match stats take the board's place, until the board is asked back.
+const statsUp = s => s.winner != null && gameBoard.boardBack !== match.id;
+export function toggleMatchStats() {
+  gameBoard.boardBack = gameBoard.boardBack === match.id ? null : match.id;
+  renderGame();
+}
 // The darts a player is throwing in this game, said beside their name once they have more than one set.
 function playingWith(i) {
   const set = match.darts?.[i], id = match.playerIds?.[i];
@@ -355,7 +363,7 @@ export function renderGame() {
   if (screen !== 'game' || !document.querySelector('.game')) {
     setScreen('game');
     $app.innerHTML = `<div class="game"><div class="side"></div>
-      <div class="boardwrap"><svg id="board"></svg><div class="pad"></div></div><div class="tvbar"></div></div>`;
+      <div class="boardwrap"><svg id="board"></svg><div class="pad"></div><div class="matchstats" hidden></div></div><div class="tvbar"></div></div>`;
     gameBoard.ui = buildBoard(document.getElementById('board'), d => { if (!botUp()) push({ t: 'dart', ...d, src: 'tap' }); });
   }
   const game = gameById(match.gameId);
@@ -379,10 +387,14 @@ export function renderGame() {
   const tvBar = document.querySelector('.tvbar');
   tvBar.toggleAttribute('hidden', !tv);
   tvBar.innerHTML = tv ? tvHtml(game, s) : '';
-  document.getElementById('board').toggleAttribute('hidden', pad);
+  const summary = statsUp(s);
+  document.getElementById('board').toggleAttribute('hidden', pad || summary);
   const padBox = document.querySelector('.pad');
-  padBox.toggleAttribute('hidden', !pad);
-  padBox.innerHTML = pad ? padHtml(s) : '';
+  padBox.toggleAttribute('hidden', !pad || summary);
+  padBox.innerHTML = pad && !summary ? padHtml(s) : '';
+  const statsBox = document.querySelector('.matchstats');
+  statsBox.toggleAttribute('hidden', !summary);
+  statsBox.innerHTML = summary ? `<h2>Match stats</h2>${summaryHtml(matchSheet(match))}` : '';
   // Play moves on with the third dart. The dart slots start again empty for the
   // new visit; the board keeps the old darts marked until the next one lands,
   // and the old visit is listed in small print under the slots.
@@ -422,6 +434,7 @@ export function renderGame() {
   const moved = i => i === won ? ' checkout' : i === ended ? ' busted' : arrive && i === s.current ? ' arrive' : '';
   // the rest of the game's controls, out of the way under the buttons that score
   const tools = [
+    s.winner != null && `<button class="ghost" data-act="matchstats">${statsUp(s) ? 'Show the board' : 'Match stats'}</button>`,
     canTv(game, s) && `<button class="ghost" data-act="tv">${tv ? 'Card view' : 'TV view'}</button>`,
     game.visit && `<button class="ghost" data-act="entry">${pad ? 'Use board' : 'Type scores'}</button>`,
     ((connected && cameraCount > 0) || phone.scoring()) && '<button class="ghost" data-act="report" title="A dart was scored wrongly: save what the cameras saw">Report a dart</button>',

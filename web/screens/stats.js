@@ -8,7 +8,7 @@
 import { GAMES } from '../games/index.js';
 import { clock, gameById, timeSpent } from '../engine.js';
 import { buildBoard, label } from '../board.js';
-import { ENOUGH, X01_TILES, boardsSideBySide, dartTable, setsSideBySide, visitsOf, visitsWith, x01Legs, x01Stats, x01Tile } from '../stats.js';
+import { ENOUGH, X01_TILES, boardsSideBySide, dartTable, matchSummary, setsSideBySide, visitsOf, visitsWith, x01Legs, x01Stats, x01Tile } from '../stats.js';
 import { boardName } from '../boards.js';
 import { renderLanding } from './landing.js';
 import { achTab, achievementView, achievementsPane } from './achievements.js';
@@ -219,23 +219,27 @@ function matchHtml(m, top) {
   };
   const rounds = visits => [...new Set(visits.map(v => v.round))].map((round, n) =>
     `<tr><td class="muted">${n + 1}</td>${m.players.map((_, p) => cell(visits.find(v => v.round === round && v.p === p))).join('')}</tr>`).join('');
-  const add = f => legs.reduce((t, l, i) => t + f(l, i), 0);
-  // Each player's figures over the whole match.
-  const side = p => {
-    const darts = add(l => l.sides[p].darts), won = add(l => +(l.winner === p));
-    const nine = avg3(add(l => l.sides[p].ninePoints), add(l => l.sides[p].nineDarts));
-    return tile([`${esc(m.players[p])} · average`, darts ? `${darts} darts` : '', nine != null ? `first 9 ${num(nine)}` : '',
-      legs.length > 1 ? `${won} ${won === 1 ? 'leg' : 'legs'}` : legs[0].sides[p].checkout != null ? `checkout ${legs[0].sides[p].checkout}` : '']
-      .filter(Boolean).join(' · '), darts ? num(avg3(add(l => l.sides[p].points), darts)) : null);
-  };
   return `<p class="muted facts">${facts.join(' · ')}</p>
-    ${legs?.length ? `<div class="tiles">${m.players.map((_, p) => side(p)).join('')}</div>` : ''}
+    ${summaryHtml(m)}
     <table class="plain sheet"><thead><tr><th>Round</th>${m.players.map(p => `<th colspan="${wide}">${esc(p)}</th>`).join('')}</tr></thead>
     ${!legs ? rounds(visitsOf(m)) : legs.map(l => `${legs.length > 1 ? `<tr class="legrow"><td colspan="${1 + 2 * m.players.length}" class="${
       l.n === top.leg && top.at == null ? 'at' : ''}">Leg ${l.n} · ${l.winner == null ? 'not finished'
       : `${esc(m.players[l.winner])} in ${l.sides[l.winner].darts} darts`}</td></tr>` : ''}${rounds(l.visits)}`).join('')}</table>`;
 }
-const avg3 = (points, darts) => darts ? points / darts * 3 : null;
+// The match player by player (matchSummary in stats.js): a column each, the best
+// figure on a line in bold, and for X01 a line per leg with each player's average.
+// Shown when a game is over (Match stats) and at the top of its scoresheet.
+export function summaryHtml(m) {
+  const { rows, legs } = matchSummary(m), many = m.players.length > 1;
+  const head = first => `<thead><tr><th>${first}</th>${m.players.map(p => `<th class="num">${many ? esc(p) : ''}</th>`).join('')}</tr></thead>`;
+  const sets = (m.opts?.sets ?? 1) > 1;
+  return `<table class="plain summary">${head('')}
+    ${rows.map(r => `<tr><td>${r.label}</td>${r.cells.map((c, p) => `<td class="num">${p === r.best ? `<b>${c}</b>` : c}</td>`).join('')}</tr>`).join('')}</table>
+    ${legs?.length > 1 ? `<h3 class="sumhead">Average by leg</h3><table class="plain summary">${head('Leg')}
+    ${legs.map(l => `<tr><td>${sets ? `Set ${l.set}, leg ${l.n}` : l.n}${l.winner == null ? ' <span class="muted small">not finished</span>' : ''}</td>${l.cells.map((c, p) =>
+      `<td class="num">${c.avg == null ? '–' : p === l.winner ? `<b>${c.avg}</b>` : c.avg} <span class="muted small">${c.darts} darts${
+        p === l.winner && many ? ', won' : ''}</span></td>`).join('')}</tr>`).join('')}</table>` : ''}`;
+}
 // One level of `drill` as {title, html()}, or null if the stats no longer have it.
 function drillView(st, top) {
   const d = deep(st), list = (title, kind, rows) => ({ title, html: () => listHtml(kind, rows, top) });

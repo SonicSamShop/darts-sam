@@ -235,3 +235,66 @@ export function dartTable(visits) {
   return [...rows.values()].map(r => ({ ...r, share: r.n / all })).sort((a, b) => b.n - a.n);
 }
 export const visitsWith = (visits, seg) => visits.filter(v => v.darts?.some(d => (d.mult ? d.seg : 0) === seg));
+
+// ---------- one match, player by player ----------
+// The summary shown when a game is over and at the top of its scoresheet: a line
+// per figure with everyone's side by side, and for X01 every leg's averages.
+//   rows   [{label, cells: [text per player], best: the player who did best, or null}]
+//   legs   X01 only: [{n, set, winner, cells: [{avg, darts} per player]}]
+// Trebles, doubles and bulls come from darts known one by one (a typed visit has
+// none); a player with no such darts shows –.
+export function matchSummary(m) {
+  const n = m.players.length, all = visitsOf(m);
+  const each = f => m.players.map((_, p) => f(p));
+  const rows = [];
+  // more: higher is better (false: lower is, null: neither); text: how a figure reads
+  // (a figure is only marked best when at least two players have one, and no one ties for it)
+  const row = (label, vals, { more = true, text = v => v == null ? '–' : String(v) } = {}) => {
+    const known = vals.filter(v => v != null);
+    const top = known.length > 1 && more != null ? (more ? Math.max(...known) : Math.min(...known)) : null;
+    const best = top != null && vals.filter(v => v === top).length === 1 ? vals.indexOf(top) : null;
+    rows.push({ label, cells: vals.map(text), best });
+  };
+  const darts = p => all.filter(v => v.p === p && v.darts).flatMap(v => v.darts);
+  const count = f => each(p => darts(p).length ? darts(p).filter(f).length : null);
+  let legs = null;
+  if (m.game === 'x01') {
+    const played = x01Legs(m), legsTo = m.opts.legs ?? 1, setsOn = (m.opts.sets ?? 1) > 1;
+    const sets = m.players.map(() => 0), inSet = m.players.map(() => 0);
+    let set = 1;
+    legs = played.map(l => {
+      const out = { n: l.n, set, winner: l.winner, cells: l.sides.map(s => ({ avg: one(s.avg), darts: s.darts })) };
+      if (l.winner != null && ++inSet[l.winner] >= legsTo) { sets[l.winner]++; inSet.fill(0); set++; }
+      return out;
+    });
+    const add = f => each(p => sum(played, l => f(l.sides[p], p, l)));
+    const visits = p => played.flatMap(l => l.sides[p].mine);
+    const thrown = add(s => s.darts);
+    const scored = (lo, hi) => each(p => visits(p).filter(v => v.score >= lo && v.score <= hi).length);
+    if (setsOn) row('Sets won', sets);
+    if (played.length > 1 || setsOn) row('Legs won', add((s, p, l) => +(l.winner === p)));
+    row('3-dart average', each(p => avg3(add(s => s.points)[p], thrown[p])), { text: v => one(v) ?? '–' });
+    row('First 9 average', each(p => avg3(add(s => s.ninePoints)[p], add(s => s.nineDarts)[p])), { text: v => one(v) ?? '–' });
+    row('Highest visit', each(p => visits(p).filter(v => !v.bust).reduce((t, v) => Math.max(t, v.score), 0) || null));
+    row('180s', scored(180, 180));
+    row('140+', scored(140, 179));
+    row('100+', scored(100, 139));
+    row('60+', scored(60, 99));
+    const at = each(p => visits(p).flatMap(v => v.atDouble));
+    row('Checkout rate', at.map(a => a.length ? a.filter(d => d.hit).length / a.length * 100 : null),
+      { text: v => v == null ? '–' : `${v.toFixed(0)}%` });
+    rows.at(-1).cells = rows.at(-1).cells.map((t, p) => at[p].length ? `${t} (${at[p].filter(d => d.hit).length}/${at[p].length})` : t);
+    row('Highest checkout', each(p => played.reduce((t, l) => Math.max(t, l.sides[p].checkout ?? 0), 0) || null));
+    row('Best leg (darts)', each(p => played.filter(l => l.winner === p).reduce((t, l) => Math.min(t, l.sides[p].darts), Infinity))
+      .map(v => v === Infinity ? null : v), { more: false });
+    row('Busts', each(p => visits(p).filter(v => v.bust).length), { more: false });
+    row('Darts thrown', thrown, { more: null });
+  } else {
+    row('Darts thrown', each(p => sum(all.filter(v => v.p === p), v => v.n ?? 0)), { more: null });
+  }
+  row('Trebles', count(d => d.mult === 3));
+  row('Doubles', count(d => d.mult === 2 && d.seg !== 25));
+  row('Bulls (25 and 50)', count(d => d.mult && d.seg === 25));
+  row('Misses', count(d => !d.mult), { more: false });
+  return { rows, legs };
+}
