@@ -123,11 +123,33 @@ export function makeDraw({ id, name, entrants, opts, rounds = defaultRounds(entr
 export const readySlots = t => t.data.slots.flatMap((s, i) =>
   s.winner == null && s.a != null && s.b != null && s.a !== BYE && s.b !== BYE ? [i] : []);
 
-// The next match to play on the board: the first ready one that isn't bot against bot.
-export const nextSlot = (t, isBot) => readySlots(t).find(i => !(isBot(t.data.slots[i].a) && isBot(t.data.slots[i].b))) ?? null;
+const botMatch = (t, isBot) => i => isBot(t.data.slots[i].a) && isBot(t.data.slots[i].b);
+
+// Ready matches to play on the board, in bracket order: all but bot against bot.
+export const boardSlots = (t, isBot) => readySlots(t).filter(i => !botMatch(t, isBot)(i));
+
+// The next match to play on the board: the first of them.
+export const nextSlot = (t, isBot) => boardSlots(t, isBot)[0] ?? null;
 
 // Ready matches that are bot against bot, to be played out.
-export const botSlots = (t, isBot) => readySlots(t).filter(i => isBot(t.data.slots[i].a) && isBot(t.data.slots[i].b));
+export const botSlots = (t, isBot) => readySlots(t).filter(botMatch(t, isBot));
+
+// The saved match slot i was decided by, played or simulated: the one its scorecard
+// shows. null for a bye, and for a match not yet won.
+export function playedMatch(t, i) {
+  const s = t.data.slots[i];
+  return s.winner != null && s.how !== BYE ? s.match ?? null : null;
+}
+
+// Which results a device has shown moving on, and which it still has to, in bracket
+// order. `was` is the list it keeps for this tournament: none yet (it is opening the
+// tournament for the first time, part way through, say) and everything already
+// decided counts as seen. A bye is never one, and a result taken back drops out.
+export function seenResults(t, was) {
+  const decided = t.data.slots.flatMap((s, i) => (s.winner != null && s.how !== BYE ? [i] : []));
+  const seen = was == null ? decided : was.filter(i => decided.includes(i));
+  return { seen, unseen: decided.filter(i => !seen.includes(i)) };
+}
 
 // Slot i's match has started: matchId is the saved match playing it.
 export function startSlot(t, i, matchId) {

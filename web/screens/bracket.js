@@ -67,10 +67,23 @@ function boxAt(t, L, r, k) {
   return { id, i, s, won: decided && s.winner === id, lost: decided && s.winner !== id };
 }
 
+// The two boxes of a match (its group g, boxes k and k + 1 of column r) made a button,
+// for a tap that does something: named `label`, reached with Tab, and carrying each
+// other entry of `tap` as a data- attribute, which is what the app's click handling
+// goes by. Over them, a frame that takes a tap between the two boxes as well, and is
+// only drawn while the keyboard is on the match (style.css, .hit).
+function button(g, L, r, k, { label, ...data }) {
+  for (const [key, v] of Object.entries({ role: 'button', tabindex: 0, 'aria-label': label })) g.setAttribute(key, v);
+  for (const [key, v] of Object.entries(data)) g.setAttribute(`data-${key}`, v);
+  const y = L.ys[r][k];
+  el('rect', { class: 'hit', x: L.x(r), y, width: BW, height: L.ys[r][k + 1] + BH - y, rx: 4 }, g);
+}
+
 // Draws tournament t into svg. hide: slots whose result is still to be shown moving
 // on (drawn as they were before it). next: the slot to mark as the next match, or null.
-// nameOf(id): a player's name.
-export function drawBracket(svg, t, { hide = new Set(), next = null, nameOf }) {
+// taps: what a tap on a match does, by slot: {label, ...data} (see button, above);
+// a match with none is only drawn. nameOf(id): a player's name.
+export function drawBracket(svg, t, { hide = new Set(), next = null, taps = {}, nameOf }) {
   const L = layout(t);
   svg.replaceChildren();
   svg.setAttribute('viewBox', `-2 0 ${L.w + 4} ${L.h}`);
@@ -87,23 +100,31 @@ export function drawBracket(svg, t, { hide = new Set(), next = null, nameOf }) {
   }
   // a winner's line over the loser's, where the two join
   for (const [r, k] of lit) el('path', { d: wirePath(L, r, k), class: 'wire won' }, svg);
-  for (let r = 0; r <= L.R; r++) {
-    L.ys[r].forEach((y, k) => {
-      const b = boxAt(t, L, r, k);
-      // a result still to be shown: its own boxes as they were, and the box it fills still empty
-      const own = r < L.R && hide.has(b.i), pending = r > 0 && hide.has(first(L.N, r - 1) + k);
-      const id = pending ? null : b.id, bye = id === 'bye';
-      const cls = ['box', id == null || bye ? 'empty' : '', !own && b.lost ? 'lost' : '', !own && b.won ? 'won' : '',
-        r < L.R && b.i === next ? 'next' : '', r === L.R && id != null ? 'champ' : ''].filter(Boolean).join(' ');
-      const g = el('g', { class: cls, transform: `translate(${L.x(r)} ${y})`, 'data-box': `${r}:${k}` }, svg);
-      el('rect', { width: BW, height: BH, rx: 4 }, g);
-      // (room is left for the legs even while they are hidden, for when they go up)
-      const legs = r < L.R && b.s.legs && b.s.how !== 'bye' ? b.s.legs[k % 2] : null;
-      if (bye) name(g, 'bye', BW - 20).setAttribute('class', 'muted');
-      else if (id != null) name(g, nameOf(id), BW - (legs == null ? 20 : 40));
-      if (legs != null && !own) legsText(g, legs);
-    });
+  const box = (parent, r, k) => {
+    const b = boxAt(t, L, r, k);
+    // a result still to be shown: its own boxes as they were, and the box it fills still empty
+    const own = r < L.R && hide.has(b.i), pending = r > 0 && hide.has(first(L.N, r - 1) + k);
+    const id = pending ? null : b.id, bye = id === 'bye';
+    const cls = ['box', id == null || bye ? 'empty' : '', !own && b.lost ? 'lost' : '', !own && b.won ? 'won' : '',
+      r < L.R && b.i === next ? 'next' : '', r === L.R && id != null ? 'champ' : ''].filter(Boolean).join(' ');
+    const g = el('g', { class: cls, transform: `translate(${L.x(r)} ${L.ys[r][k]})`, 'data-box': `${r}:${k}` }, parent);
+    el('rect', { width: BW, height: BH, rx: 4 }, g);
+    // (room is left for the legs even while they are hidden, for when they go up)
+    const legs = r < L.R && b.s.legs && b.s.how !== 'bye' ? b.s.legs[k % 2] : null;
+    if (bye) name(g, 'bye', BW - 20).setAttribute('class', 'muted');
+    else if (id != null) name(g, nameOf(id), BW - (legs == null ? 20 : 40));
+    if (legs != null && !own) legsText(g, legs);
+  };
+  // each match's two boxes in a group of their own, and the Winner's box by itself
+  for (let r = 0; r < L.R; r++) {
+    for (let k = 0; k < L.ys[r].length; k += 2) {
+      const g = el('g', { class: 'match' }, svg), tap = taps[first(L.N, r) + k / 2];
+      box(g, r, k);
+      box(g, r, k + 1);
+      if (tap) button(g, L, r, k, tap);
+    }
   }
+  box(svg, L.R, 0);
   // above a match: whether it was simulated, or is the next to play
   t.data.slots.forEach((s, i) => {
     const y = L.ys[s.round][2 * (i - first(L.N, s.round))];

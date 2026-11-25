@@ -8,8 +8,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   seedOrder, makeDraw, roundName, roundCount, defaultRounds, suggestName, freeLevel,
-  readySlots, nextSlot, botSlots, startSlot, dropMatch, recordResult, clearResult,
-  reconcile, remapIds, simulateMatch,
+  readySlots, nextSlot, botSlots, boardSlots, startSlot, dropMatch, recordResult, clearResult,
+  reconcile, remapIds, simulateMatch, playedMatch, seenResults,
 } from '../web/tournament.js';
 import { compute } from '../web/engine.js';
 
@@ -190,4 +190,58 @@ test('tournament: bot against bot is played out to a winner', () => {
   assert.equal(m.opts.legs, 2);
   assert.equal(m.opts.sets, 1);
   assert.equal(m.opts.start, 501);
+});
+
+test('tournament: every ready match that is not bot against bot can be played on the board', () => {
+  const entrants = [...people(6), { id: 7, name: 'Bot 5', bot: 5 }, { id: 8, name: 'Bot 9', bot: 9 }];
+  let t = makeDraw({ id: 't', name: 'T', entrants, opts: { start: 501, out: 'double' }, rounds: defaultRounds(8), now: 1 }, lcg(1));
+  // The bots together in slot 1, the people in the other three, whatever the draw did.
+  const at = [[1, 2], [7, 8], [3, 4], [5, 6]];
+  t = { ...t, data: { ...t.data, slots: t.data.slots.map((s, i) => (i < 4 ? { ...s, a: at[i][0], b: at[i][1] } : s)) } };
+  const isBot = id => id >= 7;
+  assert.deepEqual(boardSlots(t, isBot), [0, 2, 3]);
+  assert.equal(nextSlot(t, isBot), 0, 'the main button still offers the first');
+  // One played: it is no longer ready, and the semi-final it feeds still waits for its other player.
+  t = recordResult(t, 2, 3, [2, 0], 'played');
+  assert.deepEqual(boardSlots(t, isBot), [0, 3]);
+  // The bots' match decided and slot 0 played: their semi-final is ready too.
+  t = recordResult(recordResult(t, 1, 8, [0, 2], 'simulated'), 0, 1, [2, 1], 'played');
+  assert.deepEqual(boardSlots(t, isBot), [3, 4]);
+});
+
+test('tournament: a played or simulated match has a scorecard, a bye or a match still to play has none', () => {
+  let t = draw(people(3));  // a bracket of 4: one bye
+  const bye = t.data.slots.findIndex(s => s.how === 'bye'), real = 1 - bye;
+  assert.equal(playedMatch(t, bye), null, 'a bye');
+  assert.equal(playedMatch(t, real), null, 'not started');
+  t = startSlot(t, real, 'm1');
+  assert.equal(playedMatch(t, real), null, 'being played');
+  t = recordResult(t, real, t.data.slots[real].a, [2, 0], 'played');
+  assert.equal(playedMatch(t, real), 'm1');
+  t = recordResult(startSlot(t, 2, 'm2'), 2, t.data.slots[2].a, [3, 1], 'simulated');
+  assert.equal(playedMatch(t, 2), 'm2', 'simulated matches are saved too');
+  assert.ok(t.finished, 'and a finished tournament still knows its matches');
+});
+
+test('tournament: a device opening a tournament for the first time has seen what is already decided', () => {
+  let t = draw(people(8));
+  t = recordResult(t, 0, t.data.slots[0].a, [2, 0], 'played');
+  t = recordResult(t, 1, t.data.slots[1].b, [1, 2], 'played');
+  // No entry on this device (the TV joining part way through): nothing is played back.
+  assert.deepEqual(seenResults(t, undefined), { seen: [0, 1], unseen: [] });
+  // What is decided after that moves on as usual.
+  t = recordResult(t, 3, t.data.slots[3].a, [2, 1], 'played');
+  assert.deepEqual(seenResults(t, [0, 1]), { seen: [0, 1], unseen: [3] });
+  // The device that started it wrote an empty entry at Start: it shows every result, in bracket order.
+  assert.deepEqual(seenResults(t, []), { seen: [], unseen: [0, 1, 3] });
+  assert.deepEqual(seenResults(draw(people(8)), undefined), { seen: [], unseen: [] }, 'nothing decided yet');
+});
+
+test('tournament: a bye is never a result to show, and one taken back is shown again', () => {
+  let t = draw(people(3));
+  const bye = t.data.slots.findIndex(s => s.how === 'bye'), real = 1 - bye;
+  assert.deepEqual(seenResults(t, []), { seen: [], unseen: [] });
+  t = recordResult(t, real, t.data.slots[real].a, [2, 0], 'played');
+  assert.deepEqual(seenResults(t, []), { seen: [], unseen: [real] });
+  assert.deepEqual(seenResults(clearResult(t, real), [real]), { seen: [], unseen: [] }, 'taken back: no longer seen');
 });

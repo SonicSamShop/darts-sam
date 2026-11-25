@@ -31,6 +31,6 @@ export function botPlayer(level) {
 export const $app = { innerHTML: '', querySelector: () => null };
 export const account = { locked: false };
 export const esc = s => String(s), fit = () => {}, pageFoot = () => '', pageHead = () => '';
-export const redraw = f => f(), refreshStatus = () => {};
+export const redraw = f => f(), refreshStatus = () => {}, mark = () => {};
 export let match = null, screen = 'tournament';
 export const setMatch = m => { match = m; }, setScreen = s => { screen = s; };

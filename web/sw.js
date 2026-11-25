@@ -7,7 +7,7 @@
 // It still tries the Pi first, so editing files on the Pi updates the app; if
 // the Pi doesn't answer quickly the saved copy is used instead.
 // Browsers only run this over https or on localhost (see docs/setup.md).
-const CACHE = 'dartssam-v27';
+const CACHE = 'dartssam-v28';
 // Python for the browser, for the phone's camera (Beta): 27 MB that never
 // change for a given version (tools/fetch_pyodide.py's VERSION), so they are
 // kept apart, not thrown away with each new version of the app, and only
@@ -19,11 +19,12 @@ const WAIT = 2500;             // ms to give the Pi before using the saved copy
 // Everything the app needs to start. Files not listed here (a new game module,
 // say) are still saved the first time they are loaded.
 const FILES = [
-  './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'achievements.js', 'engine.js', 'board.js', 'bot.js', 'install.js', 'voice.js', 'theme.js',
+  './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'achievements.js', 'engine.js', 'board.js', 'boards.js', 'bot.js', 'tournament.js', 'install.js', 'voice.js', 'theme.js',
   'phoneui.js', 'phonecam.js', 'ask.js', 'phonecam.css',
   'screens/sharing.js', 'screens/accountpanel.js', 'screens/cameras.js', 'screens/landing.js', 'screens/achievements.js',
   'screens/home.js', 'screens/start.js', 'screens/game.js', 'screens/earned.js', 'screens/report.js', 'screens/stats.js',
-  'screens/settings.js', 'screens/playerspanel.js', 'screens/release.js', 'screens/welcome.js', 'screens/compare.js',
+  'screens/settings.js', 'screens/playerspanel.js', 'screens/boardspanel.js', 'screens/release.js', 'screens/welcome.js', 'screens/compare.js',
+  'screens/tournament.js', 'screens/bracket.js',
   'games/index.js', 'games/x01.js', 'games/cricket.js', 'games/clock.js', 'games/bobs27.js', 'games/shanghai.js', 'games/bermuda.js', 'games/segment.js', 'games/rcheckout.js', 'games/countup.js', 'games/c121.js', 'games/random.js', 'games/killer.js', 'games/gotcha.js', 'games/free.js',
   'style.css', 'themes.css', 'manifest.json', 'privacy.html', 'faq.html', 'rules.html', 'download.html', 'opensource.html', 'releases.html', 'compare.html',
   'icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',

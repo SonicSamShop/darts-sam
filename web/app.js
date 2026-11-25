@@ -572,7 +572,8 @@ function goTo(place) {
 $app.addEventListener('click', e => {
   const camview = e.target.closest('.camview');
   if (camview && e.target.tagName === 'IMG') return calibTap(+camview.dataset.cam, e.target, e);
-  const b = e.target.closest('button, a[data-act], [data-drill], [data-sort], [data-sheet], [data-gear], [data-onboard], [data-slip]');  // tiles and lines can be tapped too
+  // tiles and lines can be tapped too, and so can the tournament's bracket and its matches
+  const b = e.target.closest('button, a[data-act], .bracket [data-act], .bracket[data-act], [data-drill], [data-sort], [data-sheet], [data-gear], [data-onboard], [data-slip]');
   if (!b) return;
   if (b.tagName === 'A') e.preventDefault();  // a link that does something on this page instead (see siteHead)
   const d = b.dataset;

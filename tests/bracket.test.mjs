@@ -6,8 +6,8 @@
 // The drawn bracket (web/screens/bracket.js): where its boxes and lines go.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { layout, wirePath } from '../web/screens/bracket.js';
-import { makeDraw } from '../web/tournament.js';
+import { drawBracket, layout, wirePath } from '../web/screens/bracket.js';
+import { makeDraw, recordResult, startSlot } from '../web/tournament.js';
 
 const people = n => Array.from({ length: n }, (_, i) => ({ id: i + 1, name: `P${i + 1}` }));
 const draw = n => makeDraw({ id: 't1', name: 'Test', entrants: people(n), opts: { start: 501, out: 'double' }, now: 1 }, () => 0.5);
@@ -41,4 +41,51 @@ test('bracket: a line runs from a box, round the corner, to the box it plays for
   const end = d.match(/H(-?[\d.]+)$/);
   assert.equal(+end[1], L.x(1));
   assert.ok(d.includes(`V${L.ys[1][0] + 17} `), d);
+});
+
+// Enough of a page for drawBracket to draw into: elements that keep what they are given.
+class El {
+  constructor(tag) { Object.assign(this, { tag, attrs: {}, children: [], textContent: '' }); }
+  setAttribute(k, v) { this.attrs[k] = String(v); }
+  getAttribute(k) { return this.attrs[k] ?? null; }
+  appendChild(c) { this.children.push(c); return c; }
+  replaceChildren() { this.children = []; }
+  all() { return this.children.flatMap(c => [c, ...c.all()]); }
+}
+function drawn(t, opts) {
+  globalThis.document = { createElementNS: (_, tag) => new El(tag) };
+  const svg = new El('svg');
+  drawBracket(svg, t, { nameOf: id => `P${id}`, ...opts });
+  return svg;
+}
+const boxesIn = g => g.all().filter(e => e.attrs['data-box']).map(e => e.attrs['data-box']);
+
+test('bracket: a match that can be tapped is one button over both its boxes', () => {
+  const { a, b } = draw(4).data.slots[0];
+  const t = recordResult(startSlot(draw(4), 0, 'm1'), 0, a, [2, 0], 'played');
+  const svg = drawn(t, { taps: {
+    0: { label: `P${a} 2, P${b} 0: see the scorecard`, sheet: 'm1' },
+    1: { label: 'Play the other two', act: 'tour-play', i: 1 },
+  } });
+  const buttons = svg.all().filter(e => e.attrs.role === 'button');
+  assert.equal(buttons.length, 2, 'one for each match, not one for each box');
+  const [played, ready] = buttons;
+  assert.deepEqual(boxesIn(played), ['0:0', '0:1']);
+  assert.equal(played.attrs['data-sheet'], 'm1');
+  assert.equal(played.attrs['aria-label'], `P${a} 2, P${b} 0: see the scorecard`);
+  assert.equal(played.attrs.tabindex, '0', 'reached with Tab');
+  assert.deepEqual(boxesIn(ready), ['0:2', '0:3']);
+  assert.equal(ready.attrs['data-act'], 'tour-play');
+  assert.equal(ready.attrs['data-i'], '1');
+  assert.equal(ready.attrs['aria-label'], 'Play the other two');
+  // The final is not ready: its boxes are drawn, and are no button.
+  const all = svg.all();
+  assert.ok(all.some(e => e.attrs['data-box'] === '1:0') && all.some(e => e.attrs['data-box'] === '2:0'));
+  assert.ok(!buttons.some(g => boxesIn(g).includes('1:0')));
+});
+
+test('bracket: with nothing to tap, no box is a button or takes the keyboard', () => {
+  const all = drawn(draw(8), {}).all();
+  assert.equal(all.filter(e => e.attrs['data-box']).length, 8 + 4 + 2 + 1);
+  assert.ok(!all.some(e => 'role' in e.attrs || 'tabindex' in e.attrs || 'data-act' in e.attrs || 'data-sheet' in e.attrs));
 });

@@ -288,6 +288,14 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .bracket .sub { fill: var(--muted); }
 .bracket .tag { fill: var(--accent); }
 .bracket .ghost rect { fill: var(--board, var(--bg)); stroke: var(--accent); stroke-width: 2.5; }
+/* a match that can be tapped (to play it, or to see its scorecard) is a button over both its boxes: nothing
+   to see at rest, and a frame in the lettering's colour while the keyboard is on it (.hit also takes the
+   tap that lands between the two boxes) */
+.bracket .match[role=button] { cursor: pointer; outline: none; }
+.bracket .match[role=button]:active { filter: brightness(1.3); }
+.bracket .hit { fill: none; stroke: none; pointer-events: all; }
+.bracket .match:focus-visible .hit { stroke: var(--text); stroke-width: 3; }
+.bracket[data-act] { cursor: pointer; }  /* results are moving on: a tap skips to the end */
 /* "How to play" the chosen game, opened in place (howToPlay in screens/home.js): under its blurb on a computer,
    above Start on a phone. Open, it is headed with the game's name, and the way to shut it is beside that.
    Whatever the theme does to its lettering, the rules are sentences: no capitals, no spacing out. */
