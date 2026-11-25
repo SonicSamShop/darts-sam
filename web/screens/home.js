@@ -153,8 +153,8 @@ function howToPlay(game, where = '') {
     <div class="rules-box">${body}</div></div>`;
 }
 // Tournament: a line of its own under the games, since it is not one of them (on a phone, under the steps).
-// const tourLine = (where = '') => `<button class="tourline ${where}" data-act="tournament"><b>Tournament</b>
-//   <span>A knockout for 3 to 16 players, people and bots</span></button>`;
+const tourLine = (where = '') => `<button class="tourline ${where}" data-act="tournament"><b>Tournament</b>
+  <span>A knockout for 3 to 16 players, people and bots</span></button>`;
 // An option's name with its "?" after it, kept on a line with the name's last word.
 function optLabelHelp(o) {
   const cut = o.label.lastIndexOf(' ') + 1;
