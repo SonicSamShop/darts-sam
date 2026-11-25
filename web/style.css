@@ -547,17 +547,18 @@ svg.heat .b-num { fill: #d9dce3; }
 .top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .top b { font-size: 19px; }
 .top button { min-height: 42px; padding: 6px 12px; }
-.top .conn { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.top .conn { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; }
+.top .title { white-space: nowrap; }
 /* a fixed width: these letterings have no equal-width figures, and a clock that grows and shrinks by the second
    pushes the buttons after it on and off the line */
 .clock { display: inline-block; min-width: 5ch; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
 .players { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-.pcard { background: var(--panel); border: 2px solid transparent; border-radius: var(--round); padding: 10px 14px; opacity: .65; }
+.pcard { background: var(--panel); border: 2px solid transparent; border-radius: var(--round); padding: 7px 14px 6px; opacity: .65; }
 .pcard.cur { border-color: var(--accent); opacity: 1; }
 .pcard.win { border-color: var(--gold); opacity: 1; }
 .players .pcard.out { opacity: .35; }  /* knocked out (Killer) */
-.pcard .name { font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pcard .big { font-family: var(--display); font-size: 54px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.pcard .name { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcard .big { font-family: var(--display); font-size: 54px; font-weight: 800; line-height: .98; font-variant-numeric: tabular-nums; }
 .pcard .small { font-size: 14px; color: var(--muted); min-height: 20px; }
 /* A visit just over: what it scored takes over the players' scores for a moment (renderGame in screens/game.js). */
 .vflash { grid-column: 1 / -1; text-align: center; padding: 8px 14px; border: 2px solid var(--accent); border-radius: var(--round);
@@ -571,7 +572,19 @@ svg.heat .b-num { fill: #d9dce3; }
 .vflash.noout .big { font-size: 56px; }
 .flash.noout { font-size: 0.5em; }
 .turn { display: grid; grid-template-columns: repeat(3, 1fr) 1.1fr; gap: 8px; }
-.slot { background: var(--panel); border-radius: var(--round); text-align: center; padding: 12px 4px; font-family: var(--display); font-size: 26px; font-weight: 700; min-height: 62px; }
+.slot { background: var(--panel); border-radius: var(--round); text-align: center; padding: 8px 4px 6px; font-family: var(--display); font-size: 26px; font-weight: 700; min-height: 62px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.slot b { font: inherit; line-height: 1.1; }
+.slot small { font: 400 13px/1.2 var(--font); color: inherit; opacity: .7; text-transform: none; letter-spacing: 0; text-shadow: none; }
+/* the visit: its three darts and their total in one box, the last visit's darts under them */
+.visit { display: flex; flex-direction: column; gap: 8px; background: var(--panel); border-radius: var(--round); padding: 10px; }
+.visit:not(:has(.turn)) { background: none; padding: 0; }
+.visit-head { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; padding: 0 2px; }
+.visit .slot { background: color-mix(in srgb, var(--bg) 55%, var(--panel)); }
+.visit .slot.next { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+.visit .slot.total { background: color-mix(in srgb, var(--accent) 16%, var(--panel)); border: 0; }
+.visit .lastvisit { font-size: 16px; padding-top: 6px; border-top: 1px solid var(--line); }
+.visit:not(:has(.turn)) .lastvisit { border-top: 0; padding-top: 0; }
 .slot.empty { color: var(--line); }
 .slot.total { background: none; border: 1px solid var(--line); color: var(--accent); }
 .slot.bust { color: var(--warn); border-color: var(--warn); }
@@ -603,12 +616,35 @@ svg.heat .b-num { fill: #d9dce3; }
 @media (prefers-reduced-motion: reduce) { .slip.new { animation: none; } }
 .earned { color: var(--muted); font-size: 15px; line-height: 1.4; text-align: center; text-wrap: balance; }
 .earned b { color: var(--text); font-weight: 600; }
-.actions { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 8px; margin-top: auto; }
+.actions { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 8px; margin-top: auto; }
+/* Undo and Miss: outlined, so End turn is the one that stands out (Arcade's cabinet buttons are its own) */
+:root:not(.t-arcade) .side .actions button:not(.primary) { background: none; box-shadow: inset 0 0 0 2px var(--line); }
 .actions button { min-height: 72px; font-size: 20px; font-weight: 700; }
 .boardwrap { position: relative; display: flex; align-items: center; justify-content: center; min-height: 0; min-width: 0; }
 .boardwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 [hidden] { display: none !important; }
 .actions.solo { grid-template-columns: 1fr; }
+/* the rest of the game's controls: quiet, under the buttons that score */
+.side .tools { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 6px; margin-top: -4px; }
+.side .tools button { min-height: 36px; padding: 4px 10px; border: 0; background: none; box-shadow: none; color: var(--muted);
+  font: 400 15px var(--font); text-transform: none; letter-spacing: 0; text-decoration: none; }
+
+/* what moves when something happens (renderGame in screens/game.js): only what has just changed */
+.slot.pop b { animation: slot-pop .3s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes slot-pop { from { transform: scale(1.7); opacity: 0; } }
+.slot.back b { animation: slot-back .4s ease-out; }
+@keyframes slot-back { from { transform: translateY(-8px); opacity: 0; } }
+.pcard.arrive { animation: card-up .35s ease-out; }
+@keyframes card-up { from { transform: translateY(8px); opacity: .5; } }
+.pcard.busted, .visit.busted { animation: hit-bust 1.4s ease-out; }
+@keyframes hit-bust { 0%, 45% { box-shadow: 0 0 0 3px var(--warn), 0 0 22px color-mix(in srgb, var(--warn) 55%, transparent); } }
+.pcard.checkout { animation: hit-win 2s ease-out; }
+@keyframes hit-win { 0%, 50% { box-shadow: 0 0 0 3px var(--gold), 0 0 28px color-mix(in srgb, var(--gold) 60%, transparent); } }
+.actions .end.ready { animation: ready 1.1s ease-out; }
+@keyframes ready { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .slot.pop b, .slot.back b, .pcard.arrive, .pcard.busted, .visit.busted, .pcard.checkout, .actions .end.ready { animation: none; }
+}
 
 /* typing the visit total instead of tapping the board */
 .pad { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 480px; padding: 10px;
@@ -672,6 +708,19 @@ table.cricket tr.dead { opacity: .35; }
 .b-dark, .b-light, .b-red, .b-green { stroke: var(--b-wire); stroke-width: .6; }
 .b-num { fill: var(--b-num); font-family: var(--display); font-size: 20px; font-weight: 700; pointer-events: none; }
 .b-mark { fill: var(--mark); stroke: #fff; stroke-width: 1.5; pointer-events: none; }
+#board .b-mark text { fill: #111; stroke: none; font: 800 9.5px var(--font); }
+/* a dart stuck in the board (showDarts in board.js), under its numbered dot */
+.b-pin { pointer-events: none; filter: drop-shadow(1px 2px 1.5px rgba(0, 0, 0, .6)); }
+.b-pin path { fill: none; stroke-linecap: round; }
+.b-pin .point { stroke: #d9dde2; stroke-width: 1.6; }
+.b-pin .barrel { stroke: #9aa3ad; stroke-width: 5; }
+.b-pin .shaft { stroke: #23272c; stroke-width: 2.4; }
+.b-pin .flight { fill: #e9e6dd; stroke: #000; stroke-width: .8; stroke-linejoin: round; }
+/* a dart just landed: its bed lit for a moment, a puff of chalk where it went in */
+.b-hit { fill: #fff; fill-opacity: .55; stroke: #fff; stroke-width: 1.5; pointer-events: none; }
+.b-puff { pointer-events: none; }
+.b-puff path { stroke: #f6f3ea; stroke-width: 1.8; stroke-linecap: round; }
+.b-puff circle { fill: none; stroke: #f6f3ea; stroke-width: 1.2; }
 .b-mark.last { fill: var(--gold); }
 /* a computer player's dart on its way in (showDarts in board.js) */
 .b-dart { pointer-events: none; filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, .55)); }

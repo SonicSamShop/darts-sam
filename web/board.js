@@ -175,8 +175,35 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
     svg.append(t);
   });
   svg.append(el('circle', { r: R.outer, class: 'b-green' }), el('circle', { r: R.bull, class: 'b-red' }));
-  const aimAt = el('g', {}), marks = el('g', {});  // the bed to aim at (showTarget), under the darts
-  svg.append(aimAt, marks);
+  const aimAt = el('g', {}), hits = el('g', {}), marks = el('g', {});  // the bed to aim at (showTarget), under the darts
+  svg.append(aimAt, hits, marks);
+  // A bed {seg, mult, part?} as the outline(s) of it: a ring for each half of a single.
+  const disc = r => `M0 ${-r}A${r} ${r} 0 1 1 0 ${r}A${r} ${r} 0 1 1 0 ${-r}Z`;
+  const rings = t => t.mult === 3 ? [[R.tIn, R.tOut]] : t.mult === 2 ? [[R.dIn, R.dOut]]
+    : [[R.outer, R.tIn], [R.tOut, R.dIn]].filter((_, n) => !t.part || n === (t.part === 'in' ? 0 : 1));
+  const bed = t => {
+    if (t.seg === 25) return [t.mult === 2 ? disc(R.bull) : disc(R.outer) + disc(R.bull)];
+    const i = SEGMENTS.indexOf(t.seg), a0 = i * 18 - 9, a1 = a0 + 18;
+    return i < 0 ? [] : rings(t).map(([r0, r1]) => wedge(r0, r1, a0, a1));
+  };
+  // A dart just landed: the bed it scored lights up and fades, and a puff of chalk where it went in.
+  const land = d => {
+    if (!svg.animate) return;
+    const t = scoreAt(d.x, d.y);
+    const lit = t.mult ? bed(t).map(p => el('path', { d: p, class: 'b-hit', 'fill-rule': 'evenodd' })) : [];
+    const puff = el('g', { class: 'b-puff', transform: `translate(${d.x} ${-d.y})` });
+    for (let k = 0; k < 9; k++) {
+      const a = (k * 40 + (k * 17) % 13) * Math.PI / 180, r0 = 5, r1 = 11 + (k % 3) * 4;
+      puff.append(el('path', { d: `M${(r0 * Math.cos(a)).toFixed(1)} ${(r0 * Math.sin(a)).toFixed(1)}L${(r1 * Math.cos(a)).toFixed(1)} ${(r1 * Math.sin(a)).toFixed(1)}` }));
+    }
+    puff.append(el('circle', { r: 6 }));
+    hits.append(...lit, puff);
+    lit.forEach(p => p.animate([{ opacity: .85 }, { opacity: .85, offset: .3 }, { opacity: 0 }], { duration: 1300, easing: 'ease-in', fill: 'forwards' })
+      .onfinish = () => p.remove());
+    puff.animate([{ transform: `translate(${d.x}px, ${-d.y}px) scale(.4)`, opacity: 1 },
+      { transform: `translate(${d.x}px, ${-d.y}px) scale(1.5)`, opacity: 0 }], { duration: 520, easing: 'ease-out', fill: 'forwards' })
+      .onfinish = () => puff.remove();
+  };
   // What the board shows when nothing is being held: all of it, or the part
   // round a target. [left, top, width] of the viewBox.
   const FULL = [-226, -226, 452];
@@ -259,11 +286,29 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
     // fly: show the last dart landing (a computer player's, see screens/game.js): a dart
     // comes in from in front of the board and its mark appears where it sticks.
     // Not for anyone who has asked their device for less movement.
-    showDarts(darts, r = 5, fly = false) {
-      marks.replaceChildren(...darts.filter(d => d.x != null).map((d, i) =>
-        el('circle', { cx: d.x, cy: -d.y, r, class: 'b-mark' + (i === darts.length - 1 ? ' last' : '') })));
-      const last = darts.at(-1), mark = marks.lastChild;
-      if (!fly || !mark || last?.x == null || !mark.animate || matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    showDarts(darts, r = 5, fly = false, fresh = false) {
+      // Each dart: a small dart stuck in the board, its flight out to the lower right the way the
+      // computer's flies in, and over its point a dot numbered 1, 2, 3 in the order thrown.
+      // The darts first and the dots over them, so a tight group never hides a dot.
+      const put = darts.map((d, i) => ({ d, i })).filter(({ d }) => d.x != null);
+      const pins = put.map(({ d }) => {
+        const g = el('g', { class: 'b-pin', transform: `translate(${d.x} ${-d.y}) scale(.78)` });
+        g.append(el('path', { d: 'M0 0L9 12', class: 'point' }), el('path', { d: 'M9 12L21 28', class: 'barrel' }),
+          el('path', { d: 'M21 28L30 40', class: 'shaft' }), el('path', { d: 'M27 36L24 50L33 44L43 49L36 37Z', class: 'flight' }));
+        return g;
+      });
+      const dots = put.map(({ d, i }) => {
+        const g = el('g', { class: 'b-mark' + (i === darts.length - 1 ? ' last' : ''), transform: `translate(${d.x} ${-d.y})` });
+        const n = el('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+        n.textContent = i + 1;
+        g.append(el('circle', { r: r * 1.35 }), n);
+        return g;
+      });
+      marks.replaceChildren(...pins, ...dots);
+      const last = darts.at(-1), mark = dots.at(-1), still = matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      if (fresh && !fly && last?.x != null && !still) land(last);
+      if (!fly || !mark || last?.x == null || !mark.animate || still) return;
+      pins.at(-1).style.opacity = 0;
       // The dart, drawn with its point at the spot and its flight down to the right.
       const at = el('g', { transform: `translate(${last.x} ${-last.y})` }), dart = el('g', { class: 'b-dart' });
       dart.append(el('path', { d: 'M0 0L9 12', class: 'point' }), el('path', { d: 'M9 12L21 28', class: 'barrel' }),
@@ -277,9 +322,9 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
         { transform: 'translate(0, 0) scale(1)', opacity: 1 },
       ], { duration: 420, easing: 'cubic-bezier(.45, 0, .85, .55)' });
       flown.onfinish = flown.oncancel = () => {
-        mark.style.opacity = '';
-        mark.animate?.([{ r: r * 2.2 }, { r }], { duration: 220, easing: 'ease-out' });  // the thud
-        dart.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, delay: 250, fill: 'forwards' }).onfinish = () => at.remove();
+        mark.style.opacity = ''; pins.at(-1).style.opacity = '';
+        if (fresh) land(last);
+        dart.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }).onfinish = () => at.remove();
       };
     },
     // Light up one bed {seg, mult} to aim at and zoom in on it, the rest of the
@@ -292,16 +337,10 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
       svg.classList.toggle('aiming', !!t);
       if (!t) { aimAt.replaceChildren(); return glide(FULL); }
       const lit = d => el('path', { d, class: 'b-target', 'fill-rule': 'evenodd' });
-      const disc = r => `M0 ${-r}A${r} ${r} 0 1 1 0 ${r}A${r} ${r} 0 1 1 0 ${-r}Z`;
       let at = [0, 0];  // the middle of the bed
-      if (t.seg === 25) {
-        aimAt.replaceChildren(lit(t.mult === 2 ? disc(R.bull) : disc(R.outer) + disc(R.bull)));
-      } else {
-        const i = SEGMENTS.indexOf(t.seg), a0 = i * 18 - 9, a1 = a0 + 18;
-        const rings = t.mult === 3 ? [[R.tIn, R.tOut]] : t.mult === 2 ? [[R.dIn, R.dOut]]
-          : [[R.outer, R.tIn], [R.tOut, R.dIn]].filter((_, n) => !t.part || n === (t.part === 'in' ? 0 : 1));
-        aimAt.replaceChildren(...rings.map(([r0, r1]) => lit(wedge(r0, r1, a0, a1))));
-        const [r0, r1] = rings.at(-1);
+      aimAt.replaceChildren(...bed(t).map(lit));
+      if (t.seg !== 25) {
+        const i = SEGMENTS.indexOf(t.seg), [r0, r1] = rings(t).at(-1);
         at = pt((r0 + r1) / 2, i * 18).split(' ').map(Number);
       }
       // A window on the board round the bed, kept inside the board's own square.

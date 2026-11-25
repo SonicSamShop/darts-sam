@@ -316,6 +316,10 @@ function playingWith(i) {
   const set = match.darts?.[i], id = match.playerIds?.[i];
   return set && setsOf(id, true).length > 1 ? ` <span class="muted small">· ${esc(dartsName(set))}</span>` : '';
 }
+// What the last render showed, so that what changed since can move: a dart that has just come
+// into its slot, a score counting down, the next player's card coming up (moved() below).
+const seen = { id: null, len: 0, turn: 0, current: null, bigs: [] };
+const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 export function renderGame() {
   if (account.locked) return renderLanding();
   menu.rulesOpen = false;  // the menu, when it is next seen, starts from its games
@@ -348,8 +352,12 @@ export function renderGame() {
   // and the old visit is listed in small print under the slots.
   const shown = s.turn.length ? s.turn : s.lastVisit?.darts ?? s.turn;
   const total = s.turn.reduce((t, d) => t + value(d), 0);
+  const same = seen.id === match.id, grew = same && match.log.length > seen.len, shrank = same && match.log.length < seen.len;
+  // a dart that has just come into its slot drops in; one an Undo has given back fades back in
+  const came = i => (grew || shrank) && i >= seen.turn ? (grew ? ' pop' : ' back') : '';
   const slots = [0, 1, 2].map(i => s.turn[i]
-    ? `<div class="slot">${label(s.turn[i])}</div>` : '<div class="slot empty">–</div>').join('');
+    ? `<div class="slot${came(i)}"><b>${label(s.turn[i])}</b><small>Dart ${i + 1}</small></div>`
+    : `<div class="slot empty${i === s.turn.length && s.winner == null && !s.turnOver ? ' next' : ''}"><b>–</b><small>Dart ${i + 1}</small></div>`).join('');
   const prev = previousVisit(s);
   // A typed visit has no single darts to list (the number pad says what it scored).
   const last = prev && !prev.typed ? `<div class="lastvisit">Last ${prev.darts.length === 1 ? 'dart' : `${prev.darts.length} darts`}${
@@ -365,22 +373,35 @@ export function renderGame() {
   else if (s.noOut != null) banner = `<div class="banner bust">Can't check out!${s.players.length > 1
     ? ` ${esc(s.players[s.current])} to throw` : ''}</div>`;
 
+  // The moment a visit ends: a bust goes red on the card of the player who bust, a leg or the
+  // match won goes gold, and the next player's card comes up.
+  const ended = grew && s.bust != null ? s.bust : null;
+  const won = grew ? s.winner ?? s.legWon?.player ?? null : null;
+  const arrive = same && seen.current != null && s.current !== seen.current && s.winner == null;
+  const moved = i => i === won ? ' checkout' : i === ended ? ' busted' : arrive && i === s.current ? ' arrive' : '';
+  // the rest of the game's controls, out of the way under the buttons that score
+  const tools = [
+    canTv(game, s) && `<button class="ghost" data-act="tv">${tv ? 'Card view' : 'TV view'}</button>`,
+    game.visit && `<button class="ghost" data-act="entry">${pad ? 'Use board' : 'Type scores'}</button>`,
+    ((connected && cameraCount > 0) || phone.scoring()) && '<button class="ghost" data-act="report" title="A dart was scored wrongly: save what the cameras saw">Report a dart</button>',
+    s.winner == null && '<button class="ghost" data-act="quit">Quit game</button>',
+  ].filter(Boolean).join('');
+  const left = s.winner != null || s.turnOver ? '' : `${3 - s.turn.length} dart${s.turn.length === 2 ? '' : 's'} to throw`;
+  const visit = `<div class="visit${grew && s.bust != null ? ' busted' : ''}">
+      ${pad && !s.turn.length ? '' : `<div class="visit-head"><span>${s.players.length > 1 && s.winner == null ? `${esc(s.players[s.current])}'s visit` : 'This visit'}</span><span class="muted">${left}</span></div>
+      <div class="turn">${slots}<div class="slot total ${s.note ? 'bust' : ''}"><b>${s.note || (game.showTotal === false ? '' : total)}</b><small>${s.note ? '' : 'Total'}</small></div></div>`}
+      ${last}</div>`;
   document.querySelector('.side').innerHTML = `
-    <div class="top"><button class="ghost" data-act="home">‹ Menu</button><b>${game.name}</b>
-      <span class="clock" title="Match time">${clock(elapsed(match, s))}</span>
-      <span class="spacer"></span><span class="conn brief muted"></span>
-      ${(connected && cameraCount > 0) || phone.scoring() ? '<button data-act="report" title="A dart was scored wrongly: save what the cameras saw">Report</button>' : ''}
-      ${canTv(game, s) ? `<button data-act="tv">${tv ? 'Card view' : 'TV view'}</button>` : ''}
-      ${game.visit ? `<button data-act="entry">${pad ? 'Use board' : 'Type scores'}</button>` : ''}
-      ${s.winner == null ? `<button class="danger" data-act="quit">Quit game</button>` : ''}</div>
+    <div class="top"><button class="ghost" data-act="home">‹ Menu</button>
+      <span class="title"><b>${game.name}</b> <span class="clock" title="Match time">${clock(elapsed(match, s))}</span></span>
+      <span class="spacer"></span><span class="conn brief muted"></span></div>
     ${tv ? '' : flash ? `<div class="players">${flashHtml(s)}</div>` : `<div class="players">${s.players.map((p, i) => {
       const v = game.summary(s, i);
-      return `<div class="pcard ${s.winner === i ? 'win' : s.winner == null && i === s.current ? 'cur' : ''}${v.out ? ' out' : ''}">
+      return `<div class="pcard ${s.winner === i ? 'win' : s.winner == null && i === s.current ? 'cur' : ''}${v.out ? ' out' : ''}${moved(i)}">
         <div class="name">${esc(p)}${playingWith(i)}</div><div class="big">${v.big}</div><div class="small">${v.small}</div></div>`;
     }).join('')}</div>`}
     ${game.panel ? game.panel(s) : ''}
-    ${pad && !s.turn.length ? '' : `<div class="turn">${slots}<div class="slot total ${s.note ? 'bust' : ''}">${s.note || (game.showTotal === false ? '' : total)}</div></div>`}
-    ${last}
+    ${visit}
     ${game.hint ? `<div class="hint">${s.winner == null ? esc(game.hint(s, { checkouts: settings.checkouts !== false })) : ''}</div>` : ''}
     ${slipHtml()}
     ${banner}${s.winner != null ? earnedLine() : ''}
@@ -393,9 +414,31 @@ export function renderGame() {
           ? '<button class="primary" data-act="tour-back">Back to the tournament</button>'
           : '<button class="primary" data-act="rematch">Play again</button>'}`
         : pad ? '' : `<button data-act="miss" ${botUp(s) ? 'disabled' : ''}>Miss</button>
-           <button class="${s.turnOver ? 'primary' : ''}" data-act="next" ${botUp(s) ? 'disabled' : ''}>Next player ›</button>`}
-    </div>`;
-  gameBoard.ui.showDarts(shown, 5, botFlight && settings.flight !== false && !pad);
+           <button class="primary end${s.turnOver ? ' ready' : ''}" data-act="next" ${botUp(s) ? 'disabled' : ''}>End turn</button>`}
+    </div>
+    ${tools ? `<div class="tools">${tools}</div>` : ''}`;
+  // A score that has changed counts down (or up) to its new figure.
+  const cards = [...document.querySelectorAll('.side .pcard .big')];
+  if (cards.length) {
+    const now = cards.map(el => el.textContent.trim());
+    cards.forEach((el, i) => {
+      const from = same ? seen.bigs[i] : undefined, to = now[i];
+      if (still() || from == null || from === to || !/^\d+$/.test(from) || !/^\d+$/.test(to)) return;
+      const a = +from, b = +to, t0 = performance.now(), MS = 450;
+      el.textContent = a;
+      const step = now => {
+        const k = Math.min(1, (now - t0) / MS), e = 1 - (1 - k) ** 3;
+        if (!el.isConnected) return;
+        el.textContent = k < 1 ? Math.round(a + (b - a) * e) : to;
+        if (k < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+    seen.bigs = now;
+  }
+  const fresh = grew && match.log.at(-1)?.t === 'dart';
+  Object.assign(seen, { id: match.id, len: match.log.length, turn: s.turn.length, current: s.current });
+  gameBoard.ui.showDarts(shown, 5, botFlight && settings.flight !== false && !pad, fresh && !pad);
   gameBoard.ui.showTarget(game.target?.(s) ?? null);
   refreshStatus();
   fit();
