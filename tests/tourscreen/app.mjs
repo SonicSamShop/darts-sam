@@ -34,7 +34,10 @@ export function botPlayer(level) {
 export const $app = { innerHTML: '', querySelector: () => null };
 export const account = { locked: false };
 export const esc = s => String(s), fit = () => {}, pageFoot = () => '', pageHead = () => '';
-export const redraw = f => f(), refreshStatus = () => {}, mark = () => {};
+export const redraw = f => f(), refreshStatus = () => {};
+// The screen's place in the history, each time it was noted: true for a new step on (Back comes back from it), false in place of the last.
+export const marks = [];
+export const mark = push => { marks.push(!!push); };
 export let match = null, screen = 'tournament';
 export const setMatch = m => { match = m; }, setScreen = s => { screen = s; };
 // What starting a game asks of the app as well (web/screens/start.js).

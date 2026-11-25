@@ -343,6 +343,16 @@ function unseen(t) {
 const finalOf = t => t.data.slots.length - 1;
 const finalSeen = t => !seenResults(t, seenOf(t.id)).unseen.includes(finalOf(t));
 
+// A tournament whose ending this device still has to show: the newest that was won, if this device had
+// it open while it was going and has not shown its final's result moving on. That is the one won here
+// and left by "Menu", not "Back to the tournament". Only the newest: an older one's ending is old news.
+// null where it has been shown, and where it was never open while it was going: a device that keeps no
+// list for a tournament has seen all of it (seenResults), its final too.
+function endToShow() {
+  const t = data.tournaments().find(t => t.finished && !t.abandoned);
+  return t && !finalSeen(t) ? t : null;
+}
+
 const wait = (ms, skip) => new Promise(done => {
   const end = Date.now() + ms, tick = () => (skip() || Date.now() >= end ? done() : setTimeout(tick, 50));
   tick();
@@ -518,10 +528,11 @@ const shown = { key: null, reveal: false };
 export function renderTournament() {
   if (account.locked) return renderLanding();
   setScreen('tournament');
-  // A match that is over has been looked at for the last time: its result stands.
-  if (match && compute(match).winner != null) { setMatch(null); store.set('match', null); }
   let t = tourView.id ? data.tournament(tourView.id) : currentTournament();
   if (t && !t.finished && !t.abandoned) t = catchUp(t);
+  // A match that is over has been looked at for the last time: its result stands. (Let go of only after
+  // the catching up: once it has been sent, the won game still on this device is the only copy here.)
+  if (match && compute(match).winner != null) { setMatch(null); store.set('match', null); }
   if (!t) tourView.setup ??= newSetup();
   tourView.id = t?.id ?? null;
   const over = !!t && (!!t.finished || !!t.abandoned);
@@ -558,9 +569,13 @@ export function renderTournament() {
 // tournament going, or setting up a new one. past: `id` is one that is over, opened
 // from the list of past tournaments (or come back to, having been). wait: the players of
 // a match that was not started just now, for the screen to say why if it knows (playBounced).
+// From the menu with none going, one whose ending is still to be shown here comes before a new
+// one (endToShow): its final's result moves into the Winner's box, the winner's screen comes up
+// and the win is called, as "Back to the tournament" would have had it (playOut). Once: after
+// that it is a past tournament like any other.
 export function openTournament(id = null, past = false, wait = null) {
-  tourView.id = id;
   tourView.past = past && id != null;
+  tourView.id = id ?? (currentTournament() ? null : endToShow()?.id ?? null);
   tourView.abandoning = false;
   tourView.wait = wait;
   renderTournament();

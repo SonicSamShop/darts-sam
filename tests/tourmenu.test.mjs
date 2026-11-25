@@ -22,7 +22,7 @@ const S = await import('../web/screens/tournament.js');
 const app = await import('./tourscreen/app.mjs');
 const { text } = await import('./tourscreen/page.mjs');
 const { makeDraw } = await import('../web/tournament.js');
-const { newMatch } = await import('../web/engine.js');
+const { newMatch, compute } = await import('../web/engine.js');
 const { data, store, loadPlayers } = app;
 
 const sam = { id: 1, name: 'Sam' }, phil = { id: 2, name: 'Phil' }, mum = { id: 3, name: 'Mum' }, dad = { id: 4, name: 'Dad' };
@@ -74,6 +74,37 @@ test('menu: "Back to the tournament" names the match being played, not the first
   H.renderHome();
   assert.match(text(), new RegExp(`Back to the tournament: Test, ${title(1)} `));
   assert.doesNotMatch(text(), new RegExp(title(0)));
+});
+
+test('menu: "Menu" on a won match whose result the bracket never heard of puts the result in before the game is let go of', () => {
+  // The app closed on the winning dart, and is opened again on the won game, which has been sent since
+  // (it is not waiting here): "Menu" is one of its two ways out, and the game on screen the only copy
+  // of it this device has. (The other, "Back to the tournament": tests/tourscreen.test.mjs.)
+  fresh();
+  const title = going();
+  const s = data.tournament('T1').data.slots[1];
+  const m = { ...newMatch('x01', ['A', 'B'], { start: 301, out: 'straight', legs: 1, sets: 1, tournament: { id: 'T1', slot: 1 } }),
+    id: 'm1', playerIds: [s.a, s.b], bots: [null, null], seq: 0 };
+  app.setMatch(m);
+  S.onMatchStarted(m);
+  for (const [seg, mult] of [[20, 3], [20, 3], [20, 3], [0, 0], [0, 0], [0, 0], [20, 3], [20, 3], [1, 1]]) m.log.push({ t: 'dart', seg, mult, ts: 1 });
+  assert.equal(compute(m).winner, 0);
+  store.set('match', m);
+  assert.equal(data.tournament('T1').data.slots[1].winner, null, 'started, and no result');
+
+  H.renderHome();
+  const now = data.tournament('T1').data.slots[1];
+  assert.deepEqual([now.winner, now.legs, now.how], [s.a, [1, 0], 'played'], 'the result is in');
+  assert.equal(app.match, null, 'and the game is let go of');
+  assert.match(text(), new RegExp(`Back to the tournament: Test, ${title(0)} `), 'the menu names the match still to play');
+
+  // An ordinary won game is let go of as ever.
+  const plain = { ...newMatch('x01', ['A', 'B'], { start: 301, out: 'straight', legs: 1, sets: 1 }), id: 'm2', playerIds: [1, 2], bots: [null, null], seq: 0, log: m.log };
+  app.setMatch(plain);
+  const seq = data.tournament('T1').seq;
+  H.renderHome();
+  assert.equal(app.match, null);
+  assert.equal(data.tournament('T1').seq, seq);
 });
 
 test('menu: with TOURNAMENT_ON_MENU on, Tournament has its line, one for a computer and one for a phone', () => {

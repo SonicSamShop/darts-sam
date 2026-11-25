@@ -82,7 +82,7 @@ class MatchIn(BaseModel):
 class TournamentIn(BaseModel):
     seq: int
     name: str
-    data: dict  # opts, rounds, entrants, slots: the app's own bracket
+    data: dict  # opts, rounds, entrants, slots: the app's own bracket (db.save_tournament says what it must have)
     created: int
     finished: int | None = None
     abandoned: bool = False

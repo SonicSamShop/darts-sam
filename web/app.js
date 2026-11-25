@@ -230,9 +230,11 @@ export function queueSync() {
 // After each sync: pick up what it changed (the Pi's numbers for players made
 // offline, the Pi's lists) and redraw if anything on screen is different.
 let warmed = 0;
-function synced({ remapped, pulled, sent }) {
+function synced({ remapped, pulled, sent, tournaments }) {
   tracker.flush();  // the site was just reached: send the trial's notes too
-  const shown = () => JSON.stringify([players, darts, boards, setup, settings, data.tournaments()]);
+  // (tournaments are read from the saved copy wherever they are drawn, and the sync has written that
+  // already: it says itself whether one changed, as started or played on another screen)
+  const shown = () => JSON.stringify([players, darts, boards, setup, settings]);
   const before = shown();
   loadPlayers();
   darts = store.get('darts', []);
@@ -256,10 +258,12 @@ function synced({ remapped, pulled, sent }) {
   if (pulled) loadTotals();
   if (pulled && (sent || Date.now() - warmed > 600000)) warmStats();
   if (sent) { avgAsked.clear(); if (screen === 'home') loadAverages(); }  // a game just went in: the averages may have moved
-  if (shown() === before) return;
-  if (screen === 'home') redraw(renderHome);
-  if (screen === 'players') redraw(renderPlayers);
+  const moved = shown() !== before;
+  if (!moved && !tournaments) return;
+  if (screen === 'home') redraw(renderHome);  // (its line about the tournament going, too)
   if (screen === 'tournament') redraw(renderTournament);
+  if (!moved) return;  // a tournament alone is on no other screen
+  if (screen === 'players') redraw(renderPlayers);
   if (screen === 'settings' && (sectShown('players') || listShown())) redraw(renderSettings);
 }
 // Redraw without losing what is being typed.

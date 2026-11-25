@@ -127,8 +127,12 @@ export function matchSheet(m) {
 // store: {get(key, fallback), set(key, value)}
 // api(path, method, body): resolves with the Pi's reply; rejects with an error
 //   that has .status if the Pi refused, and no .status if it wasn't reached
-// changed({remapped, pulled, sent}): called after every sync attempt.
+// changed({remapped, pulled, sent, tournaments}): called after every sync attempt.
 //   remapped: [[old id, new id]] for players the Pi has now numbered
+//   tournaments: the Pi's list had a tournament this device did not have, or a different copy of
+//     one (started or played on another screen). Not for one changed here: whoever changed it has
+//     drawn it. By the time this is called the store already has the Pi's copy, so the app could
+//     not tell by looking.
 // renumbered(old id, new id): called the moment the Pi has numbered a player made
 //   offline, part way through a sync that may run on for a while yet. For what is
 //   held outside the store and saved back whole, like the game in progress: saved
@@ -156,7 +160,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
     const players = get('players', []);
     // (below every id still in use, so a new player is never taken for one that went)
     const id = Math.min(0, ...players.map(p => p.id), ...get('ops', []).map(o => o.id),
-      ...get('tournaments', []).flatMap(t => t.data.entrants.map(e => e.id))) - 1;
+      ...tournaments().flatMap(t => t.data.entrants.map(e => e.id))) - 1;
     const p = bot ? { id, name, bot } : { id, name };
     set('players', byName([...players, p]));
     queue({ op: 'add', ...p });
@@ -291,7 +295,17 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
   // ---------- tournaments ----------
   // Saved whole, with a seq one more than before, so the Pi keeps the newest copy.
   const byCreated = list => list.sort((a, b) => b.created - a.created || (a.id < b.id ? -1 : 1));
-  const tournaments = () => get('tournaments', []);
+  // Whether a record is a tournament the app can read: every screen that lists them reads their players
+  // and their matches. One without them (made by hand, or by a version still to come; the Pi refuses
+  // them too, db.py) is left out here, where the app gets its tournaments, so it can never stop a screen
+  // being drawn.
+  const things = list => Array.isArray(list) && list.every(x => x && typeof x === 'object');
+  const sound = t => !!t && typeof t === 'object' && things(t.data?.entrants) && things(t.data?.slots);
+  const tournaments = () => get('tournaments', []).filter(sound);
+  // A list of them written out the same whatever order each record's fields are in (the Pi's copy
+  // has them in its own), to tell whether two lists are the same.
+  const written = list => JSON.stringify(list, (key, v) => (v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v));
   const tournament = id => tournaments().find(t => t.id === id) ?? null;
   function saveTournament(t) {
     const seq = Math.max(t.seq ?? 0, tournament(t.id)?.seq ?? 0) + 1;
@@ -481,7 +495,9 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
         await api(`/tournaments/${id}`, 'PUT', { seq, name, data, created, finished, abandoned, winner });
       } catch (e) {
         if (!refused(e)) throw e;
-        if (e.status === 404) continue;  // a Pi too old to know them: kept to send once it does
+        // A Pi too old to know them: kept to send once it does. (One still running the code from before
+        // them answers 405: an address it has never heard of falls to the app's own files, which take no PUT.)
+        if (e.status === 404 || e.status === 405) continue;
         // other refusals: it never will be accepted, and stays on this device only
       }
       // Sent, unless it was changed again meanwhile: then it goes next time.
@@ -490,7 +506,9 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
   }
 
   // The Pi's copy replaces ours, except for anything changed here since we sent.
+  // Gives back whether that changed the tournaments here (see `changed`, above).
   async function pull() {
+    let cupsChanged = false;
     const older = e => { if (refused(e)) return null; throw e; };  // (a Pi too old to know them: keep ours)
     const [players, saved, games, darts, boards, cups] = await Promise.all([api('/players'), api('/settings'), api('/matches?limit=8'),
       api('/darts').catch(older), api('/boards').catch(older), api('/tournaments').catch(older)]);
@@ -504,13 +522,18 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
       set('boards', [...boards.filter(b => !q.includes(b.id)), ...mine].sort((a, b) => a.created - b.created || (a.id < b.id ? -1 : 1)));
     }
     if (cups) {
-      // (none is ever deleted, so one the Pi hasn't got is kept: still to send, or refused)
-      const q = get('tournamentsq', []), mine = tournaments().filter(t => q.includes(t.id) || !cups.some(c => c.id === t.id));
-      set('tournaments', byCreated([...cups.filter(t => !mine.some(m => m.id === t.id)), ...mine]));
+      // (none is ever deleted, so one the Pi hasn't got is kept: still to send, or refused. And one of
+      // the Pi's that is no tournament, see `sound`, counts as one it hasn't got.)
+      const theirs = cups.filter(sound);
+      const q = get('tournamentsq', []), mine = tournaments().filter(t => q.includes(t.id) || !theirs.some(c => c.id === t.id));
+      const was = tournaments(), now = byCreated([...theirs.filter(t => !mine.some(m => m.id === t.id)), ...mine]);
+      cupsChanged = written(was) !== written(now);
+      set('tournaments', now);
     }
     const dirty = get('dirty', {});
     for (const key of ['settings', 'setup']) if (saved[key] && !dirty[key]) set(key, saved[key]);
     set('recent', games);
+    return cupsChanged;
   }
 
   // One sync runs at a time; asking again while one is running queues another
@@ -519,7 +542,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
   function sync(withPull = false) {
     wantPull ||= withPull;
     if (running) { again = true; return running; }
-    const report = { remapped: [], sent: 0, pull: wantPull, pulled: false };
+    const report = { remapped: [], sent: 0, pull: wantPull, pulled: false, tournaments: false };
     wantPull = false;
     running = (async () => {
       try {
@@ -529,7 +552,7 @@ export function createSync({ store, api, changed = () => {}, renumbered = () => 
         await pushSettings();
         await pushMatches(report);
         await pushTournaments();
-        if (report.pull) { await pull(); report.pulled = true; }
+        if (report.pull) { report.tournaments = await pull(); report.pulled = true; }
         return true;
       } catch {
         wantPull ||= report.pull;  // still owed, next time the Pi answers

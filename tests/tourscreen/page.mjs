@@ -34,7 +34,8 @@ export class El {
 // body: what the screen scrolls in (.tour-body), new with each drawing and at its top, as in a
 // browser. shown: what the screen's row of buttons was last asked to scroll into view with, since
 // the screen was last drawn (null: it was not asked). listShown: the same for the heading of the list of past tournaments.
-export const page = { on: false, box: null, svg: null, status: null, body: null, row: null, shown: null, list: null, listShown: null, reduced: true };
+// narrow: how wide the bracket's box is, where the drawing (1000 wide) does not fit it and scrolls, as on a phone; null: it fits.
+export const page = { on: false, box: null, svg: null, status: null, body: null, row: null, shown: null, list: null, listShown: null, reduced: true, narrow: null };
 // The matches of the bracket that are buttons, by what they are called.
 export const buttons = () => page.svg.all().filter(e => e.attrs.role === 'button').map(e => e.attrs['aria-label']);
 // The main button under the bracket: [its data-act, what it says].
@@ -53,6 +54,7 @@ Object.defineProperty($app, 'innerHTML', {
     html = v;
     if (page.svg) page.svg.isConnected = false;
     page.box = new El('div');
+    if (page.narrow) page.box.clientWidth = page.narrow;
     page.box.closest = sel => (sel === '.going' && v.includes(' going"') ? page.box : null);
     page.svg = page.box.appendChild(new El('svg'));
     page.status = new El('p');

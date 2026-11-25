@@ -70,9 +70,11 @@ function rig(more = {}) {
       return pi.boards.get(key);
     }
     if (path.startsWith('/tournaments')) {
-      if (pi.noTournaments) refuse(404, 'Not Found');
       const key = path.split('/')[2];
-      if (!key) return [...pi.tournaments.values()].sort((a, b) => b.created - a.created);
+      // (a server from before tournaments, as it really answers: the list is not found, and a PUT to an
+      // address it has never heard of falls to the app's own files, which take no PUT)
+      if (pi.noTournaments) refuse(...(key ? [405, 'Method Not Allowed'] : [404, 'Not Found']));
+      if (!key) return [...pi.tournaments.values()].sort((a, b) => (b?.created ?? 0) - (a?.created ?? 0));
       if (body.data.entrants.some(e => !pi.players.some(o => o.id === e.id))) refuse(400, 'unknown player id');
       if (!(pi.tournaments.get(key)?.seq >= body.seq)) pi.tournaments.set(key, { id: key, ...body });
       return { ok: true };
@@ -556,21 +558,101 @@ test('the Pi\'s tournaments come back, except ones changed here and not yet sent
   assert.equal(data.tournament('nope'), null);
 });
 
-test('a Pi that doesn\'t know tournaments leaves ours alone', async () => {
+test('a sync says when its pull brought a tournament changed somewhere else, and not for one changed here', async () => {
+  // (what the app goes by to draw the bracket, or the menu's line about it, again: app.js, synced)
+  const { pi, reports, data } = rig();
+  pi.players.push({ id: 1, name: 'P1' }, { id: 2, name: 'P2' }, { id: 3, name: 'P3' });
+  pi.up = true;
+  const last = () => reports.at(-1).tournaments;
+  await data.sync(true);
+  assert.equal(last(), false, 'none anywhere');
+  // Made here, sent, and read back: the same tournament, though the Pi writes its fields in an order of its own.
+  data.saveTournament(cup('t1', [1, 2, 3]));
+  await data.sync(true);
+  const { id, seq, data: bracket, ...rest } = pi.tournaments.get('t1');
+  pi.tournaments.set('t1', { data: bracket, ...rest, seq, id });
+  assert.equal(last(), false, 'ours, as we sent it');
+  await data.sync(true);
+  assert.equal(last(), false, 'nor is the Pi\'s own copy of it a change');
+  await data.sync();
+  assert.equal(last(), false, 'and a sync that fetches nothing has nothing to say');
+  // Another screen plays its first match: the Pi's copy is newer.
+  const theirs = structuredClone(pi.tournaments.get('t1'));
+  Object.assign(theirs.data.slots[0], { winner: 1, how: 'played', legs: [2, 0] });
+  theirs.data.slots[2].a = 1;
+  pi.tournaments.set('t1', { ...theirs, seq: 2 });
+  await data.sync(true);
+  assert.equal(last(), true);
+  assert.equal(data.tournament('t1').data.slots[0].winner, 1);
+  await data.sync(true);
+  assert.equal(last(), false, 'said the once');
+  // One started on another screen.
+  pi.tournaments.set('t2', { ...cup('t2', [1, 2, 3], 2), seq: 1 });
+  await data.sync(true);
+  assert.equal(last(), true);
+  // Changed here while the Pi's copy is older, or can't be had: nothing has come from anywhere else.
+  data.saveTournament({ ...data.tournament('t2'), name: 'Renamed' });
+  pi.up = false;
+  await data.sync(true);
+  assert.equal(last(), false);
+  pi.up = true;
+  await data.sync(true);
+  assert.equal(last(), false);
+  assert.equal(pi.tournaments.get('t2').name, 'Renamed');
+});
+
+test('a Pi that doesn\'t know tournaments yet leaves ours alone, and is sent them once it does', async () => {
+  // The app's files are new and the server is still running the code from before them (it has not been
+  // started again yet): it answers the list with 404 and the PUT with 405.
   const { store, pi, data } = rig();
   pi.players.push({ id: 1, name: 'P1' }, { id: 2, name: 'P2' }, { id: 3, name: 'P3' });
   pi.noTournaments = true;
   data.saveTournament(cup('t1', [1, 2, 3]));
   pi.up = true;
   assert.equal(await data.sync(true), true);
+  assert.ok(pi.calls.includes('PUT /tournaments/t1') && pi.calls.includes('GET /tournaments'), 'both were asked, and refused');
   assert.deepEqual(data.tournaments().map(t => t.id), ['t1']);
-  // not reached, so still to send: once the Pi is updated, it goes and is kept
+  // not taken, so still to send: once the Pi is updated, it goes and is kept
   assert.deepEqual(store.get('tournamentsq'), ['t1']);
+  assert.equal(data.waiting(), 1);
   pi.noTournaments = false;
   assert.equal(await data.sync(true), true);
   assert.deepEqual(data.tournaments().map(t => t.id), ['t1']);
   assert.equal(pi.tournaments.get('t1').seq, 1);
   assert.equal(data.waiting(), 0);
+});
+
+test('a tournament that is not a bracket never reaches the app, from the Pi or from what was kept here', async () => {
+  // (a record made by hand, or by a version of the app still to come: every screen that lists
+  // tournaments reads their players and their matches, and one without them would stop it being drawn)
+  const { store, pi, data } = rig();
+  pi.players.push({ id: 1, name: 'P1' }, { id: 2, name: 'P2' }, { id: 3, name: 'P3' });
+  pi.up = true;
+  data.saveTournament(cup('good', [1, 2, 3], 5));
+  assert.equal(await data.sync(true), true);
+  const whole = cup('x', [1, 2, 3]).data;
+  const odd = (id, d, created) => pi.tournaments.set(id, { id, seq: 1, name: 'Odd', data: d, created, finished: null, abandoned: false, winner: null });
+  odd('empty', {}, 9);
+  odd('none', null, 8);
+  odd('noslots', { ...whole, slots: undefined }, 7);
+  odd('noplayers', { ...whole, entrants: 'three' }, 6);
+  odd('holes', { ...whole, entrants: [null], slots: [null] }, 4);
+  pi.tournaments.set('nothing', null);
+  // and one this device has a good copy of, gone bad on the Pi: ours is kept
+  pi.tournaments.set('good', { ...pi.tournaments.get('good'), seq: 9, data: {} });
+  assert.equal(await data.sync(true), true);
+  assert.deepEqual(data.tournaments().map(t => t.id), ['good']);
+  assert.deepEqual(store.get('tournaments').map(t => t.id), ['good'], 'nor is it kept');
+  assert.ok(data.tournament('good').data.slots.length, 'our own copy, not the Pi\'s');
+  assert.equal(data.tournament('empty'), null);
+
+  // One that got in before this was checked (the menu then never drew): left out, and it gets in nobody's way.
+  store.set('tournaments', [{ id: 'old', seq: 1, name: 'Odd', data: {}, created: 99 }, ...store.get('tournaments')]);
+  assert.deepEqual(data.tournaments().map(t => t.id), ['good']);
+  assert.equal(data.tournament('old'), null);
+  assert.equal(data.addPlayer('Newcomer').id, -1);
+  data.saveTournament({ ...data.tournament('good'), name: 'Renamed' });
+  assert.deepEqual(store.get('tournaments').map(t => [t.id, t.name]), [['good', 'Renamed']]);
 });
 
 test('a tournament the Pi refuses stays on this device', async () => {

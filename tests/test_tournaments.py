@@ -6,6 +6,7 @@
 
   python -m tests.test_tournaments
 """
+import json
 import tempfile
 from pathlib import Path
 
@@ -16,7 +17,9 @@ from server import data_api, db
 
 
 def tournament(seq, name="Christmas cup", created=1, **more):
-    t = {"seq": seq, "name": name, "data": {"opts": {"start": 501}, "rounds": [{"legs": 1}], "slots": []},
+    t = {"seq": seq, "name": name,
+         "data": {"opts": {"start": 501}, "rounds": [{"legs": 1}], "entrants": [{"id": 1, "name": "Sam"}],
+                  "slots": [{"round": 0, "a": 1, "b": "bye", "match": None, "winner": 1, "legs": None, "how": "bye"}]},
          "created": created, "finished": None, "abandoned": False, "winner": None}
     t.update(more)
     return t
@@ -66,6 +69,33 @@ def test_winner_must_be_a_player(tmp):
         assert (got["winner"], got["finished"], got["abandoned"]) == (sam["id"], 5, True)
 
 
+def test_data_must_be_a_bracket(tmp):
+    """The app reads a tournament's players and matches wherever it lists one: a record without
+    them would stop its menu being drawn, on every device."""
+    with db.at(tmp / "g.db"):
+        db.prepare(tmp / "g.db")
+        good = tournament(1)["data"]
+        for bad in ({}, {**good, "entrants": None}, {**good, "slots": {}}, {"entrants": [], "rounds": []},
+                    {"slots": []}, {**good, "entrants": [None]}, {**good, "slots": [3]}, [], "bracket", None):
+            expect(db.Invalid, db.save_tournament, "t1", tournament(1, data=bad))
+        assert db.list_tournaments() == []
+        assert db.save_tournament("t1", tournament(1, data={"entrants": [], "slots": []})) is True
+
+
+def test_data_must_be_strict_json(tmp):
+    """NaN and Infinity are not JSON: stored, the list of tournaments could never be sent again."""
+    with db.at(tmp / "h.db"):
+        db.prepare(tmp / "h.db")
+        for bad in (float("nan"), float("inf"), -float("inf")):
+            data = tournament(1)["data"]
+            data["opts"]["start"] = bad
+            expect(db.Invalid, db.save_tournament, "t1", tournament(1, data=data))
+            data = tournament(1)["data"]
+            data["slots"][0]["legs"] = [bad, 0]
+            expect(db.Invalid, db.save_tournament, "t1", tournament(1, data=data))
+        assert db.list_tournaments() == []
+
+
 def test_missing(tmp):
     with db.at(tmp / "e.db"):
         db.prepare(tmp / "e.db")
@@ -84,6 +114,15 @@ def test_api_round_trip(tmp):
     assert c.get("/api/tournaments/t1").json()["name"] == "Christmas cup"
     assert c.get("/api/tournaments/nope").status_code == 404
     assert c.put("/api/tournaments/t2", json=tournament(1, name="")).status_code == 400
+    # data that is no bracket, or no JSON, is refused as the name is, and the list still answers
+    assert c.put("/api/tournaments/t2", json=tournament(1, data={})).status_code == 400
+    assert c.put("/api/tournaments/t2", json=tournament(1, data={"entrants": [], "slots": "none"})).status_code == 400
+    assert c.put("/api/tournaments/t2", json=tournament(1, data=[])).status_code in (400, 422)
+    nan = json.dumps(tournament(1, data={"entrants": [], "slots": [], "odd": float("nan")}))
+    assert "NaN" in nan
+    assert c.put("/api/tournaments/t2", content=nan, headers={"Content-Type": "application/json"}).status_code == 400
+    listed = c.get("/api/tournaments")
+    assert listed.status_code == 200 and [t["id"] for t in listed.json()] == ["t1"]
 
 
 def main():

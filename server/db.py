@@ -503,10 +503,24 @@ def save_tournament(tid: str, t: dict) -> bool:
 
     t: seq, name (1-40 characters), data (the bracket, as the app keeps it), created, finished
     (ms, or None while going), abandoned, winner (a player id, or None). Returns False when
-    the stored copy is the same age or newer."""
+    the stored copy is the same age or newer.
+
+    The bracket is the app's own and is kept as it comes, but not anything at all: every device
+    reads a tournament's players (entrants) and matches (slots) wherever it lists one, so a record
+    without them would stop its menu being drawn; and a number that is not JSON (NaN, Infinity)
+    could be stored but never sent again, which would fail every later list of tournaments."""
     name = (t.get("name") or "").strip()
     if not name or len(name) > 40:
         raise Invalid("a tournament needs a name of 1 to 40 characters")
+    data = t.get("data")
+    if not isinstance(data, dict) or not all(
+            isinstance(data.get(key), list) and all(isinstance(item, dict) for item in data[key])
+            for key in ("entrants", "slots")):
+        raise Invalid("a tournament needs its players and its matches")
+    try:
+        bracket = json.dumps(data, allow_nan=False)
+    except ValueError:
+        raise Invalid("a tournament's numbers must be ones that can be written down")
     with connect() as db:
         if t.get("winner") is not None and not db.execute(
                 "SELECT 1 FROM players WHERE id = ?", (t["winner"],)).fetchone():
@@ -519,7 +533,7 @@ def save_tournament(tid: str, t: dict) -> bool:
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(id) DO UPDATE SET seq = excluded.seq, name = excluded.name, data = excluded.data, "
             "finished = excluded.finished, abandoned = excluded.abandoned, winner_id = excluded.winner_id",
-            (tid, t["seq"], name, json.dumps(t["data"]), int(t["created"]),
+            (tid, t["seq"], name, bracket, int(t["created"]),
              None if t.get("finished") is None else int(t["finished"]),
              int(bool(t.get("abandoned"))), t.get("winner")))
     return True

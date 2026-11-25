@@ -12,7 +12,7 @@ import { x01Stats } from '../stats.js';
 import { renderLanding } from './landing.js';
 import { newPlayerRow, roster } from './playerspanel.js';
 import { pct } from './stats.js';
-import { currentTournament, slotTitle, tourMarked } from './tournament.js';
+import { currentTournament, onMatchWon, slotTitle, tourMarked } from './tournament.js';
 import {
   $app, BOT, account, api, botAt, cleanSetup, connected, dartsFor, esc, fit, grams, loadStats, match, nameOf,
   pageFoot, pageHead, players, redraw, refreshStatus, screen, seats, setMatch, setScreen, setTotals, setsOf,
@@ -38,8 +38,14 @@ export const menu = {
 export function renderHome() {
   if (account.locked) return renderLanding();
   setScreen('home');
-  // A game that is over has been looked at for the last time.
-  if (match && compute(match).winner != null) { setMatch(null); store.set('match', null); }
+  // A game that is over has been looked at for the last time. (A tournament's match first gives its
+  // bracket the result, if the bracket never heard of it: the app closed on the winning dart, say, and once
+  // the game has been sent this is the only copy of it here. Otherwise that changes nothing.)
+  if (match && compute(match).winner != null) {
+    if (match.opts?.tournament) onMatchWon(match);
+    setMatch(null);
+    store.set('match', null);
+  }
   updater.check();  // back on the menu with no game going: the moment to load a new version
   const game = gameById(setup.gameId);
   for (const o of game.options) {
