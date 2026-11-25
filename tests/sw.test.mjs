@@ -9,7 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const web = resolve(dirname(fileURLToPath(import.meta.url)), '../web');
@@ -24,7 +24,8 @@ function loaded() {
     const f = todo.pop();
     if (seen.has(f)) continue;
     seen.add(f);
-    for (const spec of imports(read(f))) todo.push(relative(web, resolve(web, dirname(f), spec)));
+    // With / between folders on every computer: Windows' own paths have \, and sw.js's list doesn't.
+    for (const spec of imports(read(f))) todo.push(relative(web, resolve(web, dirname(f), spec)).split(sep).join('/'));
   }
   return [...seen].sort();
 }
