@@ -12,7 +12,7 @@ import { buildBoard, bullMm, bullUp, label } from '../board.js';
 import { botLevel, throwAt } from '../bot.js';
 import { renderHome, startOpts } from './home.js';
 import { BOT_WAIT, gameBoard, renderGame } from './game.js';
-import { onMatchStarted, openTournament, playStands } from './tournament.js';
+import { onMatchStarted, openTournament, playBounced, playStands, tourName } from './tournament.js';
 import {
   $app, BOT, botAt, botPlayer, bots, dartsFor, data, esc, fit, isBotId, levelOf, mark, match, nameOf, players,
   randomOrder, refreshStatus, saveSetup, say, screen, seats, setMatch, setScreen, setup, store
@@ -45,7 +45,8 @@ export function askFirst(act, play) {
 export function closeFirst() { firstAsk?.remove(); firstAsk = null; firstPlay = null; }
 // The question and the bull are screens to sit on, and who they are for can change while
 // they are up. A tournament's match may have been decided meanwhile (on another screen,
-// say): then it is not this one's to play any more.
+// say): then it is not this one's to play any more, and it is back to the bracket
+// (playBounced, which says why when new players being saved are the reason).
 const moved = play => !!play.tournament && !playStands(play);
 // And after a sync, players made offline go by the Pi's numbers (app.js passes [[old, new]]):
 // so do the ones the question or the bull is for. Otherwise the game would start without
@@ -68,7 +69,7 @@ document.addEventListener('click', e => {
   if (first === 'cancel') return;
   setup.first = first;
   saveSetup();
-  if (moved(play)) return openTournament(play.tournament.id);
+  if (moved(play)) return playBounced(play);
   if (first === 'bull') return openBull(act, play);
   startMatch(act, play, randomOrder(play.ids));
 });
@@ -80,9 +81,16 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFirst()
 // leaves it, for the menu or the game just finished.
 export let bull = null;  // {act: 'start' or 'rematch', play, ids: the players, darts: each dart thrown, timer: the game about to start}
 const BULL_PAUSE = 4000;  // ms the result stays up before the game starts by itself
+// What a player throwing for the bull is called. In a tournament's match that is the name the tournament
+// knows them by: a new bot the Pi numbered a moment ago is not yet in the app's own lists under that number
+// (they catch up when the sync is over), and would be "?" for that moment.
+function bullName(id) {
+  const t = bull?.play.tournament && data.tournament(bull.play.tournament.id);
+  return t ? tourName(t, id) : nameOf(id);
+}
 export function openBull(act, play) {
   bull = { act, play, ids: play.ids, darts: [], timer: 0, botTimer: 0 };
-  say(`Closest to the bull. ${nameOf(bull.ids[0])} to throw`);
+  say(`Closest to the bull. ${bullName(bull.ids[0])} to throw`);
   renderBull();
 }
 export function closeBull() {
@@ -108,10 +116,10 @@ export function bullDart(d, bot = false) {
   bull.darts.push(bot ? { ...d, bot } : d);
   const b = bullUp(bull.ids, bull.darts);
   if (b.order) {
-    say(`${nameOf(b.order[0])} is closest`);
+    say(`${bullName(b.order[0])} is closest`);
     bull.timer = setTimeout(bullStart, BULL_PAUSE);
-  } else if (b.again && !b.thrown) say(`Level. ${b.round.map(nameOf).join(' and ')} throw again. ${nameOf(b.next)} to throw`);
-  else say(`${nameOf(b.next)} to throw`);
+  } else if (b.again && !b.thrown) say(`Level. ${b.round.map(bullName).join(' and ')} throw again. ${bullName(b.next)} to throw`);
+  else say(`${bullName(b.next)} to throw`);
   renderBull();
 }
 export function bullStart() {
@@ -138,7 +146,7 @@ export function renderBull() {
     $app.innerHTML = `<div class="game bullup"><div class="side"></div><div class="boardwrap"><svg id="board"></svg></div></div>`;
     gameBoard.ui = buildBoard(document.getElementById('board'), d => bullDart(d));
   }
-  const b = bullUp(bull.ids, bull.darts), name = id => esc(nameOf(id));
+  const b = bullUp(bull.ids, bull.darts), name = id => esc(bullName(id));
   const far = d => !d ? '–' : d.seg === 25 ? label(d) : bullMm(d) === Infinity ? 'Miss' : `${bullMm(d)}<small> mm</small>`;
   const place = id => {
     const at = (b.order ?? [...b.round, ...b.tail]).indexOf(id);
@@ -175,7 +183,7 @@ export function startMatch(act, play, order) {
   const seated = (order ?? play.ids).filter(id => play.ids.includes(id) && here(id));
   // A tournament's match is played by both its players or not at all, and only while the
   // bracket still waits for it: back to the bracket.
-  if (play.tournament && (seated.length !== play.ids.length || moved(play))) return openTournament(play.tournament.id);
+  if (play.tournament && (seated.length !== play.ids.length || moved(play))) return playBounced(play);
   if (!seated.some(id => !isBotId(id))) return renderHome();
   // The computer takes its seat as the player its level's games are kept under.
   const level = botAt().level;

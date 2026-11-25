@@ -157,6 +157,7 @@ button:disabled { opacity: .4; }
 .who-end { margin-top: 16px; }
 .who-end .danger { border-color: transparent; padding-left: 0; padding-right: 0; }
 .who-end p { margin: 0; }
+.who-end .warn { overflow-wrap: anywhere; }  /* it names a tournament, which may be one long word */
 /* a button that reads as a link in a sentence ("add your darts"). .page: outranks the themes' buttons,
    which would box it, shadow it or put it in capitals: it is written the way the sentence it is in is */
 button.link, .page button.link {
@@ -252,10 +253,24 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .game-card span { color: var(--muted); font-size: 14px; }
 .game-card.on b { color: var(--accent); }
 .blurb { margin: 10px 0 0; }
-/* home: Tournament, a line of its own under the games (it is not one), and the ways back to what is going */
+/* home: Tournament (it is not one of the games), and the ways back to what is going. A line (.tourline: also a
+   past tournament's, on its own screen) is its name, and what there is to say of it after. */
 .tourline { width: 100%; margin-top: 10px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; text-align: left; padding: 10px 14px; }
 .tourline span { color: var(--muted); font-size: 14px; }
 .tour-phone { display: none; }  /* a phone's menu has it under its steps instead (as How to play) */
+/* On a computer the menu is laid out to fit one screen, and a line of its own for Tournament would make all of it
+   smaller (fit, in app.js). So it is written at the end of the "Matches" line, in the room beside that heading:
+   after the heading, set to the right and pulled up by the heading's own line (14px/1.4, .page .group) and the 6px
+   under it, it takes no room of its own, and the games under it are where they were. It is kept to that one line:
+   where what it is cannot be said in the room there is, only its name is written (the rest wraps under, out of sight). */
+.page .pick .tourline {
+  float: right; width: auto; max-width: calc(100% - 7em); height: 1.4em; margin: calc(-1.4em - 6px) 0 5px; overflow: hidden;
+  justify-content: flex-end; gap: 20px 8px; font: 600 14px/1.4 var(--font); text-decoration: none; white-space: nowrap;
+}
+.pick .tourline b { font-weight: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.pick .tourline span { font-weight: 400; text-transform: none; letter-spacing: 0; }
+/* (a finger's room) */
+@media (pointer: coarse) { .page .pick .tourline { height: calc(1.4em + 20px); padding: 10px 0; margin: calc(-1.4em - 16px) 0 -5px; } }
 .inprogress { display: grid; gap: 10px; }
 /* the Tournament screen: the form to set one up, then the bracket filling the screen (going: .tour-main, its
    heading, the bracket and its buttons), and under either the list of past ones. Under a bracket that list is
@@ -266,10 +281,41 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .page .tour-body.going > .tour-main { flex: 1 0 100%; min-width: 0; display: flex; flex-direction: column; }
 .page .tour-body.going > .tour-main.peek { flex-basis: calc(100% - 40px); }
 .page .tour-body .tour-main > * { flex: none; }  /* .page .tour-body: outranks .page h1.sub's flex */
-.page .tour-body h1 { margin: 12px 0 6px; }  /* .page: outranks the themes' headings */
+.page .tour-body h1 { margin: 12px 0 6px; overflow-wrap: anywhere; }  /* .page: outranks the themes' headings */
 .tour-body input[type=text] { width: 100%; }
 .tour-body .opt .row { gap: 8px; }
-.tour-buttons { margin: 14px 0; }
+.tour-buttons { margin: 14px 0; scroll-margin-bottom: 14px; }
+/* a name can be one long word (a tournament's is up to 40 letters): it goes onto another line, not off the screen */
+.tour-buttons button, .tour-body .chip { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+/* A tournament going is as wide as its approved drawing was made for (the menu's 1200 is two columns of reading),
+   and everything that is not the bracket is kept to one line over it, so that the bracket has the screen: its
+   name and its game (.tour-head), then what can be pressed (.tour-foot). On a phone, where they would not fit on
+   a line, the buttons go under the bracket instead (.tour-bar is then no box of its own). The list of past ones,
+   under the screen, is told of on a phone by its heading at the screen's foot (.peek, above); on that one line
+   it is a link to it instead (.tour-pastlink), and the bracket has those lines as well. */
+.page.tourpage.wide { max-width: 1280px; }
+.tour-bar { display: contents; }
+.page .tour-body :is(.tour-head, .tour-foot) { flex: none; min-width: 0; }
+.tour-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 14px; margin-top: 6px; }
+.tour-head.won { display: block; }
+.page .tour-body .tour-head h1 { flex: none; max-width: 100%; margin: 0; }
+.tour-meta { margin: 0; }
+.tour-foot { order: 3; }
+.tour-pastlink { display: none; }
+.tour-foot > p { margin: 10px 0 0; }
+.tour-foot .tour-buttons { margin: 10px 0 0; }
+@media (orientation: landscape) and (min-width: 801px) {
+  .tour-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 24px; min-height: 48px; margin-top: 4px; }
+  .page .tour-body .tour-head { flex: 1 1 auto; margin-top: 0; }
+  .page .tour-body .tour-head.won { margin: 6px 0 4px; }
+  .page .tour-body .tour-foot { order: 0; flex: 0 1 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 14px; }
+  .tour-foot > p, .tour-foot .tour-buttons { margin: 0; }
+  .tour-foot .tour-buttons .spacer { display: none; }
+  .page .tour-body.going > .tour-main.peek { flex-basis: 100%; }
+  .page .tour-body .tour-pastlink { display: block; flex: none; color: var(--muted); font-size: 14px; text-underline-offset: 3px; }
+  .tour-pasthead { scroll-margin-top: 8px; }
+}
+@media (pointer: coarse) { .page .tour-body .tour-pastlink { padding: 10px 0; } }  /* a finger's room */
 /* the winner's screen: the finished tournament's own, headed with who won it (in the lettering the theme
    writes a name in, the app's own), what they won, and the final's score */
 .page .tour-body h1.tour-champ { margin-bottom: 0; overflow-wrap: anywhere; }
@@ -280,10 +326,16 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .tour-past .tourline { margin-top: 6px; }
 .tour-past .tourline:first-child { margin-top: 0; }
 .tour-past .tourline b { min-width: 0; overflow-wrap: anywhere; }
-.tour-status { min-height: 1.4em; margin: 6px 0 0; color: var(--accent); font-size: 14px; }
+/* the status line: what the bracket is doing by itself, or why a button did nothing just now. With nothing to
+   say it takes no room; with something, a bracket's is said where its game is written, in its place for as long. */
+.tour-status { color: var(--accent); font-size: 14px; }
+.tour-buttons .tour-status:empty { display: none; }
+.tour-opts:has(+ .tour-status:not(:empty)) { display: none; }
 /* The bracket (screens/bracket.js): one SVG drawn like a printed draw sheet, scaled to its box by the script,
    and scrolling in the box when that would make its names too small to read. */
-.bracket { overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; min-width: 0; margin-top: 8px; }
+/* (a wheel or a finger moving up or down over it scrolls the screen, to the list of past ones, when the bracket
+   itself has nowhere to go that way: only its sideways scroll is kept from moving anything else) */
+.bracket { overflow: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; min-width: 0; margin-top: 6px; }
 .page .tour-body .tour-main > .bracket { flex: 1 1 0; min-height: 220px; }
 .bracket svg { display: block; }
 .bracket text { font-family: var(--font); fill: var(--text); }
@@ -320,7 +372,7 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .how-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 16px; }
 .page .how-head h3 { margin: 0; font: 700 17px/1.3 var(--font); color: var(--text); text-transform: none; letter-spacing: 0; }  /* .page: outranks the themes' headings */
 .how-phone { display: none; }
-@media (orientation: landscape) and (min-width: 801px) { .pick.rules-on :is(.games, h3.group, .blurb) { display: none; } }
+@media (orientation: landscape) and (min-width: 801px) { .pick.rules-on :is(.games, h3.group, .blurb, .tourline) { display: none; } }
 .rules-box { margin-top: 6px; font-size: 15px; line-height: 1.35; text-transform: none; letter-spacing: 0; }
 .rules-box :is(p, ul, ol, dl) { margin: 0 0 8px; }
 .rules-box :is(ul, ol) { padding-left: 20px; }

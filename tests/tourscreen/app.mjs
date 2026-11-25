@@ -38,7 +38,7 @@ export const redraw = f => f(), refreshStatus = () => {}, mark = () => {};
 export let match = null, screen = 'tournament';
 export const setMatch = m => { match = m; }, setScreen = s => { screen = s; };
 // What starting a game asks of the app as well (web/screens/start.js).
-export const BOT = 0, botAt = () => ({ level: 5 }), setup = { first: null };
+export const BOT = 0, botAt = () => ({ level: 5 }), setup = { first: null, gameId: 'x01', opts: {}, players: [] };
 export const isBotId = id => id === BOT || bots.some(b => b.id === id);
 export const levelOf = id => (id === BOT ? botAt().level : bots.find(b => b.id === id)?.bot ?? null);
 export const nameOf = id => (players.find(p => p.id === id) ?? bots.find(p => p.id === id))?.name ?? '?';
@@ -48,3 +48,6 @@ export const said = [];
 export const say = text => { said.push(text); };
 // What the players' cards ask of the app as well (web/screens/playerspanel.js).
 export const MAX_PLAYERS = 8, cleanSetup = () => {}, grams = g => `${g} g`, setDarts = () => {}, setsOf = () => [];
+// What the menu asks of the app as well (web/screens/home.js): nothing is fetched, and no new version looked for.
+export const connected = false, totals = null, setTotals = () => {}, statsPath = () => '', loadStats = async () => ({});
+export const updater = { check() {} };

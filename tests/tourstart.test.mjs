@@ -114,9 +114,68 @@ test('starting a tournament match: one asked for before the bracket moved on is 
   answer('bull');
   assert.equal(B.bull, null, 'nobody is asked to throw for the bull');
   assert.equal(app.screen, 'tournament', 'back to the bracket instead');
+  assert.doesNotMatch(app.$app.innerHTML, /One moment/, 'with nothing said about saving: nothing is being saved');
   // (and the same if it changes while the bull is being thrown for)
   B.startMatch('start', { ...play, ids: [id, 2] }, [id, 2]);
   assert.equal(app.match, null, 'no match is started for a place already decided');
   assert.equal(app.screen, 'tournament');
   assert.equal(data.tournament('T1').data.slots[1].match, 'theirs');
+});
+
+// The tail of a sync: the Pi has numbered the bot, and the saved lists and the tournament go by the new number,
+// but the app's own lists go by the old one until the sync is over (app.js, synced). Gives back the new number.
+async function tail() {
+  await data.sync();
+  const id = store.get('players').find(p => p.bot === 5).id;
+  assert.ok(id > 0);
+  assert.deepEqual(app.bots.map(b => b.id).includes(id), false, 'the app has not heard yet');
+  return id;
+}
+
+test('starting a tournament match: Random pressed while the Pi is numbering a new bot goes back to the bracket, which says why', async () => {
+  const { made } = await going();
+  const id = await tail();
+  S.tourAct('tour-play', { i: '1' });  // Play, in that moment: the match as the bracket now has it
+  assert.deepEqual(asked.asked.play.ids, [id, 2]);
+  B.askFirst('start', asked.asked.play);
+  answer('random');
+  assert.equal(app.match, null, 'no match is started with a player the app does not know yet');
+  assert.equal(app.screen, 'tournament');
+  assert.match(app.$app.innerHTML, /<span class="tour-status" aria-live="polite">One moment: saving the new bots\.<\/span>/);
+
+  synced([[made, id]]);  // the sync is over (the app draws nothing again by itself for a bot's number)
+  assert.doesNotMatch(app.$app.innerHTML, /One moment/, 'no longer so: no longer said');
+  S.tourAct('tour-play', { i: '1' });
+  B.askFirst('start', asked.asked.play);
+  answer('random');
+  assert.equal(app.screen, 'game', 'and pressed again, it starts');
+  assert.deepEqual([app.match.playerIds, app.match.bots], [[id, 2], [5, null]]);
+});
+
+test('starting a tournament match: asked before the Pi numbered the bot and answered before the app heard, it says the same', async () => {
+  const { play } = await going();
+  B.askFirst('start', play);  // the question is up, for the bot under its old number
+  await tail();
+  answer('bull');
+  assert.equal(B.bull, null);
+  assert.equal(app.screen, 'tournament');
+  assert.match(app.$app.innerHTML, /One moment: saving the new bots\./);
+  // Opened again some other way (the menu's "Back to the tournament"), it starts clean.
+  S.openTournament('T1');
+  assert.doesNotMatch(app.$app.innerHTML, /One moment/);
+});
+
+test('starting a tournament match: at the bull, a bot the Pi is still numbering goes by its name in the tournament, not "?"', async () => {
+  await going();
+  const id = await tail();
+  S.tourAct('tour-play', { i: '1' });
+  app.said.length = 0;
+  B.openBull('start', asked.asked.play);
+  assert.equal(app.screen, 'bull');
+  assert.deepEqual(B.bull.ids, [id, 2]);
+  assert.deepEqual(app.said, ['Closest to the bull. Bot 5 to throw']);
+  assert.match(side.innerHTML, /<div class="name">Bot 5<\/div>/);
+  assert.match(side.innerHTML, /Bot 5: one dart at the bull/);
+  assert.doesNotMatch(side.innerHTML, />\?[<:]/);
+  B.dropBull();
 });

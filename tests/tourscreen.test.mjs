@@ -316,16 +316,38 @@ test('tournament screen: Start waits for a number the Pi has just given to reach
   assert.ok(made < 0);
   // The app's timer syncs while the draw is looked at. The Pi has numbered the bot, and the saved lists
   // go by that number; the app's own lists do not until the sync is over. Start is pressed in that moment.
+  assert.doesNotMatch(text(), /One moment/);
   await data.sync();
   const numbered = store.get('players').find(p => p.bot).id;
   S.tourAct('tour-start', {});
   assert.deepEqual(data.tournaments(), [], 'nothing is started under the number the bot no longer has');
   assert.ok(S.tourView.setup?.draw, 'and the draw stays as it was');
+  assert.match(text(), /One moment: saving the new bots\./, 'and the screen says why Start did nothing');
+  assert.match(app.$app.innerHTML, /data-act="tour-start">Start<\/button><span class="tour-status" aria-live="polite">One moment: saving the new bots\.<\/span>/, 'in its status line, beside Start');
 
-  loadPlayers();  // the sync is over: what the app does then
+  loadPlayers();  // the sync is over: what the app does then (and no more: only a bot's number changed, which it draws nothing again for)
   S.tourRemapped([[made, numbered]]);
+  assert.doesNotMatch(text(), /One moment/, 'no longer so: no longer said');
   S.tourAct('tour-start', {});
   assert.deepEqual(data.tournaments()[0]?.data.entrants.map(e => e.id).sort((x, y) => x - y), [1, 2, numbered]);
+  assert.doesNotMatch(text(), /One moment/);
+});
+
+test('tournament screen: Start bounced for a person the Pi is numbering says "players", and a draw gone out of date says nothing', async () => {
+  await settle();
+  fresh([sam, phil]);
+  const jake = data.addPlayer('Jake');
+  loadPlayers();
+  S.renderTournament();
+  for (const id of [1, 2, jake.id]) S.tourAct('tour-pick', { id: String(id) });
+  S.tourAct('tour-draw', {});
+  await data.sync();  // Jake has the Pi's number in the saved lists; the app's own still go by the old one
+  S.tourAct('tour-start', {});
+  assert.deepEqual(data.tournaments(), []);
+  assert.match(text(), /One moment: saving the new players\./);
+  // a change to the form is a new draw to make: nothing is waiting on Start any more
+  S.tourAct('tour-opt', { field: 'out', val: 'straight' });
+  assert.doesNotMatch(text(), /One moment/);
 });
 
 test('tournament screen: with a match in play, the way back to it is the only match on offer', () => {
@@ -357,14 +379,19 @@ test('tournament screen: with a match in play, the way back to it is the only ma
   });
 });
 
-test('tournament screen: the match in play is the one the bracket marks', async () => {
+test('tournament screen: the match in play is the one the bracket marks, and is tagged "playing", not "next"', async () => {
   going([sam, phil, mum, dad]);
-  begin('T1', 1);
   page.on = true;
+  const marked = () => page.svg.all().filter(e => /\bnext\b/.test(e.attrs.class ?? '')).map(e => e.attrs['data-box']);
+  const tags = () => page.svg.all().filter(e => e.attrs.class === 'tag').map(e => e.textContent);
   S.openTournament('T1');
   await settle();
-  const marked = page.svg.all().filter(e => /\bnext\b/.test(e.attrs.class ?? '')).map(e => e.attrs['data-box']);
-  assert.deepEqual(marked, ['0:2', '0:3']);
+  assert.deepEqual([marked(), tags()], [['0:0', '0:1'], ['next']], 'none in play: the next one to play');
+  begin('T1', 1);
+  S.openTournament('T1');
+  await settle();
+  assert.deepEqual(marked(), ['0:2', '0:3']);
+  assert.deepEqual(tags(), ['playing']);
   assert.deepEqual(buttons(), [`Back to ${names(data.tournament('T1'))(1).join(' v ')}`]);
 });
 
@@ -400,6 +427,73 @@ test('tournament screen: a tap that skips a result moving on is not a tap on a m
   await on(250);
   assert.equal(buttons().length, 3);
   assert.equal(page.box.dataset.act, undefined);
+});
+
+// ---------- setting one up: what the form says, and where it is left ----------
+test('tournament screen: the form says how many byes there are "in the first round"', () => {
+  fresh([sam, phil, mum, dad]);
+  S.renderTournament();
+  for (const id of ['1', '2', '3']) S.tourAct('tour-pick', { id });
+  assert.match(text(), / 3 players: 1 bye in the first round\. /);
+  S.tourAct('tour-pick', { id: '4' });
+  assert.match(text(), / 4 players\. /, 'none: nothing said of them');
+  for (let k = 0; k < 2; k++) S.tourAct('tour-bot', {});
+  assert.match(text(), / 6 players: 2 byes in the first round\. /);
+  assert.doesNotMatch(text(), /round 1/, 'a round is never called by a number: the form\'s own lines name it');
+  assert.match(text(), /Quarter-finals/);
+});
+
+test('tournament screen: a tap on the form leaves it where it was scrolled to', () => {
+  fresh([sam, phil, mum]);
+  page.on = true;
+  S.renderTournament();
+  for (const id of ['1', '2', '3']) S.tourAct('tour-pick', { id });
+  page.body.scrollTop = 700;  // scrolled down to the rounds
+  const taps = [['tour-legs', { i: '1', by: '1' }], ['tour-opt', { field: 'out', val: 'straight' }], ['tour-bot', {}],
+    ['tour-botlevel', { i: '0', by: '1' }], ['tour-botdrop', { i: '0' }], ['tour-pick', { id: '3' }]];
+  for (const [act, d] of taps) {
+    const before = page.body;
+    S.tourAct(act, d);
+    assert.notEqual(page.body, before, `${act}: the screen is drawn again`);
+    assert.equal(page.body.scrollTop, 700, `${act}: and is where it was`);
+    assert.equal(page.shown, null, `${act}: nothing is brought into view`);
+  }
+});
+
+test('tournament screen: Draw puts the draw under the form with Redraw and Start under it, and brings them into view', () => {
+  fresh([sam, phil, mum]);
+  page.on = true;
+  S.renderTournament();
+  for (const id of ['1', '2', '3']) S.tourAct('tour-pick', { id });
+  assert.deepEqual(acts().at(-1), ['tour-draw', 'Draw']);
+  page.body.scrollTop = 700;
+  S.tourAct('tour-draw', {});
+  const html = app.$app.innerHTML, at = what => html.indexOf(what);
+  assert.ok(at('class="bracket"') > 0 && at('class="bracket"') < at('data-act="tour-draw"'), 'the draw, then its buttons');
+  assert.deepEqual(acts().slice(-2), [['tour-draw', 'Redraw'], ['tour-start', 'Start']]);
+  assert.equal(page.body.scrollTop, 700, 'not sent back to the top');
+  assert.deepEqual(page.shown, { block: 'nearest' }, 'and Start, at the foot of the draw, is scrolled into view');
+  // Drawn again by something else (a sync): it stays put. Redraw: shown again.
+  S.renderTournament();
+  assert.deepEqual([page.body.scrollTop, page.shown], [700, null]);
+  S.tourAct('tour-draw', {});
+  assert.deepEqual([page.body.scrollTop, page.shown], [700, { block: 'nearest' }]);
+  // Started: the bracket's own screen opens at its top
+  S.tourAct('tour-start', {});
+  assert.ok(data.tournaments()[0]);
+  assert.deepEqual([page.body.scrollTop, page.shown], [0, null]);
+});
+
+test('tournament screen: under a bracket the screen stays where it was scrolled to, and another tournament opens at its top', () => {
+  going([sam, phil, mum]);
+  over('A', 'Spring', Date.UTC(2026, 2, 7, 12), [sam, phil, mum]);
+  page.on = true;
+  S.openTournament('T1');
+  page.body.scrollTop = 120;  // down at the list of past ones
+  S.renderTournament();  // (a sync)
+  assert.equal(page.body.scrollTop, 120);
+  S.tourAct('tour-open', { id: 'A' });
+  assert.equal(page.body.scrollTop, 0);
 });
 
 // ---------- how it ends, and what is kept ----------
@@ -516,6 +610,32 @@ test('tournament screen: past tournaments are listed under it, newest first, wit
   S.openTournament();  // one going: its bracket
   assert.match(text(), /^Winter/);
   assert.deepEqual(pastLines(), lines, 'the same list under the bracket, without the one going');
+});
+
+test('tournament screen: over a bracket with past ones under it there is a way to their list, which a wide screen has no room to show', () => {
+  fresh([sam, phil, mum]);
+  const link = () => acts().filter(([act]) => act === 'tour-past');
+  data.saveTournament(makeDraw({ id: 'D', name: 'Winter', entrants: [sam, phil, mum], opts: { start: 301, out: 'straight' }, rounds: [{ legs: 1 }, { legs: 1 }] }, () => 0.5));
+  page.on = true;
+  S.openTournament();
+  assert.match(text(), /^Winter/);
+  assert.deepEqual(link(), [], 'no past ones: nothing to go to');
+  over('A', 'Spring', Date.UTC(2026, 2, 7, 12), [sam, phil, mum]);
+  S.renderTournament();
+  assert.deepEqual(link(), [['tour-past', 'Past tournaments']]);
+  assert.ok(app.$app.innerHTML.indexOf('data-act="tour-past"') < app.$app.innerHTML.indexOf('class="bracket"'), 'over the bracket, with the heading and the buttons');
+  assert.equal(page.listShown, null);
+  S.tourAct('tour-past', {});
+  assert.ok(page.listShown, 'pressed, the list\'s heading is scrolled to');
+  assert.equal(page.listShown.block, 'start');
+  // One opened from that list has no list under it, and so no way to one; nor has the form, which is not a bracket.
+  S.tourAct('tour-open', { id: 'A' });
+  assert.deepEqual(link(), []);
+  data.saveTournament({ ...data.tournament('D'), abandoned: true });
+  S.openTournament();
+  assert.match(text(), /^New tournament/);
+  assert.deepEqual(link(), []);
+  assert.equal(pastLines().length, 2);
 });
 
 test('tournament screen: a past tournament opens to its bracket, and Back is the way out of it', () => {

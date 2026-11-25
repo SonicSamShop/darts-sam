@@ -12,7 +12,7 @@ import { $app } from './app.mjs';
 export class El {
   constructor(tag) {
     Object.assign(this, { tag, attrs: {}, children: [], textContent: '', style: {}, dataset: {}, isConnected: true,
-      clientWidth: 1000, clientHeight: 600, scrollLeft: 0, scrollTop: 0 });
+      clientWidth: 1000, clientHeight: 600, scrollWidth: 1000, scrollLeft: 0, scrollTop: 0 });
     this.classList = { add: c => { this.attrs.class = [...new Set([...(this.attrs.class ?? '').split(' ').filter(Boolean), c])].join(' '); } };
   }
   setAttribute(k, v) { this.attrs[k] = String(v); }
@@ -31,7 +31,10 @@ export class El {
 // What is on the page now: the bracket's box and drawing, and the line under it. on: whether
 // the screen finds them (a test that only wants the screen's answers leaves the page off, and
 // nothing is drawn or played out). reduced: prefers-reduced-motion.
-export const page = { on: false, box: null, svg: null, status: null, reduced: true };
+// body: what the screen scrolls in (.tour-body), new with each drawing and at its top, as in a
+// browser. shown: what the screen's row of buttons was last asked to scroll into view with, since
+// the screen was last drawn (null: it was not asked). listShown: the same for the heading of the list of past tournaments.
+export const page = { on: false, box: null, svg: null, status: null, body: null, row: null, shown: null, list: null, listShown: null, reduced: true };
 // The matches of the bracket that are buttons, by what they are called.
 export const buttons = () => page.svg.all().filter(e => e.attrs.role === 'button').map(e => e.attrs['aria-label']);
 // The main button under the bracket: [its data-act, what it says].
@@ -53,9 +56,18 @@ Object.defineProperty($app, 'innerHTML', {
     page.box.closest = sel => (sel === '.going' && v.includes(' going"') ? page.box : null);
     page.svg = page.box.appendChild(new El('svg'));
     page.status = new El('p');
+    page.body = new El('div');
+    page.row = new El('div');
+    page.shown = null;
+    page.row.scrollIntoView = how => { page.shown = how ?? {}; };
+    page.list = new El('h3');
+    page.listShown = null;
+    page.list.scrollIntoView = how => { page.listShown = how ?? {}; };
   },
 });
-$app.querySelector = sel => (!page.on ? null : sel === '.bracket' ? (html.includes('class="bracket"') ? page.box : null) : sel === '.tour-status' ? page.status : null);
+const found = { '.tour-status': () => page.status, '.tour-body': () => page.body, '.tour-buttons': () => (html.includes('tour-buttons') ? page.row : null),
+  '.tour-pasthead': () => (html.includes('tour-pasthead') ? page.list : null) };
+$app.querySelector = sel => (!page.on ? null : sel === '.bracket' ? (html.includes('class="bracket"') ? page.box : null) : found[sel]?.() ?? null);
 
 let asked = [];
 // Runs the frames asked for, as if `ms` had gone by since (enough, by default, for a result to get where it is going).

@@ -166,7 +166,7 @@
 .t-chalk .small, .t-chalk .muted, .t-chalk .conn, .t-chalk .clock, .t-chalk .totals, .t-chalk .game-card span,
 .t-chalk .tile span, .t-chalk .pcard .small, .t-chalk .heatkey, .t-chalk .pad-msg, .t-chalk .report figcaption,
 .t-chalk .report label, .t-chalk table.plain th, .t-chalk table.plain td, .t-chalk table.cricket th,
-.t-chalk .picks .pick span, .t-chalk .sheet .legrow td, .t-chalk .dim, .t-chalk .lastvisit {
+.t-chalk .picks .pick span, .t-chalk .sheet .legrow td, .t-chalk .dim, .t-chalk .lastvisit, .t-chalk .pick .tourline span {
   font-family: var(--plain); font-weight: 400; font-size: var(--sz-small); line-height: 1.4; letter-spacing: 0;
 }
 .t-chalk .picks .pick span, .t-chalk .totals, .t-chalk .chip i { font-size: var(--sz-fine); text-transform: none; }
@@ -269,7 +269,7 @@
   --led: inset 0 0 18px #000; --round: 8px;
 }
 .t-arcade body { font-size: 16px; text-transform: uppercase; letter-spacing: .04em; }
-.t-arcade p, .t-arcade .game-card span, .t-arcade .rules-box { text-transform: none; letter-spacing: 0; font-family: system-ui, sans-serif; }
+.t-arcade p, .t-arcade .game-card span, .t-arcade .rules-box, .t-arcade .pick .tourline span { text-transform: none; letter-spacing: 0; font-family: system-ui, sans-serif; }
 .t-arcade h1 {
   font-family: 'Bungee', var(--font); font-weight: 400; font-size: 26px; letter-spacing: .02em; color: #f6c61a;
   background: #d8261f; border: 3px solid #f6c61a; border-radius: 10px; padding: 4px 14px;
@@ -344,7 +344,7 @@
 .t-sheet .game { padding-top: 22px; }
 .t-sheet .page { padding-top: 32px; }
 .t-sheet p, .t-sheet .small, .t-sheet .muted, .t-sheet .game-card span, .t-sheet .tile span, .t-sheet .totals,
-.t-sheet table.plain td, .t-sheet .rules-box { font-family: var(--type); font-weight: 400; font-size: 15px; }
+.t-sheet table.plain td, .t-sheet .rules-box, .t-sheet .pick .tourline span { font-family: var(--type); font-weight: 400; font-size: 15px; }
 .t-sheet .rules-box b { font-family: var(--font); font-weight: 700; }  /* typed, with what is picked out set in the heading's face */
 .t-sheet h1 { font-weight: 800; font-size: 40px; letter-spacing: -.01em; }
 .t-sheet h2 { font-size: 16px; font-weight: 700; color: var(--text); border-bottom: 2px solid var(--text); padding-bottom: 2px; text-transform: uppercase; letter-spacing: .08em; }

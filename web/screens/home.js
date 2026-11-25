@@ -12,12 +12,15 @@ import { x01Stats } from '../stats.js';
 import { renderLanding } from './landing.js';
 import { newPlayerRow, roster } from './playerspanel.js';
 import { pct } from './stats.js';
-import { currentTournament, slotTitle, tourNext } from './tournament.js';
+import { currentTournament, slotTitle, tourMarked } from './tournament.js';
 import {
   $app, BOT, account, api, botAt, cleanSetup, connected, dartsFor, esc, fit, grams, loadStats, match, nameOf,
   pageFoot, pageHead, players, redraw, refreshStatus, screen, seats, setMatch, setScreen, setTotals, setsOf,
   setup, statsPath, store, totals, updater
 } from '../app.js';
+
+// Whether "Tournament" is on the menu (a computer's line and a phone's). Off until tournaments are ready for everyone.
+const TOURNAMENT_ON_MENU = false;
 
 // What is open on the menu. step: on a phone, the step that is open ('game', 'options' or
 // 'players'), or null for none. Not chosen yet (undefined): none when somebody is down to
@@ -69,8 +72,8 @@ export function renderHome() {
       <div class="step-body"><h2>${name}</h2>${body}</div></section>`;
   };
   const after = id => steps[steps.findIndex(s => s[0] === id) + 1];
-  // A tournament going: the way back to it, with its next match.
-  const cup = currentTournament(), cupNext = cup && tourNext(cup);
+  // A tournament going: the way back to it, with the match being played, or else its next one.
+  const cup = currentTournament(), cupNext = cup && tourMarked(cup);
   const going = [
     match ? '<button class="start" data-act="resume">Resume game in progress</button>' : '',
     cup ? `<button class="start" data-act="tournament">Back to the tournament: ${esc(cup.name)}${cupNext != null ? `, ${esc(slotTitle(cup, cupNext))}` : ''}</button>` : '',
@@ -80,7 +83,7 @@ export function renderHome() {
     <div class="home-body">
     <div class="pick ${menu.rulesOpen ? 'rules-on' : ''}">
     ${going ? `<h2>In progress</h2><div class="inprogress">${going}</div>` : ''}
-    ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>
+    ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>${kind === 'match' ? tourLine('link') : ''}
     <div class="games">${GAMES.filter(g => g.kind === kind).map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
       <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>`).join('')}
     <p class="blurb muted small">${game.blurb}</p>
@@ -152,9 +155,12 @@ function howToPlay(game, where = '') {
       <button class="link" data-act="rules" aria-expanded="true">${where ? 'Hide the rules' : 'Back to the games'}</button></div>
     <div class="rules-box">${body}</div></div>`;
 }
-// Tournament: a line of its own under the games, since it is not one of them (on a phone, under the steps).
-const tourLine = (where = '') => `<button class="tourline ${where}" data-act="tournament"><b>Tournament</b>
-  <span>A knockout for 3 to 16 players, people and bots</span></button>`;
+// Tournament, which is not one of the games. On a computer it is at the end of the "Matches" line, in the room
+// beside that heading: the menu there is laid out to fit one screen, and a line of its own would squeeze it all
+// smaller (style.css, .pick .tourline). On a phone (where: 'tour-phone'), where the menu scrolls, it is a line
+// of its own under the steps. Neither is drawn while TOURNAMENT_ON_MENU is off.
+const tourLine = (where = '') => (TOURNAMENT_ON_MENU ? `<button class="tourline ${where}" data-act="tournament"><b>Tournament</b>
+  <span>A knockout for 3 to 16 players, people and bots</span></button>` : '');
 // An option's name with its "?" after it, kept on a line with the name's last word.
 function optLabelHelp(o) {
   const cut = o.label.lastIndexOf(' ') + 1;

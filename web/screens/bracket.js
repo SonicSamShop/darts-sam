@@ -84,10 +84,11 @@ function button(g, L, r, k, { label, ...data }) {
 }
 
 // Draws tournament t into svg. hide: slots whose result is still to be shown moving
-// on (drawn as they were before it). next: the slot to mark as the next match, or null.
-// taps: what a tap on a match does, by slot: {label, ...data} (see button, above);
-// a match with none is only drawn. nameOf(id): a player's name.
-export function drawBracket(svg, t, { hide = new Set(), next = null, taps = {}, nameOf }) {
+// on (drawn as they were before it). next: the slot to mark, or null: the next match to
+// play, or (playing) the one being played now, which is tagged so. taps: what a tap on a
+// match does, by slot: {label, ...data} (see button, above); a match with none is only
+// drawn. nameOf(id): a player's name.
+export function drawBracket(svg, t, { hide = new Set(), next = null, playing = false, taps = {}, nameOf }) {
   const L = layout(t);
   svg.replaceChildren();
   svg.setAttribute('viewBox', `-2 0 ${L.w + 4} ${L.h}`);
@@ -129,11 +130,11 @@ export function drawBracket(svg, t, { hide = new Set(), next = null, taps = {}, 
     }
   }
   box(svg, L.R, 0);
-  // above a match: whether it was simulated, or is the next to play
+  // above a match: whether it was simulated, is being played, or is the next to play
   t.data.slots.forEach((s, i) => {
     const y = L.ys[s.round][2 * (i - first(L.N, s.round))];
     if (s.how === 'simulated' && !hide.has(i)) tag(svg, L.x(s.round), y, 'simulated');
-    if (i === next) tag(svg, L.x(s.round), y, 'next');
+    if (i === next) tag(svg, L.x(s.round), y, playing ? 'playing' : 'next');
   });
 }
 
@@ -197,11 +198,14 @@ export function sizeBracket(box, svg, { fill }) {
 }
 
 // Scrolls the box, if it scrolls and slot i's match is out of sight, to bring it into
-// view: its round at the left, the match in the middle.
+// view: its round at the left, the match in the middle. The final once it is won is
+// shown with the Winner's box, where its result goes: scrolled to the end.
 export function showSlot(box, svg, t, i) {
   if (i == null) return;
   const L = layout(t), s = t.data.slots[i], k = svg.clientWidth / (L.w + 4), j = i - first(L.N, s.round);
   const left = (L.x(s.round) + 2) * k, top = L.ys[s.round][2 * j] * k, bottom = (L.ys[s.round][2 * j + 1] + BH) * k;
-  if (left < box.scrollLeft || left + BW * k > box.scrollLeft + box.clientWidth) box.scrollLeft = left - 8;
+  if (s.round === L.R - 1 && s.winner != null) {
+    if (box.scrollLeft + box.clientWidth < svg.clientWidth) box.scrollLeft = box.scrollWidth - box.clientWidth;
+  } else if (left < box.scrollLeft || left + BW * k > box.scrollLeft + box.clientWidth) box.scrollLeft = left - 8;
   if (top < box.scrollTop || bottom > box.scrollTop + box.clientHeight) box.scrollTop = (top + bottom - box.clientHeight) / 2;
 }

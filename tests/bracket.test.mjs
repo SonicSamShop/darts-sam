@@ -6,7 +6,7 @@
 // The drawn bracket (web/screens/bracket.js): where its boxes and lines go.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { drawBracket, layout, wirePath } from '../web/screens/bracket.js';
+import { drawBracket, layout, showSlot, wirePath } from '../web/screens/bracket.js';
 import { makeDraw, recordResult, startSlot } from '../web/tournament.js';
 
 const people = n => Array.from({ length: n }, (_, i) => ({ id: i + 1, name: `P${i + 1}` }));
@@ -104,4 +104,36 @@ test('bracket: with nothing to tap, no box is a button or takes the keyboard', (
   const all = drawn(draw(8), {}).all();
   assert.equal(all.filter(e => e.attrs['data-box']).length, 8 + 4 + 2 + 1);
   assert.ok(!all.some(e => 'role' in e.attrs || 'tabindex' in e.attrs || 'data-act' in e.attrs || 'data-sheet' in e.attrs));
+});
+
+test('bracket: the marked match is tagged "next", or "playing" when it is the one being played', () => {
+  const tags = svg => svg.all().filter(e => e.attrs.class === 'tag').map(e => e.textContent);
+  const marked = svg => svg.all().filter(e => /\bnext\b/.test(e.attrs.class ?? '')).map(e => e.attrs['data-box']);
+  assert.deepEqual(tags(drawn(draw(4), {})), [], 'none marked: no tag');
+  const next = drawn(draw(4), { next: 1 });
+  assert.deepEqual([tags(next), marked(next)], [['next'], ['0:2', '0:3']]);
+  const playing = drawn(draw(4), { next: 1, playing: true });
+  assert.deepEqual([tags(playing), marked(playing)], [['playing'], ['0:2', '0:3']], 'the same frame round its boxes');
+});
+
+test('bracket: where it is wider than its box, the final once won is shown with the Winner\'s box in sight', () => {
+  // three players on a phone: the drawing 478 wide in a box of 346, as it opens (scrolled to its start)
+  let t = draw(3);
+  const first = t.data.slots.findIndex(s => s.how !== 'bye'), { a } = t.data.slots[first];
+  const box = () => ({ clientWidth: 346, clientHeight: 400, scrollWidth: 478, scrollLeft: 0, scrollTop: 0 }), svg = { clientWidth: 478 };
+  let at = box();
+  showSlot(at, svg, t, first);
+  assert.equal(at.scrollLeft, 0, 'a first-round match: the start of the bracket');
+  t = recordResult(t, first, a, [1, 0], 'played');
+  at = box();
+  showSlot(at, svg, t, 2);
+  assert.equal(at.scrollLeft, 0, 'the final still to play: its column is in sight, with the round before it');
+  t = recordResult(t, 2, t.data.slots[2].a, [1, 0], 'played');
+  at = box();
+  showSlot(at, svg, t, 2);
+  assert.equal(at.scrollLeft, 478 - 346, 'won: scrolled to the end, where the Winner\'s box is');
+  // and where the whole bracket is in sight there is nothing to scroll
+  at = { ...box(), clientWidth: 478 };
+  showSlot(at, svg, t, 2);
+  assert.equal(at.scrollLeft, 0);
 });
