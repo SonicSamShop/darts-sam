@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import {
   seedOrder, makeDraw, roundName, roundCount, defaultRounds, suggestName, freeLevel,
   readySlots, nextSlot, botSlots, boardSlots, startSlot, dropMatch, recordResult, clearResult,
-  reconcile, remapIds, simulateMatch, playedMatch, seenResults, stillIn,
+  reconcile, remapIds, simulateMatch, playedMatch, seenResults, stillIn, forfeit,
 } from '../web/tournament.js';
 import { compute } from '../web/engine.js';
 
@@ -260,4 +260,25 @@ test('tournament: a player is still in one that is going, knocked out or not, an
   assert.equal(stillIn([over], over.winner), null, 'finished');
   assert.equal(stillIn([over, { ...going, abandoned: true }, other], 3)?.id, 't2', 'any that is going, among those that are not');
   assert.equal(stillIn([over, other], 4), null, 'in the finished one only');
+});
+
+test('tournament: a match given up puts the other through by the whole count of legs', () => {
+  let t = draw(people(4));
+  const s0 = t.data.slots[0];
+  t = startSlot(t, 0, 'm1');
+  const out = forfeit(t, 0, s0.a, [1, 0]);
+  assert.equal(out.data.slots[0].winner, s0.b);
+  assert.deepEqual(out.data.slots[0].legs, [1, 2]);  // first to 2: the one who gave up keeps their leg
+  assert.equal(out.data.slots[0].how, 'forfeit');
+  assert.equal(out.data.slots[2].a, s0.b);
+  assert.equal(playedMatch(out, 0), 'm1');
+  assert.equal(t.data.slots[0].winner, null);  // the one given is unchanged
+
+  // given up in the final: the other wins the tournament
+  let f = recordResult(out, 1, out.data.slots[1].b, [2, 0], 'played');
+  const final = f.data.slots[2];
+  f = forfeit(f, 2, final.b, [0, 0], 5000);
+  assert.equal(f.winner, final.a);
+  assert.equal(f.finished, 5000);
+  assert.deepEqual(f.data.slots[2].legs, [3, 0]);
 });

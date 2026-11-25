@@ -1,6 +1,8 @@
 {
   "version": "1.8",
-  "unreleased": [],
+  "unreleased": [
+    "Tournaments: quitting a match now means giving it up. Whoever quits is out, and their opponent goes through with the match won by the full count of legs."
+  ],
   "notes": {
     "1.0": [
       "First release."

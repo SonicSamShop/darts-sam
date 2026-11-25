@@ -13,7 +13,7 @@
 import { compute, gameById } from '../engine.js';
 import { LEVELS } from '../bot.js';
 import {
-  boardSlots, botSlots, clearResult, defaultRounds, dropMatch, freeLevel, makeDraw, nextSlot, playedMatch, reconcile,
+  boardSlots, botSlots, clearResult, defaultRounds, dropMatch, forfeit, freeLevel, makeDraw, nextSlot, playedMatch, reconcile,
   remapIds, roundName, seenResults, simulateMatch, startSlot, suggestName
 } from '../tournament.js';
 import { animate, drawBracket, showSlot, sizeBracket } from './bracket.js';
@@ -149,11 +149,34 @@ export function onMatchUndone(m) {
   const t = clearResult(at.t, at.i);
   if (t !== at.t) { save(t); data.sync(); }
 }
-// Quit: the match is to be played again.
-export function onMatchQuit(m) {
+// Quitting a match of the bracket is giving it up. What the quit question needs to ask
+// who: the tournament's name and, for each seat, the player's id and name, whether they
+// are a bot (a bot never gives up), and the legs they have won. null if the bracket no
+// longer waits for this match (then quitting it is an ordinary quit).
+export function quitTerms(m) {
+  const at = slotOf(m);
+  if (!at || at.s.winner != null || at.s.match !== m.id) return null;
+  const legs = compute(m).legs ?? [];
+  return {
+    name: at.t.name, full: at.t.data.rounds[at.s.round].legs,
+    seats: m.playerIds.map((id, k) => ({ id, name: tourName(at.t, id), bot: m.bots?.[k] != null, legs: legs[k] ?? 0 })),
+  };
+}
+// Quit, given up by player `loser`: the other goes through (forfeit). With no one
+// named, the match is to be played again. kept: the quit match is saved, so the
+// bracket can open its scorecard.
+export function onMatchQuit(m, loser = null, kept = false) {
   const at = slotOf(m);
   if (!at || at.s.winner != null || at.s.match !== m.id) return;
-  save(dropMatch(at.t, at.i));
+  // (`loser` may come as text, from the button)
+  loser = [at.s.a, at.s.b].find(id => loser != null && String(id) === String(loser));
+  if (loser == null) save(dropMatch(at.t, at.i));
+  else {
+    const legs = compute(m).legs ?? [], had = [at.s.a, at.s.b].map(id => legs[m.playerIds.indexOf(id)] ?? 0);
+    const t = forfeit(at.t, at.i, loser, had);
+    if (!kept) t.data.slots[at.i].match = null;
+    save(t);
+  }
   data.sync();
 }
 

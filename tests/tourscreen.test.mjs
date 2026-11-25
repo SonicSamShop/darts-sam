@@ -447,6 +447,28 @@ test('tournament screen: a match that is quit leaves its place in the bracket to
   assert.equal(S.tourNext(data.tournament('T1')), 0);
 });
 
+test('tournament screen: a match given up puts the other player through', async () => {
+  going([sam, phil, mum, dad]);
+  const slot = i => data.tournament('T1').data.slots[i];
+  const m = begin('T1', 1);
+  m.log.push({ t: 'dart', seg: 20, mult: 1, ts: 1 });
+  const [a, b] = [slot(1).a, slot(1).b];
+  const terms = S.quitTerms(m);
+  const full = data.tournament('T1').data.rounds[0].legs;
+  assert.equal(terms.full, full);
+  assert.deepEqual(terms.seats.map(p => p.id), m.playerIds);
+  assert.ok(terms.seats.every(p => !p.bot && p.legs === 0));
+
+  app.setMatch(null);
+  store.set('match', null);
+  S.onMatchQuit(m, String(a), true);  // (the id as the button gives it: text)
+  assert.deepEqual([slot(1).winner, slot(1).legs, slot(1).how, slot(1).match], [b, [0, full], 'forfeit', 'm1']);
+  assert.equal(slot(2).b, b, 'the other has moved on');
+  assert.equal(S.quitTerms(m), null, 'and it is no longer the bracket\'s to give up');
+  await settle();
+  assert.equal(app.sent.filter(([path]) => path === '/tournaments/T1').at(-1)[1].data.slots[1].how, 'forfeit', 'and sent');
+});
+
 test('tournament screen: the match in play is the one the bracket marks, and is tagged "playing", not "next"', async () => {
   going([sam, phil, mum, dad]);
   page.on = true;

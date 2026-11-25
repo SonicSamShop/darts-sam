@@ -11,7 +11,7 @@ import { matchSheet } from '../sync.js';
 import { botLevel } from '../bot.js';
 import { renderLanding } from './landing.js';
 import { menu } from './home.js';
-import { onMatchQuit, onMatchUndone, onMatchWon, openTournament } from './tournament.js';
+import { onMatchQuit, onMatchUndone, onMatchWon, openTournament, quitTerms } from './tournament.js';
 import {
   achieved, achievementsOn, askPhotos, bases, dropPictures, dropSlips, earnedLine, endedHere, forgetEnded,
   loadBases, photoAsk, photosOn, slipHtml
@@ -191,33 +191,47 @@ export function undo() {
 // kept, here or on the server.
 let quitAsk = null;  // the question, while it is on screen
 const thrown = m => m.log.some(e => e.t === 'dart' || e.t === 'visit');
+// A match of a tournament's bracket is given up, not quit: whoever quits is out, and the
+// other goes through (tournament.js, forfeit). Each person in it has a button saying so.
+function forfeitHtml(terms) {
+  const [a, b] = terms.seats, other = p => (p === a ? b : a);
+  const quitters = terms.seats.filter(p => !p.bot);
+  const line = p => `${esc(other(p).name)} goes through ${terms.full}–${Math.min(p.legs, terms.full - 1)}`;
+  return `<h1>Give up the match?</h1>
+    <p class="muted">${quitters.length > 1 ? 'Whoever gives up is' : `${esc(quitters[0].name)} is`} out of ${esc(terms.name)}${quitters.length > 1 ? ', and the other goes through' : `, and ${line(quitters[0])}`}.</p>
+    ${thrown(match) ? `<label class="tick"><input type="checkbox" checked> Save your results?</label>
+      <p class="muted small">Saved, the darts thrown in this game count in your stats. Unticked, they are thrown away.</p>` : ''}
+    <div class="row">${quitters.map(p => `<button class="danger" data-quit="yes" data-loser="${p.id}" title="${line(p)}">${esc(p.name)} gives up</button>`).join('')}
+      <button class="primary" data-quit="no">Keep playing</button></div>`;
+}
 export function askQuit() {
   closeQuit();
+  const terms = match.opts?.tournament ? quitTerms(match) : null;
   quitAsk = document.body.appendChild(document.createElement('div'));
   quitAsk.className = 'report shareask quitask';
-  quitAsk.innerHTML = `<div class="report-in">
+  quitAsk.innerHTML = `<div class="report-in">${terms ? forfeitHtml(terms) : `
     <h1>Are you sure?</h1>
     <p class="muted">This game ends here and can't be picked up again.</p>
     ${thrown(match) ? `<label class="tick"><input type="checkbox" checked> Save your results?</label>
       <p class="muted small">Saved, the darts thrown in this game count in your stats. Unticked, the game is thrown away, darts and all.</p>` : ''}
     <div class="row"><button class="danger" data-quit="yes">Quit game</button>
-      <button class="primary" data-quit="no">Keep playing</button></div></div>`;
+      <button class="primary" data-quit="no">Keep playing</button></div>`}</div>`;
   quitAsk.querySelector('.primary').focus();
 }
 export function closeQuit() { quitAsk?.remove(); quitAsk = null; }
 document.addEventListener('click', e => {
-  const answer = e.target.closest('.quitask [data-quit]')?.dataset.quit;
+  const button = e.target.closest('.quitask [data-quit]'), answer = button?.dataset.quit;
   if (!answer) return;
   const save = !!quitAsk.querySelector('input')?.checked;
   closeQuit();
-  if (answer === 'yes' && match) quitGame(save);
+  if (answer === 'yes' && match) quitGame(save, button.dataset.loser ?? null);
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQuit(); });
-function quitGame(save) {
+function quitGame(save, loser = null) {
   if (save) data.saveMatch(match);  // as it stands: every dart of it is already queued
   else data.quitMatch(match);
   const ofTournament = match.opts?.tournament?.id;
-  if (ofTournament) onMatchQuit(match);  // the bracket offers it again
+  if (ofTournament) onMatchQuit(match, loser, save);  // given up: the other goes through
   setMatch(null);
   store.set('match', null);
   numPad.value = ''; numPad.ask = null; numPad.error = '';

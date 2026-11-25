@@ -15,7 +15,7 @@
 //   slots     every match in the bracket, round by round and top to bottom:
 //             {round, a, b, match, winner, legs: [a's, b's], how}
 //             a and b are player ids, null until known, or 'bye'. how is
-//             'played', 'bye' or 'simulated' once decided. Slot j of round r+1 is
+//             'played', 'bye', 'simulated' or 'forfeit' (quit part way) once decided. Slot j of round r+1 is
 //             played for by the winners of slots 2j and 2j+1 of round r.
 import { newMatch, compute, gameById } from './engine.js';
 import { botLevel, LEVELS } from './bot.js';
@@ -168,6 +168,15 @@ export function dropMatch(t, i) {
 // Slot i is won by `winner` (a player id), with legs [a's, b's]; how is
 // 'played' or 'simulated'. The final's winner wins the tournament.
 export const recordResult = (t, i, winner, legs, how, now = Date.now()) => decide(copy(t), i, winner, legs, how, now);
+
+// Slot i given up by player `loser` part way through: the other goes through with
+// the most they could have won by, the round's whole count of legs, and the one who
+// gave up keeps the legs they had won (`had`, [a's, b's], from the match as quit).
+export function forfeit(t, i, loser, had = [0, 0], now = Date.now()) {
+  const s = t.data.slots[i], full = t.data.rounds[s.round].legs, winner = loser === s.a ? s.b : s.a;
+  const legs = [s.a, s.b].map((id, k) => (id === winner ? full : Math.min(had[k] ?? 0, full - 1)));
+  return recordResult(t, i, winner, legs, 'forfeit', now);
+}
 
 // Takes slot i's result back (the winning dart undone): only while the match it
 // fed hasn't started. Otherwise, or if there is no result to take back, the

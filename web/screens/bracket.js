@@ -133,7 +133,7 @@ export function drawBracket(svg, t, { hide = new Set(), next = null, playing = f
   // above a match: whether it was simulated, is being played, or is the next to play
   t.data.slots.forEach((s, i) => {
     const y = L.ys[s.round][2 * (i - first(L.N, s.round))];
-    if (s.how === 'simulated' && !hide.has(i)) tag(svg, L.x(s.round), y, 'simulated');
+    if ((s.how === 'simulated' || s.how === 'forfeit') && !hide.has(i)) tag(svg, L.x(s.round), y, s.how);
     if (i === next) tag(svg, L.x(s.round), y, playing ? 'playing' : 'next');
   });
 }
@@ -156,7 +156,7 @@ export function animate(svg, t, i, { nameOf, reduced, skip }) {
   wire.style.strokeDashoffset = len;
   // the score goes up first
   if (s.legs) [2 * j, 2 * j + 1].forEach((b, n) => legsText(svg.querySelector(`[data-box="${r}:${b}"]`), s.legs[n]));
-  if (s.how === 'simulated') tag(svg, x0, L.ys[r][2 * j], 'simulated');
+  if (s.how === 'simulated' || s.how === 'forfeit') tag(svg, x0, L.ys[r][2 * j], s.how);
   const ghost = el('g', { class: 'ghost box', transform: `translate(${x0} ${y0})` }, svg);
   el('rect', { width: BW, height: BH, rx: 4 }, ghost);
   name(ghost, nameOf(s.winner), BW - 20);
