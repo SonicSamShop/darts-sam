@@ -70,13 +70,17 @@ function boxAt(t, L, r, k) {
 // The two boxes of a match (its group g, boxes k and k + 1 of column r) made a button,
 // for a tap that does something: named `label`, reached with Tab, and carrying each
 // other entry of `tap` as a data- attribute, which is what the app's click handling
-// goes by. Over them, a frame that takes a tap between the two boxes as well, and is
-// only drawn while the keyboard is on the match (style.css, .hit).
+// goes by. Over them, what takes the tap, and is only drawn (a frame) while the keyboard
+// is on the match (style.css, .hit). In the first round the two boxes are a pair, one
+// under the other: one frame over both, and the sliver between them. In a later round
+// they are far apart, with other matches' lines between: a frame for each box, and a
+// tap on the space between them is no tap on the match.
 function button(g, L, r, k, { label, ...data }) {
   for (const [key, v] of Object.entries({ role: 'button', tabindex: 0, 'aria-label': label })) g.setAttribute(key, v);
   for (const [key, v] of Object.entries(data)) g.setAttribute(`data-${key}`, v);
-  const y = L.ys[r][k];
-  el('rect', { class: 'hit', x: L.x(r), y, width: BW, height: L.ys[r][k + 1] + BH - y, rx: 4 }, g);
+  const y = L.ys[r][k], y2 = L.ys[r][k + 1];
+  const hit = (top, height) => el('rect', { class: 'hit', x: L.x(r), y: top, width: BW, height, rx: 4 }, g);
+  if (y2 - y === ROW) hit(y, ROW + BH); else { hit(y, BH); hit(y2, BH); }
 }
 
 // Draws tournament t into svg. hide: slots whose result is still to be shown moving

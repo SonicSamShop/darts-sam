@@ -32,7 +32,7 @@ import {
   askQuit, botThrow, botTimer, botUp, closeQuit, numPad, padCommit, padKey, push, renderGame, undo
 } from './screens/game.js';
 import {
-  askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, renderBull, startMatch
+  askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, playRemapped, renderBull, startMatch
 } from './screens/start.js';
 import { reportProblem } from './screens/report.js';
 import { openTournament, renderTournament, tourAct, tourRemapped, tourView } from './screens/tournament.js';
@@ -213,7 +213,10 @@ export function randomOrder(ids) {
   const at = Math.floor(Math.random() * ids.length);
   return [...ids.slice(at), ...ids.slice(0, at)];
 }
-export const data = createSync({ store, api, changed: synced });
+// (renumbered: the game in progress is saved whole after every dart, queueSync below. When the Pi numbers one of
+// its players, the saved copy has the new number at once and this one is picked up from it there and then, not
+// when the sync is over: a dart thrown in between would save the old number back, and the game could never be sent.)
+export const data = createSync({ store, api, changed: synced, renumbered: () => { match = store.get('match', null); } });
 export function saveSetup() { data.saveSetting('setup', setup); data.sync(); }
 export function saveSettings() { data.saveSetting('settings', settings); data.sync(); }
 // Every change to a match is queued as a full copy of the match.
@@ -240,6 +243,7 @@ function synced({ remapped, pulled, sent }) {
   match = store.get('match', null);
   for (const [old, id] of remapped) if (statsView.player === old) statsView.player = id;
   tourRemapped(remapped);
+  playRemapped(remapped);
   cleanSetup();
   // Someone who has just signed up has one player, themselves: ready to throw.
   if (landing.newcomer && pulled && players.length === 1) {

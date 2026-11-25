@@ -12,7 +12,7 @@ import { buildBoard, bullMm, bullUp, label } from '../board.js';
 import { botLevel, throwAt } from '../bot.js';
 import { renderHome, startOpts } from './home.js';
 import { BOT_WAIT, gameBoard, renderGame } from './game.js';
-import { onMatchStarted, openTournament } from './tournament.js';
+import { onMatchStarted, openTournament, playStands } from './tournament.js';
 import {
   $app, BOT, botAt, botPlayer, bots, dartsFor, data, esc, fit, isBotId, levelOf, mark, match, nameOf, players,
   randomOrder, refreshStatus, saveSetup, say, screen, seats, setMatch, setScreen, setup, store
@@ -43,6 +43,23 @@ export function askFirst(act, play) {
   firstAsk.querySelector('.primary').focus();
 }
 export function closeFirst() { firstAsk?.remove(); firstAsk = null; firstPlay = null; }
+// The question and the bull are screens to sit on, and who they are for can change while
+// they are up. A tournament's match may have been decided meanwhile (on another screen,
+// say): then it is not this one's to play any more.
+const moved = play => !!play.tournament && !playStands(play);
+// And after a sync, players made offline go by the Pi's numbers (app.js passes [[old, new]]):
+// so do the ones the question or the bull is for. Otherwise the game would start without
+// them, and a tournament's new bot, under a number no longer its own, would be taken for a
+// person: left for someone to throw its dart at the bull, and its match not started at all.
+export function playRemapped(remapped) {
+  if (!remapped.length) return;
+  const renumber = play => ({ ...play, ids: play.ids.map(id => remapped.find(([old]) => old === id)?.[1] ?? id) });
+  if (firstPlay) firstPlay = renumber(firstPlay);
+  if (!bull) return;
+  bull.play = renumber(bull.play);
+  bull.ids = bull.play.ids;
+  if (screen === 'bull') renderBull();  // (the computer's dart, waiting under the old number, is set going again)
+}
 document.addEventListener('click', e => {
   const first = e.target.closest('.firstask [data-first]')?.dataset.first;
   if (!first) return;
@@ -51,6 +68,7 @@ document.addEventListener('click', e => {
   if (first === 'cancel') return;
   setup.first = first;
   saveSetup();
+  if (moved(play)) return openTournament(play.tournament.id);
   if (first === 'bull') return openBull(act, play);
   startMatch(act, play, randomOrder(play.ids));
 });
@@ -155,8 +173,9 @@ export function startMatch(act, play, order) {
   // (the order settled a moment ago, less anyone removed since, on another device say)
   const here = id => id === BOT || players.some(p => p.id === id) || bots.some(b => b.id === id);
   const seated = (order ?? play.ids).filter(id => play.ids.includes(id) && here(id));
-  // A tournament's match is played by both its players or not at all: back to the bracket.
-  if (play.tournament && seated.length !== play.ids.length) return openTournament(play.tournament.id);
+  // A tournament's match is played by both its players or not at all, and only while the
+  // bracket still waits for it: back to the bracket.
+  if (play.tournament && (seated.length !== play.ids.length || moved(play))) return openTournament(play.tournament.id);
   if (!seated.some(id => !isBotId(id))) return renderHome();
   // The computer takes its seat as the player its level's games are kept under.
   const level = botAt().level;

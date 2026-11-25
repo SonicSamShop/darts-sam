@@ -51,19 +51,34 @@ export const tourNext = t => nextSlot(t, isBotIn(t));
 // Every match that can be played on the board now, in bracket order: the main button
 // plays the first, and a tap on any of them in the bracket plays that one instead.
 export const tourPlayable = t => (t.finished || t.abandoned ? [] : boardSlots(t, isBotIn(t)));
-// The slot of t whose match is being played on this device, if one is.
-const slotInPlay = t => (match && compute(match).winner == null && match.opts?.tournament?.id === t.id ? match.opts.tournament.slot : null);
+// The slot of t whose match is being played on this device, if one is and the bracket
+// still waits for it (not one decided since on another screen, or of a tournament abandoned).
+function slotInPlay(t) {
+  const at = match && compute(match).winner == null ? match.opts?.tournament : null;
+  return at?.id === t.id && tourPlayable(t).includes(at.slot) ? at.slot : null;
+}
+// The match the bracket marks and the main button is for: the one being played here, or
+// else the next to play. null when there is none (and for a tournament over or abandoned).
+const tourMarked = t => slotInPlay(t) ?? tourPlayable(t)[0] ?? null;
+// Whether a match asked for a while ago (start.js: "Who throws first?" and the bull are
+// screens to sit on) is still the bracket's to play: its place still ready, for the same
+// two. `play` is what tour-play asked for.
+export function playStands(play) {
+  const { id, slot } = play.tournament, t = data.tournament(id), s = t?.data.slots[slot];
+  return !!s && tourPlayable(t).includes(slot) && [s.a, s.b].every(x => play.ids.includes(x));
+}
 // What a tap on a match of t's bracket does, by slot, as bracket.js makes buttons of
 // them ({label, ...data- attributes for the app's click handling}): a ready match is
-// played (or gone back to, if it is the one being played), and one that was played or
-// simulated opens its scorecard, as a game in the stats does. A bye, bot against bot,
-// and a match still waiting for a player have none. From the tournament's own record,
-// so one that is over or abandoned still opens its matches.
+// played, and one that was played or simulated opens its scorecard, as a game in the
+// stats does. A bye, bot against bot, and a match still waiting for a player have none.
+// One match at a time on the board: while one is being played here it is the only ready
+// one that is a button, the way back to it, so that a tap can't start another in its
+// place. From the tournament's own record, so one that is over or abandoned still opens
+// its matches.
 export function tourTaps(t) {
   const taps = {}, playing = slotInPlay(t);
-  for (const i of tourPlayable(t)) {
-    taps[i] = i === playing ? { label: `Back to ${slotTitle(t, i)}`, act: 'resume' } : { label: `Play ${slotTitle(t, i)}`, act: 'tour-play', i };
-  }
+  if (playing != null) taps[playing] = { label: `Back to ${slotTitle(t, playing)}`, act: 'resume' };
+  else for (const i of tourPlayable(t)) taps[i] = { label: `Play ${slotTitle(t, i)}`, act: 'tour-play', i };
   t.data.slots.forEach((s, i) => {
     const id = playedMatch(t, i);
     if (id != null) taps[i] = { label: `${tourName(t, s.a)} ${s.legs?.[0] ?? 0}, ${tourName(t, s.b)} ${s.legs?.[1] ?? 0}: see the scorecard`, sheet: id };
@@ -125,7 +140,10 @@ function catchUp(t) {
   data.sync();
   return saved;
 }
-// Slot i, bot against bot, played out and saved like any match.
+// The matches of t for the bracket to play out by itself: bot against bot, ready, in bracket order.
+const tourBotSlots = t => (t.finished || t.abandoned ? [] : botSlots(t, isBotIn(t)));
+// Slot i, bot against bot, played out and saved like any match. t: the tournament as it
+// is saved at this moment (see playOut).
 function simulateSlot(t, i) {
   const s = t.data.slots[i], ids = [s.a, s.b], levels = ids.map(id => entrant(t, id).bot);
   const m = {
@@ -247,6 +265,12 @@ function start() {
   const st = tourView.setup;
   if (st) freshen(st);
   if (!st?.draw || notReady(st)) return renderTournament();
+  // Someone in the draw the Pi numbered a moment ago, in a sync still running: the saved
+  // lists go by the new number, this screen by the old one until the sync is over (app.js,
+  // synced; tourRemapped). Started now, the old number would be saved, which nobody has any
+  // more. Not yet: Start is there to press again.
+  const saved = store.get('players', []);
+  if (!st.draw.data.entrants.every(e => saved.some(p => p.id === e.id))) return renderTournament();
   const t = { ...st.draw, name: cleanTourName(st.name), created: Date.now() };
   save(t);
   setSeen(t.id, []);
@@ -283,13 +307,15 @@ const wait = (ms, skip) => new Promise(done => {
 });
 // The bracket on screen. drawn: which drawing is the latest. watch: what resizes it.
 // run: results being shown moving on (playOut), null with the bracket at rest;
-// its skip is set by a tap on the bracket, to go straight to the end.
-const bracketView = { drawn: 0, watch: null, run: null };
-// Tournament t's bracket as it stands, nothing moving: the next match marked, and its
-// matches there to be tapped. Gives back the next match's slot.
-function drawAtRest(svg, t) {
-  const next = t.finished || t.abandoned ? null : tourNext(t);
-  drawBracket(svg, t, { next, taps: tourTaps(t), nameOf: id => tourName(t, id) });
+// its skip is set by a tap on the bracket, to go straight to the end. quiet: until when
+// (ms) the bracket takes no tap on a match, after a run that was skipped.
+const bracketView = { drawn: 0, watch: null, run: null, quiet: 0 };
+const QUIET = 400;  // ms: a tap that skips is often the first of two
+// Tournament t's bracket as it stands, nothing moving: the match to play marked, and
+// (unless taps is false) its matches there to be tapped. Gives back the marked match's slot.
+function drawAtRest(svg, t, taps = true) {
+  const next = tourMarked(t);
+  drawBracket(svg, t, { next, taps: taps ? tourTaps(t) : {}, nameOf: id => tourName(t, id) });
   return next;
 }
 // The bracket on the screen just drawn: the draw being set up, or tournament t, with
@@ -303,7 +329,7 @@ function mountBracket(t) {
   const fill = box.closest('.going') != null, nameOf = id => tourName(t, id);
   const live = () => me === view.drawn && svg.isConnected;
   const hidden = fill ? unseen(t) : [];
-  const next = fill && !t.finished && !t.abandoned ? tourNext(t) : null;
+  const next = fill ? tourMarked(t) : null;
   drawBracket(svg, t, { hide: new Set(hidden), next: hidden.length ? null : next, nameOf });
   sizeBracket(box, svg, { fill });
   showSlot(box, svg, t, hidden[0] ?? next);
@@ -311,11 +337,13 @@ function mountBracket(t) {
   view.watch.observe(box);
   // A long name is cut to fit as it measures, and until the theme's lettering has arrived
   // that is in a stand-in face: drawn again once it has, unless a result is moving on
-  // (which is drawn again when it gets there anyway).
+  // (which is drawn again when it gets there anyway). As it is by then, not as it was (t).
   if (document.fonts?.status === 'loading') {
     document.fonts.ready.then(() => {
       if (!live() || view.run) return;
-      if (fill) drawAtRest(svg, data.tournament(t.id) ?? t); else drawBracket(svg, t, { nameOf });
+      const now = fill ? data.tournament(t.id) : tourView.setup?.draw;
+      if (!now) return;
+      if (fill) drawAtRest(svg, now); else drawBracket(svg, now, { nameOf: id => tourName(now, id) });
     });
   }
   if (fill) playOut(t.id, box, svg, live);
@@ -324,16 +352,23 @@ function mountBracket(t) {
 // against bot ("Simulating Bot 5 v Bot 9…", then its result moves on); then draws
 // the bracket as it stands. Until then a tap anywhere on the bracket skips to the end
 // (the box's own data-act, tour-skip) and does nothing else: its matches are not drawn
-// as buttons until it is at rest. Stops if the screen is drawn again (live() false).
+// as buttons until it is at rest, nor for a moment after a tap that skipped (QUIET), so
+// that the second tap of two does not land on a match. Stops if the screen is drawn
+// again (live() false).
+// The tournament is read again after every wait, and never used from before one: it
+// can change while this waits. The sync that Start sets going gives its new bots the
+// Pi's numbers while "Simulating…" is up (sync.js, remap), and a copy from before that,
+// saved back with a result, would put back numbers that no player has any more.
 async function playOut(id, box, svg, live) {
-  const run = bracketView.run = { skip: false }, skip = () => run.skip;
+  const view = bracketView, run = view.run = { skip: false }, skip = () => run.skip;
+  const now = () => (live() ? data.tournament(id) : null);
   let simulated = false, t;
   box.dataset.act = 'tour-skip';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const status = $app.querySelector('.tour-status');
   for (;;) {
-    t = data.tournament(id);
-    if (!t || !live()) return;
+    t = now();
+    if (!t) return;
     const nameOf = x => tourName(t, x), hidden = unseen(t);
     if (hidden.length) {
       drawBracket(svg, t, { hide: new Set(hidden), next: null, nameOf });
@@ -343,26 +378,34 @@ async function playOut(id, box, svg, live) {
       setSeen(id, [...(seenOf(id) ?? []), hidden[0]]);
       continue;
     }
-    const bb = t.finished || t.abandoned ? null : botSlots(t, isBotIn(t))[0];
+    const bb = tourBotSlots(t)[0];
     if (bb == null) break;
     status.textContent = `Simulating ${slotTitle(t, bb)}…`;
     await wait(reduced ? 0 : 700, skip);
-    if (!live()) return;
+    t = now();
+    if (!t) return;
     status.textContent = '';
-    simulateSlot(t, bb);
-    simulated = true;
+    // (only if it is still theirs to play: not decided meanwhile, on another screen say)
+    if (tourBotSlots(t).includes(bb)) { simulateSlot(t, bb); simulated = true; }
   }
-  bracketView.run = null;
-  delete box.dataset.act;
+  if (run.skip) view.quiet = Date.now() + QUIET;
   // what the bots decided can change the next match, and so the buttons
   if (simulated) return renderTournament();
+  if (view.quiet > Date.now()) {
+    showSlot(box, svg, t, drawAtRest(svg, t, false));
+    await wait(view.quiet - Date.now(), () => false);
+    t = now();
+    if (!t) return;
+  }
+  view.run = null;
+  delete box.dataset.act;
   showSlot(box, svg, t, drawAtRest(svg, t));
 }
 const optsLine = t => `${t.data.opts.start} · ${t.data.opts.out === 'straight' ? 'straight' : 'double'} out`;
 
 function goingHtml(t) {
-  const next = t.finished || t.abandoned ? null : tourNext(t);
-  const playing = next != null && slotInPlay(t) === next;
+  // The main button: back to the match being played here, whichever it is, or else the next one to play.
+  const playing = slotInPlay(t) != null, next = tourMarked(t);
   let buttons = '';
   if (t.finished) buttons = `<p class="tour-won">${esc(tourName(t, t.winner))} wins ${esc(t.name)}</p>
     <div class="row tour-buttons"><button class="primary" data-act="tour-new">New tournament</button></div>`;
@@ -439,7 +482,8 @@ export function tourAct(act, d) {
     case 'tour-play': {
       if (!t) return renderTournament();
       const i = +d.i, s = t.data.slots[i];
-      if (!tourPlayable(t).includes(i)) return renderTournament();  // (it changed under the button)
+      // (it changed under the button: no longer ready, or a match of the bracket is being played here, which this would replace)
+      if (!tourPlayable(t).includes(i) || slotInPlay(t) != null) return renderTournament();
       return askFirst('start', {
         gameId: 'x01', ids: [s.a, s.b],
         opts: { start: t.data.opts.start, out: t.data.opts.out, legs: t.data.rounds[s.round].legs, sets: 1 },

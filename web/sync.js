@@ -129,7 +129,11 @@ export function matchSheet(m) {
 //   that has .status if the Pi refused, and no .status if it wasn't reached
 // changed({remapped, pulled, sent}): called after every sync attempt.
 //   remapped: [[old id, new id]] for players the Pi has now numbered
-export function createSync({ store, api, changed = () => {} }) {
+// renumbered(old id, new id): called the moment the Pi has numbered a player made
+//   offline, part way through a sync that may run on for a while yet. For what is
+//   held outside the store and saved back whole, like the game in progress: saved
+//   again before the sync is over, it would put the old number back.
+export function createSync({ store, api, changed = () => {}, renumbered = () => {} }) {
   const { get, set } = store;
   // Player ids in a queued match (entries queued by older versions keep them in .players).
   const idsOf = item => item.m?.playerIds ?? item.players ?? [];
@@ -384,6 +388,7 @@ export function createSync({ store, api, changed = () => {} }) {
           }
           remap(op.id, p.id);
           report.remapped.push([op.id, p.id]);
+          renumbered(op.id, p.id);
         } else if (op.id > 0) {
           const rename = op.op === 'rename';
           await api(`/players/${op.id}`, rename ? 'PATCH' : 'DELETE', rename ? { name: op.name } : undefined);

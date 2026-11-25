@@ -9,9 +9,11 @@ import { createSync } from '../../web/sync.js';
 const mem = {};
 export const store = { get: (k, f) => (k in mem ? structuredClone(mem[k]) : f), set: (k, v) => { mem[k] = structuredClone(v); } };
 let nextId = 100;
+export const sent = [];  // everything put on the Pi: [path, body]
 export const api = async (path, method, body) => {
   if (path === '/players' && method === 'POST') return { id: nextId++, ...body };
   if (!method || method === 'GET') throw new Error('not reached');  // (no pull: the store stays as the test made it)
+  sent.push([path, structuredClone(body)]);
   return {};
 };
 export const data = createSync({ store, api });
@@ -28,9 +30,16 @@ export function botPlayer(level) {
   loadPlayers();
   return p.id;
 }
+// (nothing is on the page, so no bracket is drawn, unless a test puts page.mjs's stand-in there)
 export const $app = { innerHTML: '', querySelector: () => null };
 export const account = { locked: false };
 export const esc = s => String(s), fit = () => {}, pageFoot = () => '', pageHead = () => '';
 export const redraw = f => f(), refreshStatus = () => {}, mark = () => {};
 export let match = null, screen = 'tournament';
 export const setMatch = m => { match = m; }, setScreen = s => { screen = s; };
+// What starting a game asks of the app as well (web/screens/start.js).
+export const BOT = 0, botAt = () => ({ level: 5 }), setup = { first: null };
+export const isBotId = id => id === BOT || bots.some(b => b.id === id);
+export const levelOf = id => (id === BOT ? botAt().level : bots.find(b => b.id === id)?.bot ?? null);
+export const nameOf = id => (players.find(p => p.id === id) ?? bots.find(p => p.id === id))?.name ?? '?';
+export const dartsFor = () => null, randomOrder = ids => ids, saveSetup = () => {}, say = () => {}, seats = () => [];

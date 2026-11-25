@@ -10,7 +10,8 @@ import { cleanBoard, cleanDetails, createSync, matchBody } from '../web/sync.js'
 import { newMatch } from '../web/engine.js';
 import { DEVICE_KEYS } from '../web/account.js';
 
-function rig() {
+// more: anything else createSync is to be given.
+function rig(more = {}) {
   const kept = new Map();
   const store = {
     get: (k, d) => kept.has(k) ? JSON.parse(kept.get(k)) ?? d : d,
@@ -91,7 +92,7 @@ function rig() {
     throw new Error('unexpected ' + path);
   }
   const reports = [];
-  return { store, pi, reports, data: createSync({ store, api, changed: r => reports.push(r) }) };
+  return { store, pi, reports, data: createSync({ store, api, changed: r => reports.push(r), ...more }) };
 }
 const D = (seg, mult = 1, ts = 1000) => ({ t: 'dart', seg, mult, ts });
 function game(id, playerIds, names, log) {
@@ -112,6 +113,28 @@ test('a computer player keeps its level through the Pi numbering it', async () =
   assert.deepEqual(store.get('match').playerIds, [1, 2]);
   assert.deepEqual(store.get('match').bots, [null, 7]);
   assert.deepEqual(pi.matches.get('m1').players, [1, 2]);
+});
+
+test('a game in progress hears of a player\'s new number at once: a dart thrown before the sync is over keeps it', async () => {
+  // The app's own copy of the game in progress (app.js, `match`): saved whole after every dart
+  // (queueSync), and picked up again from the store when sync says a player has been numbered.
+  let mine;
+  const { store, pi, data } = rig({ renumbered: () => { mine = store.get('match', null); } });
+  const save = () => { mine.seq++; store.set('match', mine); data.saveMatch(mine); };
+  const sam = data.addPlayer('Sam'), bot = data.addPlayer('Bot 7', 7);
+  mine = { ...game('m1', [sam.id, bot.id], ['Sam', 'Bot 7'], [D(20, 3)]), bots: [null, 7] };
+  save();
+  pi.up = true;
+  const syncing = data.sync(true);
+  while (store.get('ops', []).length) await null;  // the Pi has numbered them both; the rest of the sync is still to come
+  assert.deepEqual(store.get('match').playerIds, [1, 2]);
+  mine.log.push(D(19));  // the next dart lands meanwhile
+  save();
+  await syncing;
+  await data.sync();
+  assert.deepEqual(store.get('match').playerIds, [1, 2], 'the old numbers are not put back');
+  assert.equal(data.waiting(), 0, 'so the game is not left waiting for ever');
+  assert.deepEqual([pi.matches.get('m1').players, pi.matches.get('m1').log.length], [[1, 2], 2], 'and the Pi has it, dart and all');
 });
 
 test('offline: players, settings and a whole game are kept, then reach the Pi in order', async () => {

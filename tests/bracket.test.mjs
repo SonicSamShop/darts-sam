@@ -84,6 +84,22 @@ test('bracket: a match that can be tapped is one button over both its boxes', ()
   assert.ok(!buttons.some(g => boxesIn(g).includes('1:0')));
 });
 
+test('bracket: a tap is taken by a match\'s two boxes, not by the space between them', () => {
+  const t = draw(8), L = layout(t);
+  const svg = drawn(t, { taps: { 0: { label: 'A first-round match', act: 'tour-play', i: 0 }, 4: { label: 'A semi-final', act: 'tour-play', i: 4 }, 6: { label: 'The final', act: 'tour-play', i: 6 } } });
+  const [first, semi, final] = svg.all().filter(e => e.attrs.role === 'button');
+  const hits = g => g.children.filter(e => e.attrs.class === 'hit').map(e => [+e.attrs.x, +e.attrs.y, +e.attrs.width, +e.attrs.height]);
+  // Round 1's two boxes are a pair, 12 apart: one area over both, as they are drawn.
+  assert.deepEqual(hits(first), [[0, L.ys[0][0], 156, 46 + 34]]);
+  // A later round's are far apart, with other matches' lines between them: each box takes its own taps.
+  assert.deepEqual(hits(semi), [[L.x(1), L.ys[1][0], 156, 34], [L.x(1), L.ys[1][1], 156, 34]]);
+  assert.deepEqual(hits(final), [[L.x(2), L.ys[2][0], 156, 34], [L.x(2), L.ys[2][1], 156, 34]]);
+  assert.ok(L.ys[2][1] - L.ys[2][0] > 150, 'the finalists\' boxes are a long way apart');
+  // Still one button a match: one stop for Tab, one name.
+  assert.deepEqual([first, semi, final].map(g => [g.attrs.tabindex, g.attrs['aria-label'], boxesIn(g).length]),
+    [['0', 'A first-round match', 2], ['0', 'A semi-final', 2], ['0', 'The final', 2]]);
+});
+
 test('bracket: with nothing to tap, no box is a button or takes the keyboard', () => {
   const all = drawn(draw(8), {}).all();
   assert.equal(all.filter(e => e.attrs['data-box']).length, 8 + 4 + 2 + 1);

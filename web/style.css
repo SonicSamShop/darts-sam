@@ -289,8 +289,8 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .bracket .tag { fill: var(--accent); }
 .bracket .ghost rect { fill: var(--board, var(--bg)); stroke: var(--accent); stroke-width: 2.5; }
 /* a match that can be tapped (to play it, or to see its scorecard) is a button over both its boxes: nothing
-   to see at rest, and a frame in the lettering's colour while the keyboard is on it (.hit also takes the
-   tap that lands between the two boxes) */
+   to see at rest, and a frame in the lettering's colour while the keyboard is on it (.hit is what takes the
+   tap: one over a first-round pair, one for each box of a later round, whose boxes are far apart) */
 .bracket .match[role=button] { cursor: pointer; outline: none; }
 .bracket .match[role=button]:active { filter: brightness(1.3); }
 .bracket .hit { fill: none; stroke: none; pointer-events: all; }
