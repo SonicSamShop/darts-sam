@@ -161,6 +161,49 @@ def main():
             assert u.download["state"] == "failed" and "genuine" in u.download["error"], u.download
             assert installed == [] and not (folder / "DartsSAM-1.2.exe.part").exists()
 
+        # by itself at start: put in place of the running program, nothing left in Downloads,
+        # and restarted onto only when asked
+        here, relaunched = folder / "app" / "DartsSAM.exe", []
+        u = release.Updater(lambda: "https://app.example", {"version": "1.0", "notes": {}}, "windows",
+                            get=site_says(newer), fetch=lambda req, timeout: Answer(b"12345"), folder=lambda: folder,
+                            install=lambda path: installed.append(path) or "quit", key=KEY,
+                            replace=lambda path: here, relaunch=relaunched.append, auto=True)
+        assert not u.restart()  # nothing waiting yet
+        installed.clear()
+        u.start_check()
+        wait(lambda: u.download["state"] not in ("idle", "downloading"))
+        assert u.download["state"] == "installed" and u.download["here"] == str(here), u.download
+        assert installed == [] and not (folder / "DartsSAM-1.2.exe").exists()
+        assert not u.start_download()  # already done
+        assert u.restart() and relaunched == [here]
+
+        # where it can't replace itself: downloaded, and opened only when the player says Update
+        u = release.Updater(lambda: "https://app.example", {"version": "1.0", "notes": {}}, "windows",
+                            get=site_says(newer), fetch=lambda req, timeout: Answer(b"12345"), folder=lambda: folder,
+                            install=lambda path: installed.append(path) or "quit", key=KEY,
+                            replace=lambda path: None, auto=True)
+        u.start_check()
+        wait(lambda: u.download["state"] not in ("idle", "downloading"))
+        assert u.download["state"] == "downloaded" and installed == [] and not u.restart()
+        assert u.start_download()
+        assert u.download["state"] == "ready" and installed == [folder / "DartsSAM-1.2.exe"]
+
+        # replace() itself (Windows): the running .exe set aside, the new one in its name; tidied next start
+        here.parent.mkdir()
+        here.write_bytes(b"old")
+        (folder / "new.exe").write_bytes(b"new")
+        assert release.replace(folder / "new.exe", here, "win32") == here
+        assert here.read_bytes() == b"new" and (here.parent / "DartsSAM.old.exe").read_bytes() == b"old"
+        assert sorted(f.name for f in here.parent.iterdir()) == ["DartsSAM.exe", "DartsSAM.old.exe"]
+        release.tidy(here)
+        assert [f.name for f in here.parent.iterdir()] == ["DartsSAM.exe"]
+        # a download that can't be read: the running one left just as it was
+        assert release.replace(folder / "missing.exe", here, "win32") is None
+        assert [f.name for f in here.parent.iterdir()] == ["DartsSAM.exe"] and here.read_bytes() == b"new"
+        assert release.replace(folder / "new.exe", None, "win32") is None  # not a built program: never
+        # the version that has just started says what is new in it
+        assert release.Updater(lambda: None, {"version": "1.2", "notes": NOTES}).state()["new"] == NOTES["1.2"]
+
         # an app with no key built in (a fork's) offers no updates at all
         u = release.Updater(lambda: "https://app.example", {"version": "1.0", "notes": {}}, "windows",
                             get=site_says(newer), key=b"")

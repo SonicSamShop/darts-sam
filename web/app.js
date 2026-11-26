@@ -321,12 +321,14 @@ export let helperLinked = false;  // hosted: the person's cameras' computer is c
 // ---------- new versions ----------
 // When the app's files on the server change while the app is open, it reloads onto
 // them, but never under a game: only on the menu, with no game in progress.
+// Nobody is in the middle of anything: a reload or restart now interrupts no one.
+export const idle = () => screen === 'landing' || (screen === 'home' && !match);
 export const updater = createUpdater({
   reload: () => {
     navigator.serviceWorker?.controller?.postMessage({ fresh: true });  // sw.js: ask the server, not the saved copy
     location.reload();
   },
-  idle: () => screen === 'landing' || (screen === 'home' && !match),
+  idle,
   memory: {
     get: () => { try { return sessionStorage.getItem('reloadedFor'); } catch { return null; } },
     set: v => { try { sessionStorage.setItem('reloadedFor', v); } catch { /* private mode */ } },

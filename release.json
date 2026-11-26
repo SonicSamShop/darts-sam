@@ -1,6 +1,8 @@
 {
   "version": "1.8.4",
-  "unreleased": [],
+  "unreleased": [
+    "The desktop app now updates itself: a new version is downloaded and installed by itself, and starts the next time you open Darts S.A.M, with what's new shown. To have it restart onto a new version straight away, whenever no game is going, switch on Restart for updates between games under Settings › About."
+  ],
   "notes": {
     "1.0": [
       "First release."

@@ -826,7 +826,7 @@ app.include_router(data_api.make_router(lambda request: None, reports=report.cou
 
 
 # ---------- a newer version of the desktop app (see release.py) ----------
-updater = release.Updater(lambda: site())
+updater = release.Updater(lambda: site(), auto=True)
 
 
 @app.get("/api/update")
@@ -841,6 +841,15 @@ def start_update():
     if not updater.start_download():
         raise HTTPException(409, "There is no new version to download.")
     return updater.state()
+
+
+@app.post("/api/update/restart")
+def restart_for_update():
+    """Close and start again as the new version, already put in place (the page asks
+    for this between games, if the player said so)."""
+    if not updater.restart():
+        raise HTTPException(409, "There is no new version waiting to start.")
+    return {"ok": True}
 
 
 @app.get("/version.json")
@@ -883,6 +892,7 @@ def main():
         ap.error('--pair needs the hosted site\'s address: add --host URL, or set "host" in config.json')
     pair_at_start = args.pair
     if paths.FROZEN or os.environ.get("DARTSSAM_UPDATES") == "1":
+        release.tidy()  # the version before this one, if this one replaced it
         updater.start_check()  # only the built desktop app: running from the code is updated with git
     else:
         updater.checked = True  # nothing to wait for

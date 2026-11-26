@@ -10,7 +10,12 @@ the tests fail if a note is missing), and
 push to `main`. GitHub builds the apps (named with the version, such as
 `DartsSAM-windows-1.1`), the server puts them on the download page
 (`tools/fetch_apps.py`), and each desktop app that starts after that offers the
-new version with its notes, and downloads it if asked (`server/release.py`).
+new version: it downloads it, checks it is genuine and puts it in place of
+itself, to start next time (or straight away between games, if the player
+switched that on under Settings › About). Where it can't replace itself (Linux,
+or an app kept somewhere it may not write to), it offers the new version with
+its notes instead (`server/release.py`). Apps older than the release that brought this in update the
+old way once, to the version that does this.
 
 Pushes that don't change the version build no apps. (Every pull request and
 every push to `main` still runs the tests: `.github/workflows/tests.yml`.) To

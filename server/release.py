@@ -11,9 +11,20 @@ build on the site when its number is new, and the site says which version it
 has for each kind of computer (GET /api/release on server/host.py).
 
 The built desktop app asks the site once, when it starts (app.py). With a newer
-version there, its page offers it (web/screens/release.js): the changes since the one this
-is, and Update. Update downloads the file into Downloads and then
-  Mac:     opens the .dmg, to drag the app into Applications, and quits this one
+version there, it downloads it by itself and puts it in place of its own
+program (replace()), with nobody asked anything:
+  Windows: the running .exe is renamed DartsSAM.old.exe (Windows allows that,
+           though not overwriting it) and the new one takes its name
+  Mac:     the .dmg is opened out of sight and the app in it copied over this
+           one's .app, the old one set aside as .<name>.old until next start
+It goes on running as it is; the new version is what starts next time. If the
+player has said so (Settings, About), the page restarts it onto the new one as
+soon as no game is going (POST /api/update/restart).
+
+Where it can't replace itself (Linux, an app run from the .dmg itself or from
+a folder it may not write to), its page offers the new version as before: the
+changes since the one this is, and Update, which opens what was downloaded
+  Mac:     the .dmg, to drag the app into Applications, and quits this one
   Windows: starts the new .exe and quits this one (both can't have the port)
   Linux:   shows the file, to unpack and run install.sh as the first time
 
@@ -32,7 +43,9 @@ import json
 import os
 import platform
 import re
+import shutil
 import subprocess
+import tempfile
 import sys
 import threading
 import urllib.parse
@@ -157,12 +170,116 @@ def install(path: Path, system: str = sys.platform) -> str:
     return "folder"
 
 
+def running_copy(system: str = sys.platform) -> Path | None:
+    """The program that is running, as the player keeps it: the .exe, or the Mac's .app.
+    None when it is not a built program, or is somewhere it can't be replaced."""
+    if not paths.FROZEN:
+        return None
+    exe = Path(sys.executable).resolve()
+    if system == "win32":
+        here = exe
+    elif system == "darwin":
+        here = exe.parents[2] if len(exe.parents) > 2 else exe
+        if here.suffix != ".app":
+            return None
+        # run from the .dmg itself, or from a copy macOS has moved somewhere read-only
+        if str(here).startswith("/Volumes/") or "/AppTranslocation/" in str(here):
+            return None
+    else:
+        return None
+    return here if os.access(here.parent, os.W_OK) else None
+
+
+def _old(here: Path) -> Path:
+    """Where the version before is set aside: DartsSAM.old.exe, or .DartsSAM.app.old."""
+    if here.suffix == ".app":
+        return here.with_name(f".{here.name}.old")
+    return here.with_name(f"{here.stem}.old{here.suffix}")
+
+
+def _remove(path: Path):
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path, ignore_errors=True)
+    elif path.exists() or path.is_symlink():
+        path.unlink(missing_ok=True)
+
+
+def tidy(here: Path | None = None):
+    """At start: the version before this one, set aside when this one replaced it, can go now."""
+    here = here or running_copy()
+    if here:
+        try:
+            _remove(_old(here))
+        except OSError as e:  # still in use: next time
+            print("update tidy:", e)
+
+
+def _app_in_dmg(dmg: Path, to: Path):
+    """Copy the .app out of a .dmg to `to`, without the .dmg showing on the desktop."""
+    mount = Path(tempfile.mkdtemp(prefix="dartssam-dmg-"))
+    subprocess.run(["hdiutil", "attach", "-nobrowse", "-readonly", "-noautoopen", "-mountpoint", str(mount), str(dmg)],
+                   check=True, capture_output=True, timeout=120)
+    try:
+        apps = sorted(mount.glob("*.app"))
+        if not apps:
+            raise OSError("there is no app in the download")
+        subprocess.run(["ditto", str(apps[0]), str(to)], check=True, capture_output=True, timeout=300)
+    finally:
+        subprocess.run(["hdiutil", "detach", "-force", str(mount)], capture_output=True, timeout=60)
+        shutil.rmtree(mount, ignore_errors=True)
+    # downloaded by the app itself it has none, but a quarantined copy would be refused at start
+    subprocess.run(["xattr", "-dr", "com.apple.quarantine", str(to)], capture_output=True, timeout=60)
+
+
+def replace(download: Path, here: Path | None = None, system: str = sys.platform) -> Path | None:
+    """Put the downloaded version where the running one is, for next start, and say where.
+    None if it can't (the running one is then left as it was, and the page offers Update)."""
+    here = here if here is not None else running_copy(system)
+    if here is None:
+        return None
+    new, old = here.with_name(f".{here.name}.new"), _old(here)
+    try:
+        _remove(new)
+        _remove(old)  # a version before that one, if it wasn't tidied
+        if system == "darwin":
+            _app_in_dmg(download, new)
+        else:
+            shutil.copyfile(download, new)
+            os.chmod(new, 0o755)
+        os.replace(here, old)  # the running one keeps running from where it now is
+        try:
+            os.replace(new, here)
+        except OSError:
+            os.replace(old, here)
+            raise
+        return here
+    except Exception as e:  # noqa: BLE001  any trouble: leave things as they were
+        print("update replace:", e)
+        try:
+            _remove(new)
+        except OSError:
+            pass
+        return None
+
+
+def relaunch(here: Path, system: str = sys.platform):
+    """Start the new version that is now at `here`, and quit this one; it waits for the port."""
+    if system == "darwin":
+        subprocess.Popen(["open", "-n", str(here), "--args", "--updated"])
+    else:
+        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        subprocess.Popen([str(here), "--updated"], creationflags=flags, close_fds=True)
+    _quit_soon()
+
+
 class Updater:
     """The state the page asks about (GET /api/update) and the download it starts (POST)."""
 
     def __init__(self, site, release: dict | None = None, app: str | None = app_id(), get=_get,
-                 fetch=urllib.request.urlopen, folder=downloads_folder, install=install, key=None):
-        self.site, self.app = site, app
+                 fetch=urllib.request.urlopen, folder=downloads_folder, install=install, key=None,
+                 replace=replace, relaunch=relaunch, auto=False):
+        self.site, self.app, self.auto = site, app, auto
+        self.replace, self.relaunch = replace, relaunch
         self.key = key if key is not None else public_key()
         self.release = release or load()
         self.get, self.fetch, self.folder, self.install = get, fetch, folder, install
@@ -177,7 +294,8 @@ class Updater:
 
     def state(self) -> dict:
         site = self.site()
-        return {"version": self.version, "checked": self.checked, "available": self.available,
+        return {"version": self.version, "new": list(self.release.get("notes", {}).get(self.version, [])),
+                "checked": self.checked, "available": self.available,
                 "download": dict(self.download), "page": site and site + "/download.html"}
 
     def check(self):
@@ -191,17 +309,35 @@ class Updater:
         self.checked = True
 
     def start_check(self):
-        threading.Thread(target=self.check, daemon=True).start()
+        """At start: ask the site, and (auto) fetch and put in place any newer version."""
+        def run():
+            self.check()
+            if self.auto and self.available:
+                self.start_download(auto=True)
+        threading.Thread(target=run, daemon=True).start()
 
-    def start_download(self) -> bool:
+    def start_download(self, auto: bool = False) -> bool:
+        """Update on the page, or by itself at start (auto: then if it can't replace
+        itself the download waits, "downloaded", for the player to say Update)."""
         with self._lock:
-            if not self.available or self.download["state"] in ("downloading", "ready"):
+            if self.download["state"] == "downloaded" and not auto:
+                d = self.download
+                self.download = {**d, "state": "ready", "next": self.install(Path(d["path"]))}
+                return True
+            if not self.available or self.download["state"] in ("downloading", "ready", "installed", "downloaded"):
                 return False
             self.download = {"state": "downloading", "done": 0, "total": self.available.get("size") or 0}
-        threading.Thread(target=self._download, daemon=True).start()
+        threading.Thread(target=self._download, args=(auto,), daemon=True).start()
         return True
 
-    def _download(self):
+    def restart(self) -> bool:
+        """Onto the new version, put in place by replace(): POST /api/update/restart."""
+        if self.download["state"] != "installed":
+            return False
+        self.relaunch(Path(self.download["here"]))
+        return True
+
+    def _download(self, auto: bool = False):
         a = self.available
         part = None
         try:
@@ -221,7 +357,13 @@ class Updater:
             if digest.hexdigest() != a["sha256"] or not genuine(self.key, self.app, a["version"], a["sha256"], a["signature"]):
                 raise ValueError("the download could not be checked as genuine, so it was not opened")
             os.replace(part, to)
-            self.download = {**self.download, "state": "ready", "path": str(to), "next": self.install(to)}
+            if here := self.replace(to):
+                to.unlink(missing_ok=True)  # it is in place: not left in Downloads too
+                self.download = {**self.download, "state": "installed", "here": str(here)}
+            elif auto:
+                self.download = {**self.download, "state": "downloaded", "path": str(to)}
+            else:
+                self.download = {**self.download, "state": "ready", "path": str(to), "next": self.install(to)}
         except Exception as e:  # noqa: BLE001  said on the page, which offers the download page instead
             print("update download:", e)
             if part:
