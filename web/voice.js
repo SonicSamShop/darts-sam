@@ -52,6 +52,7 @@ export function createVoice({
   synth = globalThis.speechSynthesis,
   Utterance = globalThis.SpeechSynthesisUtterance,
   chosen = '',          // the name of the device voice picked in the settings; '' for the best one
+  onSpeaking = () => {}, // notified (true/false) so speech-to-score pauses while the caller speaks
 } = {}) {
   let uttering = null;  // what the device is saying now; also keeps it from being dropped half-way
   let broken = false;   // the device has voices but couldn't speak with them
@@ -73,12 +74,13 @@ export function createVoice({
     const u = uttering = new Utterance(text);
     const v = pick();
     if (v) { u.voice = v; u.lang = v.lang; }
-    u.onend = () => { if (uttering === u) uttering = null; };
+    u.onend = () => { if (uttering === u) { uttering = null; onSpeaking(false); } };
     u.onerror = e => {
-      if (uttering === u) uttering = null;
+      if (uttering === u) { uttering = null; onSpeaking(false); }
       if (e?.error === 'network' && v) { failed.add(v.name); if (hasOwn()) device(text); return; }
       if (BROKEN.includes(e?.error)) broken = true;
     };
+    onSpeaking(true);
     synth.speak(u);
   }
 

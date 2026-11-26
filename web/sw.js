@@ -19,7 +19,7 @@ const WAIT = 2500;             // ms to give the server before using the saved c
 // Everything the app needs to start. Files not listed here (a new game module,
 // say) are still saved the first time they are loaded.
 const FILES = [
-  './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'achievements.js', 'engine.js', 'board.js', 'boards.js', 'bot.js', 'tournament.js', 'install.js', 'voice.js', 'sfx.js', 'sharecard.js', 'routine.js', 'theme.js',
+  './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'achievements.js', 'engine.js', 'board.js', 'boards.js', 'bot.js', 'tournament.js', 'install.js', 'voice.js', 'speech.js', 'sfx.js', 'sharecard.js', 'routine.js', 'theme.js',
   'phoneui.js', 'phonecam.js', 'ask.js', 'phonecam.css',
   'screens/sharing.js', 'screens/accountpanel.js', 'screens/cameras.js', 'screens/landing.js', 'screens/achievements.js',
   'screens/home.js', 'screens/start.js', 'screens/game.js', 'screens/earned.js', 'screens/report.js', 'screens/stats.js',

@@ -10,6 +10,7 @@ import { request } from './api.js';
 import { createAccount } from './account.js';
 import { createTracker } from './track.js';
 import { createVoice } from './voice.js';
+import { createSpeech } from './speech.js';
 import { createSfx } from './sfx.js';
 import { shareMatchCard } from './sharecard.js';
 import { WARMUP_STEPS } from './routine.js';
@@ -32,7 +33,7 @@ import { deep, drawPlayers, exportStatsCsv, renderPlayers, renderSheet, sheet, s
 import { avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, quickPresets, renderHome } from './screens/home.js';
 import { slipTapped } from './screens/earned.js';
 import {
-  askQuit, botThrow, botTimer, botUp, bustVisit, closeQuit, endHold, noScore, numPad, padCommit, padKey, padQuick, push, renderGame, toggleMatchStats, undo
+  askQuit, botThrow, botTimer, botUp, bustVisit, closeQuit, endHold, handleVoice, micState, noScore, numPad, padCommit, padKey, padQuick, push, renderGame, toggleMatchStats, undo
 } from './screens/game.js';
 import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, playRemapped, renderBull, startMatch
@@ -128,7 +129,7 @@ delete settings.board;  // (the one board there was, before boards had a list of
 export let totals = store.get('totals', null);  // {darts, reports}: everything on the server, as it last said
 export const setTotals = v => { totals = v; };  // for screens/home.js
 export let screen = match ? 'game' : 'home';
-export const setScreen = v => { screen = v; counted(); wakeCameras(); };  // for screens/*.js: each sets its own
+export const setScreen = v => { screen = v; if (v !== 'game') speech?.stop(); counted(); wakeCameras(); };  // for screens/*.js: each sets its own
 // The cameras rest after a while unused (standby, on the Cameras screen). A game,
 // or the Cameras screen, keeps them awake, and wakes them if they are resting.
 let woke = 0;
@@ -423,7 +424,11 @@ export function refreshStatus() {
 // The device's own voice, or the app's built-in one where it has none (voice.js).
 // Which of the device's voices to use is kept on this device, not with the
 // other settings: another device won't have the same voices.
-export const voice = createVoice({ chosen: store.get('voiceName', '') });
+export const speech = createSpeech({
+  onResult: alts => handleVoice(alts),
+  onState: st => micState(st),
+});
+export const voice = createVoice({ chosen: store.get('voiceName', ''), onSpeaking: busy => speech.setMuted(busy) });
 export const sfx = createSfx();
 export const sfxOn = () => settings.sfx !== false;
 export function say(text) {
@@ -841,6 +846,9 @@ $app.addEventListener('click', e => {
       saveSettings();
       if (settings.sfx) sfx.dart({ seg: 20, mult: 3 });
       return renderGame();
+    case 'mic-toggle':
+      speech.toggle();
+      return renderGame();
     case 'miss': return botUp() ? undefined : push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
     case 'noscore': return noScore();
     case 'bust': return bustVisit();
@@ -995,6 +1003,11 @@ document.addEventListener('keydown', e => {
     settings.sfx = !sfxOn();
     saveSettings();
     if (settings.sfx) sfx.dart({ seg: 20, mult: 3 });
+    return renderGame();
+  }
+  if (k === 'v' && speech.supported() && s.winner == null) {
+    e.preventDefault();
+    speech.toggle();
     return renderGame();
   }
 });

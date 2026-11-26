@@ -8,6 +8,7 @@
 import { clock, compute, elapsed, gameById, previousVisit } from '../engine.js';
 import { buildBoard, label, spoken, value } from '../board.js';
 import { starterCall } from '../voice.js';
+import { parseSpeech } from '../speech.js';
 import { matchSheet } from '../sync.js';
 import { botLevel } from '../bot.js';
 import { renderLanding } from './landing.js';
@@ -21,7 +22,7 @@ import {
 } from './earned.js';
 import {
   $app, account, cameraCount, connected, dartsName, data, esc, fit, flagHtml, goHome, icon, mark, match, phone, queueSync,
-  refreshStatus, say, screen, setMatch, setScreen, setsOf, settings, sfx, sfxOn, store, tracker
+  refreshStatus, say, screen, setMatch, setScreen, setsOf, settings, sfx, sfxOn, speech, store, tracker
 } from '../app.js';
 
 // The level of the computer player whose throw it is in the game in progress, or null.
@@ -284,6 +285,7 @@ function quitGame(save, loser = null) {
   if (ofTournament) onMatchQuit(match, loser, save);  // given up: the other goes through
   setMatch(null);
   store.set('match', null);
+  speech.stop();
   numPad.value = ''; numPad.ask = null; numPad.error = '';
   data.sync();
   if (!ofTournament) return goHome();
@@ -345,6 +347,70 @@ export function bustVisit() {
   if (usingPad(game) && (s.turn.length || numPad.ask)) return;
   numPad.value = ''; numPad.ask = null; numPad.error = '';
   push({ t: 'bust' });
+}
+
+// ---------- speech-to-score (voice input) ----------
+let micToast = null;  // {text, bad, until}
+let micToastTimer = 0;
+function showMicToast(text, bad = false) {
+  micToast = { text, bad, until: Date.now() + 2600 };
+  clearTimeout(micToastTimer);
+  micToastTimer = setTimeout(() => {
+    if (micToast && Date.now() >= micToast.until) micToast = null;
+    if (screen === 'game' && match) renderGame();
+  }, 2650);
+  if (screen === 'game' && match) renderGame();
+}
+export function micState(st) {
+  if (st.error) showMicToast(st.error, true);
+  else if (screen === 'game' && match) renderGame();
+}
+export function handleVoice(alts) {
+  if (screen !== 'game' || !match) return;
+  if (document.querySelector('.quitask, .firstask')) return;
+  const game = gameById(match.gameId), s = compute(match), pad = usingPad(game);
+  const opts = { mode: pad ? 'pad' : 'board', askingFinish: pad && !!numPad.ask };
+  let parsed = null, heard = alts[0] ?? '';
+  for (const alt of alts) {
+    const p = parseSpeech(alt, opts);
+    if (p) { parsed = p; heard = alt.trim(); break; }
+  }
+  if (!parsed) {
+    if (heard.trim()) showMicToast(`Didn't catch "${heard.trim()}"`, true);
+    return;
+  }
+  if (parsed.kind === 'cmd' && parsed.cmd === 'undo') {
+    if (!match.log.length) return;
+    numPad.value = ''; numPad.ask = null; numPad.error = '';
+    undo();
+    return showMicToast(`"${heard}" → Undo`);
+  }
+  if (s.winner != null || botUp(s)) return;
+  if (parsed.kind === 'cmd') {
+    if (parsed.cmd === 'bust') { bustVisit(); return showMicToast(`"${heard}" → Bust`); }
+    if (parsed.cmd === 'noscore') { noScore(); return showMicToast(`"${heard}" → No score`); }
+    if (parsed.cmd === 'next' && !pad && !s.lastVisit?.auto) { push({ t: 'next' }); return showMicToast(`"${heard}" → End turn`); }
+    return;
+  }
+  if (parsed.kind === 'fin' && pad && numPad.ask) {
+    if (!numPad.ask.darts.includes(parsed.darts)) return showMicToast(`Can't finish in ${parsed.darts}`, true);
+    padCommit(numPad.ask.total, parsed.darts);
+    return showMicToast(`"${heard}" → ${parsed.darts} dart${parsed.darts > 1 ? 's' : ''}`);
+  }
+  if (parsed.kind === 'visit' && pad) {
+    padQuick(parsed.total);
+    return showMicToast(`"${heard}" → ${parsed.total}`);
+  }
+  if (parsed.kind === 'darts' && !pad) {
+    const entered = [];
+    for (const d of parsed.darts) {
+      const cur = compute(match);
+      if (cur.winner != null || botUp(cur)) break;
+      push({ t: 'dart', ...d, src: 'voice' });
+      entered.push(label(d));
+    }
+    if (entered.length) showMicToast(`"${heard}" → ${entered.join(' ')}`);
+  }
 }
 function padHtml(s) {
   const game = gameById(match.gameId);
@@ -507,11 +573,22 @@ export function renderGame() {
   const sfxIcon = sfxOn()
     ? icon('<path d="M11 5L6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/>')
     : icon('<path d="M11 5L6 9H3v6h3l5 4zM22 9l-6 6M16 9l6 6"/>');
+  const micOn = speech.active();
+  if (s.winner != null && micOn) speech.stop();
+  const micIcon = icon('<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/>');
+  const micBtn = speech.supported() && s.winner == null
+    ? `<button class="ghost micbtn ${micOn ? 'on' : ''}" data-act="mic-toggle" title="${micOn ? 'Stop voice scoring (V)' : 'Voice scoring (V)'}" aria-label="${micOn ? 'Stop voice scoring' : 'Start voice scoring'}" aria-pressed="${micOn}">${micIcon}</button>` : '';
+  if (micToast && Date.now() >= micToast.until) micToast = null;
+  const micBar = micToast
+    ? `<div class="micbar ${micToast.bad ? 'bad' : 'ok'}" role="status">${esc(micToast.text)}</div>`
+    : micOn ? `<div class="micbar live" role="status"><i class="micdot"></i>${speech.listening() ? (pad ? 'Listening… say a score, "no score", "bust" or "undo"' : 'Listening… say a bed (e.g. "treble 20"), "miss", "bust" or "undo"') : 'Paused while caller speaks…'}</div>` : '';
   document.querySelector('.side').innerHTML = `
     <div class="top"><button class="ghost" data-act="home">‹ Menu</button>
       <span class="title"><b>${game.name}</b>${routineTag} <span class="clock" title="Match time">${clock(elapsed(match, s))}</span></span>
       <span class="spacer"></span><span class="conn brief muted"></span>
+      ${micBtn}
       <button class="ghost soundbtn ${sfxOn() ? 'on' : ''}" data-act="sfx-toggle" title="${sfxOn() ? 'Mute sound effects' : 'Turn on sound effects'}" aria-label="${sfxOn() ? 'Mute sound effects' : 'Turn on sound effects'}">${sfxIcon}</button></div>
+    ${micBar}
     ${tv ? '' : flash ? `<div class="players">${flashHtml(s)}</div>` : `<div class="players">${s.players.map((p, i) => {
       const v = game.summary(s, i);
       return `<div class="pcard ${s.winner === i ? 'win' : s.winner == null && i === s.current ? 'cur' : ''}${v.out ? ' out' : ''}${moved(i)}">

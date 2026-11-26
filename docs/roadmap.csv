@@ -1,42 +1,31 @@
 priority,darts_sam_status,effort,category,dc_id,dc_votes,dc_status,title,url,notes
-P1 - Quick Win,Done,Small,Core UX,524,490,Future plan,Dedicated 'Bust' and 'No Score' buttons,https://requests.dartcounter.net/524,Add one-tap No Score (0) and Bust buttons to scoring controls for faster local play
-P1 - Quick Win,Done,Small,Audio/Voice,1581,166,Under consideration,Caller announces who starts each leg,https://requests.dartcounter.net/1581,Update web/voice.js and web/screens/game.js to announce starter on new leg
-P1 - Quick Win,Done,Small,Stats/Data,580,123,Future plan,Export/Download of statistics (CSV),https://requests.dartcounter.net/580,Add CSV export button in web/screens/stats.js for matches/legs/darts
-P1 - Quick Win,Done,Small,Core UX,1175,102,Future plan,Show player country flag in-game,https://requests.dartcounter.net/1175,Optional country/flag selector on player profiles displayed on scoreboard and TV view
-P1 - Quick Win,Done,Small,Core UX,715,97,Future plan,Maximum amount of darts in a leg option,https://requests.dartcounter.net/715,Optional dart cap (e.g. 45 or 60 darts) in web/games/x01.js
-P1 - New Game,Todo,Small,Game Mode,669,288,Future plan,Add 'JDC Challenge' game,https://requests.dartcounter.net/669,Add web/games/jdc.js (Shanghai 10-15 + Doubles 1-20/Bull + Shanghai 15-20 with shirt grades)
-P1 - New Game,Todo,Small,Game Mode,818,106,Planned,Add 'Bullseye' game,https://requests.dartcounter.net/818,Add web/games/bullseye.js (2 pts bull / 1 pt outer bull with dart or score limit)
-P1 - New Game,Todo,Small,Game Mode,1872,82,Future plan,Add 'Scram' game,https://requests.dartcounter.net/1872,Add web/games/scram.js (2-player stopper vs scorer then swap)
-P2 - Medium,Todo,Medium,Audio/Voice,332,550,Planned,Speech-to-score (voice input),https://requests.dartcounter.net/332,Use browser Web Speech API (SpeechRecognition) for hands-free score/bed entry from the oche
-P2 - Medium,Todo,Medium,Audio/Voice,1510,344,Future plan,Walk-on music,https://requests.dartcounter.net/1510,Optional per-player walk-on clip (~10s audio file or built-in jingle) on match start
+P2 - Medium,Done,Medium,Audio/Voice,332,550,Planned,Speech-to-score (voice input),https://requests.dartcounter.net/332,Use browser Web Speech API (SpeechRecognition) for hands-free score/bed entry from the oche
+P3 - Large,Todo,Large,Progression,882,451,Future plan,Career Mode,https://requests.dartcounter.net/882,Multi-event progression ladder against 15 bot levels with rankings and trophies
 P2 - Medium,Todo,Medium,Core UX,1686,256,Under consideration,Option to throw warm-up darts before match,https://requests.dartcounter.net/1686,Optional 9 warm-up darts toggle before leg 1 starts in local matches
+Deferred (Online),Deferred,Medium,Online,1027,237,Under consideration,Show both cameras during whole online game,https://requests.dartcounter.net/1027,Requires online PvP multiplayer
 P2 - Medium,Todo,Medium,Camera/TV,1320,180,Under consideration,Zoom camera on checkout or 180 (like TV),https://requests.dartcounter.net/1320,Auto-crop/zoom camera feed toward target bed in TV view when on a finish or two T20s
+P1 - Quick Win,Todo,Small,Audio/Voice,1581,166,Under consideration,Caller announces who starts each leg,https://requests.dartcounter.net/1581,Update web/voice.js and web/screens/game.js to announce starter on new leg
+P3 - Large,Todo,Large,Progression,1595,161,Future plan,Virtual / AI Coach with personal training plans,https://requests.dartcounter.net/1595,Analyze heat map and double/treble stats to auto-generate targeted drills in web/routine.js
+P1 - New Game,Todo,Small,Game Mode,818,106,Planned,Add 'Bullseye' game,https://requests.dartcounter.net/818,Add web/games/bullseye.js (2 pts bull / 1 pt outer bull with dart or score limit)
+P1 - Quick Win,Todo,Small,Core UX,1175,102,Future plan,Show player country flag in-game,https://requests.dartcounter.net/1175,Optional country/flag selector on player profiles displayed on scoreboard and TV view
+Deferred (Online),Deferred,Medium,Online,609,100,Future plan,Let a dartbot take over an online match when someone quits,https://requests.dartcounter.net/609,Requires online PvP multiplayer
+Deferred (Online),Deferred,Small,Online,98,99,Future plan,Skip button on Head-to-Head screen in online matches,https://requests.dartcounter.net/98,Requires online PvP multiplayer
+P1 - Quick Win,Todo,Small,Core UX,715,97,Future plan,Maximum amount of darts in a leg option,https://requests.dartcounter.net/715,Optional dart cap (e.g. 45 or 60 darts) in web/games/x01.js
+Deferred (Online),Deferred,Small,Online,1038,95,Under consideration,Pinch to zoom opponent's camera,https://requests.dartcounter.net/1038,Requires online PvP multiplayer
+Deferred (Online),Deferred,Small,Online,1126,91,Future plan,Undo leg checkout in online game,https://requests.dartcounter.net/1126,Requires online PvP multiplayer
 P2 - Medium,Todo,Medium,Camera/TV,25,89,Future plan,Scoreboard overlay for live games,https://requests.dartcounter.net/25,Clean transparent-background overlay route/mode for OBS and live streaming
 P2 - Medium,Todo,Small,Camera/TV,1360,89,Under consideration,Add camera option to all local games,https://requests.dartcounter.net/1360,Verify/ensure camera view & scoring work cleanly across all 14+ local game modes
 P2 - Medium,Todo,Small,Camera/TV,1322,78,Under consideration,Save camera settings permanently,https://requests.dartcounter.net/1322,Audit camera exposure/focus/crop persistence across restarts in server/cameras.py
-P3 - Large,Todo,Large,Progression,882,451,Future plan,Career Mode,https://requests.dartcounter.net/882,Multi-event progression ladder against 15 bot levels with rankings and trophies
-P3 - Large,Todo,Large,Progression,1595,161,Future plan,Virtual / AI Coach with personal training plans,https://requests.dartcounter.net/1595,Analyze heat map and double/treble stats to auto-generate targeted drills in web/routine.js
 P3 - Large,Todo,Large,Progression,1466,73,Under consideration,Darts school / guided structured lessons,https://requests.dartcounter.net/1466,Guided structured drills and technique progressions building on web/routine.js
-Done,Already Done,-,Camera/TV,333,742,Planned,Cast your game to a TV,https://requests.dartcounter.net/333,Already supported via built-in TV view in any browser/TV synced to local server or account
-Done,Already Done,-,Progression,23,599,Future plan,Tournaments against dartbots,https://requests.dartcounter.net/23,Already built in web/tournament.js + web/bot.js (15 levels)
-Done,Already Done,-,Core UX,1372,159,Future plan,Save guest names,https://requests.dartcounter.net/1372,Already built via saved player profiles
-Done,Already Done,-,Progression,1060,138,In Progress,Achievements / rewards,https://requests.dartcounter.net/1060,Already built in web/achievements.js and web/screens/achievements.js
-Done,Already Done,-,Game Mode,645,88,Future plan,99 darts at / 100 darts at game,https://requests.dartcounter.net/645,Already built in web/games/segment.js (30 / 60 / 99 darts)
-Done,Already Done,-,Core UX,685,83,Future plan,Adjust legs per set,https://requests.dartcounter.net/685,Already built in web/games/x01.js (1-99 legs and 1-99 sets)
-Done,Already Done,-,Camera/TV,3464,28,In Progress,Auto scoring with phone camera & DIY USB webcams,https://requests.dartcounter.net/3464,Already built (multi-USB auto-calib + Beta phone camera); highlight on compare.html
-Deferred (Online),Deferred,Large,Online,1337,1300,Under consideration,Live board view with OMNI cameras,https://requests.dartcounter.net/1337,Requires online PvP multiplayer
-Deferred (Online),Deferred,Medium,Online,93,457,Future plan,Info on 'Leave-percentage' of a player in online games,https://requests.dartcounter.net/93,Requires online PvP multiplayer
-Deferred (Online),Deferred,Large,Online,2021,392,In Progress,Creation of online leagues / divisions,https://requests.dartcounter.net/2021,Requires online PvP multiplayer
-Deferred (Online),Deferred,Small,Online,796,302,Future plan,Option to rate opponent after leaving online game,https://requests.dartcounter.net/796,Requires online PvP multiplayer
-Deferred (Online),Deferred,Small,Online,594,273,Future plan,Full screen board (opponent view in browser),https://requests.dartcounter.net/594,Requires online PvP multiplayer
-Deferred (Online),Deferred,Medium,Online,1027,237,Under consideration,Show both cameras during whole online game,https://requests.dartcounter.net/1027,Requires online PvP multiplayer
-Deferred (Online),Deferred,Medium,Online,854,133,Future plan,Invite offline friends for an online match,https://requests.dartcounter.net/854,Requires online PvP multiplayer
-Deferred (Online),Deferred,Medium,Online,1381,128,Planned,All game modes available to play online,https://requests.dartcounter.net/1381,Requires online PvP multiplayer
-Deferred (Online),Deferred,Medium,Online,1341,115,Future plan,Talk after game (voice call),https://requests.dartcounter.net/1341,Requires online PvP multiplayer
-Deferred (Online),Deferred,Medium,Online,1769,110,Future plan,Chat option in tournaments,https://requests.dartcounter.net/1769,Requires online PvP multiplayer
-Deferred (Online),Deferred,Medium,Online,609,100,Future plan,Let a dartbot take over an online match when someone quits,https://requests.dartcounter.net/609,Requires online PvP multiplayer
-Deferred (Online),Deferred,Small,Online,98,99,Future plan,Skip button on Head-to-Head screen in online matches,https://requests.dartcounter.net/98,Requires online PvP multiplayer
-Deferred (Online),Deferred,Small,Online,1974,98,Under consideration,Cooldown for people quitting games whilst losing,https://requests.dartcounter.net/1974,Requires online PvP multiplayer
-Deferred (Online),Deferred,Small,Online,1038,95,Under consideration,Pinch to zoom opponent's camera,https://requests.dartcounter.net/1038,Requires online PvP multiplayer
-Deferred (Online),Deferred,Small,Online,1126,91,Future plan,Undo leg checkout in online game,https://requests.dartcounter.net/1126,Requires online PvP multiplayer
-Deferred (Online),Deferred,Small,Online,721,80,Future plan,More fast chat texts,https://requests.dartcounter.net/721,Requires online PvP multiplayer
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,

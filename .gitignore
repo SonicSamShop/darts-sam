@@ -27,3 +27,4 @@ dist/
 .vscode/
 dartssam.txt
 web/vision/pyodide/
+docs/roadmap.csv
