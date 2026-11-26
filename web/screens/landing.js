@@ -129,8 +129,8 @@ export function renderLanding() {
     <section>
       <h2>Stats, the telly and your phone</h2>
       <div class="row3">
-        <figure class="shot">${pic('stats.webp', 'Stats: averages, checkout rate and a heat map', 1800, 1125)}
-          <figcaption><b>Stats.</b> Averages, checkouts, 180s and a heat map of your darts.</figcaption></figure>
+        <figure class="shot">${pic('stats.webp', 'Stats: averages, trend chart, scoring breakdown and a heat map', 1800, 1125)}
+          <figcaption><b>Stats.</b> Averages, trend charts, scoring breakdown and a heat map of your darts.</figcaption></figure>
         <figure class="shot">${pic('tv.webp', 'TV view: the board with the scores along the bottom', 1800, 1125)}
           <figcaption><b>TV view.</b> Scores along the bottom, like a match on the telly.</figcaption></figure>
         <figure class="shot tall">${pic('game-phone.webp', 'The same game on a phone', 780, 1560)}
@@ -138,6 +138,8 @@ export function renderLanding() {
       </div>
       <p>Every dart is called aloud, with the visit's total and what you require for a finish. And there are ${inWords(THEMES.length)} themes to choose from,
         from the pub chalkboard to big-stage TV graphics.</p>
+      <figure class="shot">${pic('stage.webp', 'Stage Night theme: big-stage TV graphics for a game of 501', 1800, 1125)}
+        <figcaption><b>Stage Night.</b> Switch between ${inWords(THEMES.length)} themes any time—from pub chalkboard to big-stage broadcast graphics.</figcaption></figure>
     </section>
     <section>
       <h2>Free, with cameras or without</h2>
