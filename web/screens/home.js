@@ -24,11 +24,15 @@ import {
 // Whether "Tournament" is on the menu (a computer's line and a phone's). On since 1.8.
 const TOURNAMENT_ON_MENU = true;
 // Feature flag for Career Mode while we build out its pub/stage theatre & atmosphere.
-// Flip to true to ship, or enable locally with ?career=1 or localStorage.setItem('dartssam.career', '1').
+// Off in production; enable on localhost with ?career=1 or localStorage.setItem('dartssam.career', '1').
 const CAREER_ON_MENU = false;
-const careerEnabled = () => CAREER_ON_MENU
-  || (typeof location !== 'undefined' && new URLSearchParams(location.search).get('career') === '1')
-  || (typeof localStorage !== 'undefined' && localStorage.getItem('dartssam.career') === '1');
+const isLocalDev = () => typeof location !== 'undefined'
+  && /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.|10\.)/.test(location.hostname);
+export const careerEnabled = () => CAREER_ON_MENU
+  || (isLocalDev() && (
+    new URLSearchParams(location.search).get('career') === '1'
+    || (typeof localStorage !== 'undefined' && localStorage.getItem('dartssam.career') === '1')
+  ));
 
 // What is open on the menu. step: on a phone, the step that is open ('game', 'options' or
 // 'players'), or null for none. Not chosen yet (undefined): none when somebody is down to

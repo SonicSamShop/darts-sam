@@ -30,7 +30,7 @@ import { closeSection, listShown, openSection, renderSettings, sectShown, settin
 import { boardAct } from './screens/boardspanel.js';
 import { loadRelease } from './screens/release.js';
 import { deep, drawPlayers, exportStatsCsv, renderPlayers, renderSheet, sheet, statsData, statsView } from './screens/stats.js';
-import { avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, quickPresets, renderHome } from './screens/home.js';
+import { avgAsked, careerEnabled, followSuggestion, loadAverages, loadRules, loadTotals, menu, quickPresets, renderHome } from './screens/home.js';
 import { slipTapped } from './screens/earned.js';
 import {
   askQuit, botThrow, botTimer, botUp, bustVisit, closeQuit, endHold, finishWarmup, handleVoice, micState, noScore, numPad, padCommit, padKey, padQuick, push, renderGame, toggleMatchStats, undo
@@ -557,7 +557,7 @@ function show(at) {
   if (at.screen === 'cameras' || (at.screen === 'settings' && at.settingsTab === 'cams')) return renderCameras();
   if (at.screen === 'accuracy') return renderAccuracy();
   if (at.screen === 'tournament') return openTournament(at.tourId ?? null, !!at.tourPast);
-  if (at.screen === 'career') return openCareer(at.careerPlayer ?? null);
+  if (at.screen === 'career') return careerEnabled() ? openCareer(at.careerPlayer ?? null) : renderHome();
   if (at.screen === 'settings') { settingsView.tab = at.settingsTab ?? settingsView.tab; settingsView.open = !!at.settingsOpen; settingsView.fromList = !!at.fromList; return renderSettings(); }
   return renderHome();
 }
@@ -842,8 +842,8 @@ $app.addEventListener('click', e => {
     case 'tournament': openTournament(); return mark(true);
     // A tournament's match is won: to its bracket, in place of the game (the result is in already).
     case 'tour-back': openTournament(match?.opts?.tournament?.id ?? null); return mark();
-    case 'career': openCareer(); return mark(true);
-    case 'career-back': openCareer(match?.opts?.career?.playerId ?? null); return mark();
+    case 'career': return careerEnabled() ? (openCareer(), mark(true)) : renderHome();
+    case 'career-back': return careerEnabled() ? (openCareer(match?.opts?.career?.playerId ?? null), mark()) : renderHome();
     case 'quit': return askQuit();
     case 'home': return goHome();
     case 'settings': settingsView.open = settingsView.fromList = false; renderSettings(); return mark(true);
