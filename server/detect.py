@@ -34,9 +34,13 @@ POINT_GAP = 2             # px along the line that may show no change (a wire cr
 
 
 def diff_mask(before: np.ndarray, after: np.ndarray, thresh: int = 28) -> np.ndarray:
-    a = cv2.GaussianBlur(cv2.cvtColor(before, cv2.COLOR_BGR2GRAY), (5, 5), 0)
-    b = cv2.GaussianBlur(cv2.cvtColor(after, cv2.COLOR_BGR2GRAY), (5, 5), 0)
-    mask = cv2.threshold(cv2.absdiff(a, b), thresh, 255, cv2.THRESH_BINARY)[1]
+    diff = cv2.absdiff(before, after)
+    if diff.ndim == 3:
+        # Max across BGR channels: a steel point or coloured flight over a
+        # matching-luminance bed shows up clearly where greyscale loses it.
+        diff = np.maximum(np.maximum(diff[:, :, 0], diff[:, :, 1]), diff[:, :, 2])
+    diff = cv2.GaussianBlur(diff, (5, 5), 0)
+    mask = cv2.threshold(diff, thresh, 255, cv2.THRESH_BINARY)[1]
     k = np.ones((3, 3), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, k)
     return cv2.morphologyEx(mask, cv2.MORPH_CLOSE, k, iterations=2)
@@ -87,6 +91,7 @@ class DartLine:
     # Where that was in the camera's picture (px), kept for problem reports.
     ends_px: np.ndarray | None = None  # the two ends of the dart
     tip_px: np.ndarray | None = None
+    weight: float = 1.0    # line-fit quality (higher for slender side-views, lower for end-on blobs)
 
 
 def to_board(H: np.ndarray, pts) -> np.ndarray:
@@ -94,31 +99,74 @@ def to_board(H: np.ndarray, pts) -> np.ndarray:
     return cv2.perspectiveTransform(pts, H).reshape(-1, 2)
 
 
-def _axis(pts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """The line along a dart, as (point, unit direction) in pixels.
+def _axis(pts: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
+    """The line along a dart, as (point, unit direction, quality) in pixels.
 
     A plain line fit is pulled about by the flight, which is most of the
-    dart's pixels but a lumpy shape. So after a first rough fit, take the
-    middle of the dart's width at each step along it and fit to those: the
-    thin barrel and shaft then count as much per pixel of length as the flight.
+    dart's pixels and an asymmetric shape. After a first rough fit, take the
+    midpoint and width at each pixel step along the dart and fit to the
+    midpoints weighted inversely by width (Huber IRLS), so the narrow
+    cylindrical barrel/shaft dominates while the wide flight carries little
+    weight. Also returns a quality score (0.25..3.0) reflecting slenderness
+    and barrel straightness.
     """
     vx, vy, x0, y0 = cv2.fitLine(pts, cv2.DIST_HUBER, 0, 0.01, 0.01).ravel()
-    d, o = np.array([vx, vy]), np.array([x0, y0])
+    d = np.array([vx, vy], dtype=np.float64)
+    o = np.array([x0, y0], dtype=np.float64)
+    n_vec = np.array([-d[1], d[0]])
     rel = pts - o
-    t = np.round(rel @ d).astype(int)
-    u = rel @ np.array([-d[1], d[0]])
-    t -= t.min()
-    lo = np.full(t.max() + 1, np.inf)
-    hi = np.full(t.max() + 1, -np.inf)
-    np.minimum.at(lo, t, u)
-    np.maximum.at(hi, t, u)
+    t_raw = np.round(rel @ d).astype(int)
+    u_raw = rel @ n_vec
+    t0 = int(t_raw.min())
+    t = t_raw - t0
+    span = int(t.max()) + 1
+    lo = np.full(span, np.inf)
+    hi = np.full(span, -np.inf)
+    np.minimum.at(lo, t, u_raw)
+    np.maximum.at(hi, t, u_raw)
     steps = np.nonzero(np.isfinite(lo))[0]
     if len(steps) < 8:
-        return o, d
-    t0 = np.round(rel @ d).min()
-    mids = o + np.outer(steps + t0, d) + np.outer((lo[steps] + hi[steps]) / 2, [-d[1], d[0]])
-    vx, vy, x0, y0 = cv2.fitLine(mids.astype(np.float32), cv2.DIST_HUBER, 0, 0.01, 0.01).ravel()
-    return np.array([x0, y0]), np.array([vx, vy])
+        return o, d, 0.5
+    xs = (steps + t0).astype(np.float64)
+    mids = (lo[steps] + hi[steps]) * 0.5
+    widths = hi[steps] - lo[steps]
+
+    # Barrel, shaft and point slices (<= 18 px wide) all get full weight 1.0;
+    # only the wide, asymmetric flight (> 18 px) decays smoothly so it cannot
+    # yank the fitted line off-axis.
+    narrow = widths <= 18.0
+    excess = np.maximum(0.0, widths - 18.0)
+    w_base = 1.0 / (1.0 + (excess / 10.0) ** 2)
+
+    w = w_base.copy()
+    a, b = 0.0, 0.0
+    for _ in range(3):
+        ws = float(w.sum())
+        if ws < 1e-9:
+            break
+        mx = float((w * xs).sum() / ws)
+        my = float((w * mids).sum() / ws)
+        dx = xs - mx
+        denom = float((w * dx * dx).sum())
+        if denom < 1e-6:
+            break
+        a = float((w * dx * (mids - my)).sum() / denom)
+        b = my - a * mx
+        res = np.abs(mids - (a * xs + b))
+        huber = np.where(res <= 2.5, 1.0, 2.5 / np.maximum(res, 1e-6))
+        w = w_base * huber
+
+    o_new = o + b * n_vec
+    d_new = d + a * n_vec
+    d_new /= max(float(np.linalg.norm(d_new)), 1e-9)
+
+    ref = narrow if int(narrow.sum()) >= 6 else np.ones(len(steps), dtype=bool)
+    barrel_w = max(4.0, float(np.median(widths[ref])))
+    length = float(steps[-1] - steps[0])
+    fit_err = float(np.median(np.abs(mids[ref] - (a * xs[ref] + b))))
+    slender = min(3.0, (length / barrel_w) / 8.0)
+    quality = float(np.clip(slender / (1.0 + fit_err * 0.4), 0.25, 3.0))
+    return o_new, d_new, quality
 
 
 def find_dart(mask: np.ndarray, H, strength: np.ndarray | None = None) -> DartLine | None:
@@ -144,11 +192,12 @@ def find_dart(mask: np.ndarray, H, strength: np.ndarray | None = None) -> DartLi
     reach = MAX_DART_LENGTH * max(mask.shape)
     near_biggest = np.linalg.norm(cents - cents[biggest], axis=1) <= reach
     keep = [i for i in range(1, n) if (areas[i] >= MIN_PART_AREA and near_biggest[i]) or i == biggest]
+    quality = 1.0
     for _ in range(3):
         ys, xs = np.nonzero(np.isin(labels, keep))
         # Straight through the lens: a straight dart is a straight line again.
         pts = view.straighten(np.column_stack([xs, ys])).astype(np.float32)
-        o, d = _axis(pts)
+        o, d, quality = _axis(pts)
         off = np.abs((view.straighten(cents[keep]) - o) @ np.array([-d[1], d[0]]))
         on_line = [i for i, far in zip(keep, off) if far <= MAX_OFF_AXIS or i == biggest]
         if len(on_line) == len(keep):
@@ -184,7 +233,8 @@ def find_dart(mask: np.ndarray, H, strength: np.ndarray | None = None) -> DartLi
         return None
     # ends_px and tip_px go on the camera's own picture, so they are bent back.
     return DartLine(point=a, direction=direction / norm,
-                    tip=to_board(H, [tip_img])[0], area=total, ends_px=view.bend(ends), tip_px=view.bend(tip_img)[0])
+                    tip=to_board(H, [tip_img])[0], area=total, ends_px=view.bend(ends), tip_px=view.bend(tip_img)[0],
+                    weight=quality)
 
 
 # A dart on a wire: where the cameras' lines cross can be a millimetre or two
@@ -245,7 +295,7 @@ def _cross(lines: list[DartLine]) -> tuple[np.ndarray, float] | None:
         A = np.zeros((2, 2))
         b = np.zeros(2)
         for ln in ls:
-            P = np.eye(2) - np.outer(ln.direction, ln.direction)
+            P = (np.eye(2) - np.outer(ln.direction, ln.direction)) * ln.weight
             A += P
             b += P @ ln.point
         if abs(np.linalg.det(A)) < 1e-6:  # near-parallel lines
