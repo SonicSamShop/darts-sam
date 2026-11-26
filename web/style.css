@@ -889,7 +889,7 @@ table.cricket tr.dead { opacity: .35; }
 .intro { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 24px 48px; align-items: start; }
 /* a picture and the line under it saying what it shows */
 .shot { margin: 0; }
-.shot img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 3px; background: #0a0a0c; }
+.shot img, .shot video { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 3px; background: #0a0a0c; }
 .shot figcaption { margin-top: 8px; color: var(--muted); font-size: 16px; line-height: 1.4; }
 .shot figcaption b { color: var(--text); }
 /* three pictures in a line, all the same height: two wide and a phone's tall one */
