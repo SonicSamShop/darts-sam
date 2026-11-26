@@ -1,8 +1,6 @@
 {
-  "version": "1.8.4",
-  "unreleased": [
-    "The desktop app now updates itself: a new version is downloaded, installed and restarted onto by itself as soon as no game is going, with what's new shown. To wait until you next open Darts S.A.M instead, switch off Restart for updates between games under Settings › About."
-  ],
+  "version": "1.9",
+  "unreleased": [],
   "notes": {
     "1.0": [
       "First release."
@@ -107,6 +105,13 @@
     ],
     "1.8.4": [
       "Darts on a wire are scored more accurately with two or more cameras. When a dart sits right on the edge of a treble, double or number, the cameras' own views of its point now decide which side of the wire it is on."
+    ],
+    "1.9": [
+      "The desktop app now updates itself: a new version is downloaded, installed and restarted onto by itself as soon as no game is going, with what's new shown. To wait until you next open Darts S.A.M instead, switch off Restart for updates between games under Settings › About.",
+      "Voice scoring: tap the microphone button on the game screen (or press V) to call your darts or visit totals aloud from the oche — including \"treble 20\", \"tops\", \"bull\", \"no score\", \"bust\" and \"undo\".",
+      "Player country flags: pick a flag for each player under Settings › Players, darts and boards to display beside their name on the scoreboard, TV view and share cards. The caller now also announces who throws first at the start of every match and new leg or set.",
+      "More accurate camera dart detection: improved barrel line fitting and tip scoring for cleaner hits across cameras.",
+      "Pick your look right away on the welcome screen, and watch the computer's darts fly in with a new tungsten steel-tip dart animation."
     ]
   }
 }
