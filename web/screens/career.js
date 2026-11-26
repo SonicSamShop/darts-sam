@@ -10,19 +10,20 @@ import {
   PROS, TIERS, canPromote, cupRoundName, newCareer, nextCareerMatch, orderOfMerit,
   proById, recommendedTier, recordCareerResult, seasonComplete, startNextSeason, tierByIndex
 } from '../career.js';
-import { careerIntensity, pickBanter, tierAtmosphere } from '../banter.js';
+import { accentFor, banterClipUrl, careerIntensity, pickBanter, tierAtmosphere } from '../banter.js';
 import { starterCall } from '../voice.js';
 import { renderLanding } from './landing.js';
 import { renderGame } from './game.js';
+import { switchRow } from './settings.js';
 import {
-  $app, account, botPlayer, dartsFor, data, esc, flagHtml, flagOf, mark, match, nameOf,
-  pageFoot, pageHead, players, refreshStatus, saveSettings, say, screen, setMatch, setScreen,
-  settings, store
+  $app, account, atmosphereOn, botPlayer, careerOpt, dartsFor, data, esc, flagHtml, flagOf, mark, match, nameOf,
+  pageFoot, pageHead, players, refreshStatus, saveSettings, say, sayBanter, screen, setMatch, setScreen,
+  settings, sfx, sfxOn, store
 } from '../app.js';
 
 export const careerView = {
   player: null,
-  tab: 'tour',      // 'tour' | 'rankings' | 'trophies'
+  tab: 'tour',      // 'tour' | 'rankings' | 'trophies' | 'settings'
   pickTier: 0,      // starting tier chosen on the setup screen
   resetArmed: false,
 };
@@ -105,6 +106,7 @@ function playCareerMatch() {
       proId: up.pro.id,
       proName: up.pro.name,
       proNick: up.pro.nick,
+      proCountry: up.pro.country,
       proFlag: up.pro.flag,
       proLevel: up.pro.level,
       fixtureIdx: up.fixtureIdx ?? null,
@@ -157,6 +159,29 @@ export function careerAct(act, d) {
       if (!cur) return;
       saveCareer(pid, startNextSeason(cur, { tierIndex: cur.tier }));
       return renderCareer();
+    }
+    case 'career-opt': {
+      const key = d.key;
+      if (!key) return;
+      const next = !(settings.careerOpts?.[key] !== false);
+      if (next && !atmosphereOn()) settings.atmosphere = true;
+      settings.careerOpts = { ...(settings.careerOpts ?? {}), [key]: next };
+      saveSettings();
+      if (next && sfxOn()) {
+        if (key === 'coughing') sfx.cough(2);
+        else if (key === 'crowdCheers') sfx.cheer('small', 2);
+        else if (key === 'banterVoice') sayBanter("Pint's on the loser then, mate?", {
+          intensity: 0, proId: 'p01', clipUrl: banterClipUrl('uk_north', 'intro', 0, 0),
+        });
+      }
+      if (!next && key === 'pubNoise') sfx.ambienceStop();
+      return renderCareer();
+    }
+    case 'career-preview': {
+      const accent = d.accent || 'uk_north';
+      const url = banterClipUrl(accent, 'intro', 0, 0);
+      sayBanter("Pint's on the loser then, mate?", { intensity: 0, proId: accent, clipUrl: url });
+      return;
     }
     case 'career-reset':
       if (!careerView.resetArmed) { careerView.resetArmed = true; return renderCareer(); }
@@ -305,7 +330,34 @@ function trophiesPane(career) {
         <td class="num">+${h.ptsEarned}</td>
       </tr>`).join('')}</table>`
     : '<p class="muted">No career matches played yet.</p>';
-  return `<h3>Trophy Cabinet</h3>${cabinet}${hist}
+  return `<h3>Trophy Cabinet</h3>${cabinet}${hist}`;
+}
+
+function settingsPane() {
+  const pubNoise = careerOpt('pubNoise');
+  const crowdCheers = careerOpt('crowdCheers');
+  const banter = careerOpt('banter');
+  const banterVoice = careerOpt('banterVoice');
+  const coughing = careerOpt('coughing');
+  return `<h3>Career Atmosphere &amp; Audio</h3>
+    <div class="settings"><div class="rows">
+      ${switchRow('Pub & crowd background noise', pubNoise, 'data-act="career-opt" data-key="pubNoise"', 'Background pub murmur, clinking pint glasses, and arena hum that builds with each tier.')}
+      ${switchRow('Crowd cheering & groans', crowdCheers, 'data-act="career-opt" data-key="crowdCheers"', 'Cheers on trebles, bulls, tons and checkouts; groans on busts and misses.')}
+      ${switchRow('Opponent back-chat', banter, 'data-act="career-opt" data-key="banter"', 'Fiercer darts slang and sledging as you climb from the Pub League to the World stage.')}
+      ${banter ? switchRow('Speak banter aloud', banterVoice, 'data-act="career-opt" data-key="banterVoice"', 'Opponents deliver their back-chat aloud in regional accents between score calls.') : ''}
+      ${switchRow('Mid-throw coughing', coughing, 'data-act="career-opt" data-key="coughing"', 'Opponents may cough during your visit to try to put you off, especially on a finish.')}
+    </div></div>
+    ${banter && banterVoice ? `<div class="row" style="flex-wrap:wrap;gap:6px">
+      <span class="muted small" style="width:100%">Preview accent voices:</span>
+      <button class="ghost" data-act="career-preview" data-accent="uk_north">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Northern UK</button>
+      <button class="ghost" data-act="career-preview" data-accent="scot">🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scottish</button>
+      <button class="ghost" data-act="career-preview" data-accent="uk_south">🇬🇧 British</button>
+      <button class="ghost" data-act="career-preview" data-accent="euro">🇪🇺 European</button>
+      <button class="ghost" data-act="career-preview" data-accent="es">🇪🇸 Spanish</button>
+      <button class="ghost" data-act="career-preview" data-accent="us">🇺🇸 American</button>
+      <button class="ghost" data-act="career-preview" data-accent="asia">🇯🇵 Asian</button>
+    </div>` : ''}
+    ${!sfxOn() ? '<p class="muted small">Sound effects are currently muted — unmute them in game or in Settings to hear career audio.</p>' : ''}
     <div class="who-end"><button class="ghost danger" data-act="career-reset">${careerView.resetArmed ? 'Tap again to reset career' : 'Reset career'}</button></div>`;
 }
 
@@ -343,9 +395,11 @@ export function renderCareer() {
       <button class="${careerView.tab === 'tour' ? 'on' : ''}" data-act="career-tab" data-ctab="tour">Tour</button>
       <button class="${careerView.tab === 'rankings' ? 'on' : ''}" data-act="career-tab" data-ctab="rankings">Rankings</button>
       <button class="${careerView.tab === 'trophies' ? 'on' : ''}" data-act="career-tab" data-ctab="trophies">Trophies</button>
+      <button class="${careerView.tab === 'settings' ? 'on' : ''}" data-act="career-tab" data-ctab="settings">Settings</button>
     </div>`;
     const pane = careerView.tab === 'rankings' ? rankingsPane(career, pName, pFlag)
       : careerView.tab === 'trophies' ? trophiesPane(career)
+      : careerView.tab === 'settings' ? settingsPane()
       : tourPane(career, pName, pFlag);
     body = `${summary}${tabs}<div class="career-pane">${pane}</div>`;
   }

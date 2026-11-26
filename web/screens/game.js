@@ -16,15 +16,15 @@ import { menu } from './home.js';
 import { summaryHtml } from './stats.js';
 import { onMatchQuit, onMatchUndone, onMatchWon, openTournament, quitTerms } from './tournament.js';
 import { onCareerUndone, onCareerWon, openCareer } from './career.js';
-import { careerIntensity, coughPlan, pickBanter, tierAtmosphere } from '../banter.js';
+import { accentFor, banterClipUrl, careerIntensity, coughPlan, pickBanterEntry, tierAtmosphere } from '../banter.js';
 import { WARMUP_STEPS, recordPracticeDay, warmupDart, warmupNext, warmupUndo } from '../routine.js';
 import {
   achieved, achievementsOn, askPhotos, bases, dropPictures, dropSlips, earnedLine, endedHere, forgetEnded,
   loadBases, photoAsk, photosOn, slipHtml
 } from './earned.js';
 import {
-  $app, account, atmosphereOn, cameraCount, connected, dartsName, data, esc, fit, flagHtml, goHome, icon, mark, match, phone, queueSync,
-  refreshStatus, say, screen, setMatch, setScreen, setsOf, settings, sfx, sfxOn, speech, store, tracker
+  $app, account, atmosphereOn, cameraCount, careerOpt, connected, dartsName, data, esc, fit, flagHtml, goHome, icon, mark, match, phone, queueSync,
+  refreshStatus, say, sayBanter, screen, setMatch, setScreen, setsOf, settings, sfx, sfxOn, speech, store, tracker
 } from '../app.js';
 
 // The level of the computer player whose throw it is in the game in progress, or null.
@@ -146,17 +146,33 @@ function holdVisit(before, after, ev) {
 
 // ---------- Career Mode atmosphere, banter & coughing ----------
 let banter = null;      // { matchId, text, kind, intensity, seq }
+let banterSpeakTimer = 0;
 let coughTimer = 0;
 let coughKey = '';      // visit key so we schedule at most one cough per human visit
 
 const careerActive = (m = match) => !!m?.opts?.career && atmosphereOn();
 const careerLvl = (m = match) => careerIntensity(m?.opts?.career);
 
-function setBanter(kind, intensity, m = match) {
-  if (!careerActive(m)) return;
-  const text = pickBanter(kind, intensity, { lastText: banter?.text || '' });
+function setBanter(kind, intensity, m = match, { delayMs = 0 } = {}) {
+  if (!careerActive(m) || !careerOpt('banter')) return;
+  const { text, idx } = pickBanterEntry(kind, intensity, { lastText: banter?.text || '' });
   if (!text) return;
   banter = { matchId: m.id, text, kind, intensity, seq: (banter?.seq ?? 0) + 1 };
+  const c = m.opts.career || {};
+  const proId = c.proId || '';
+  const accent = accentFor(c.proCountry, proId);
+  const clipUrl = banterClipUrl(accent, kind, intensity, idx);
+  clearTimeout(banterSpeakTimer);
+  if (delayMs > 0) {
+    const mid = m.id;
+    banterSpeakTimer = setTimeout(() => {
+      if (screen === 'game' && match?.id === mid && careerActive(match)) {
+        sayBanter(text, { intensity, proId, clipUrl });
+      }
+    }, delayMs);
+  } else {
+    sayBanter(text, { intensity, proId, clipUrl });
+  }
 }
 
 function clearCough() {
@@ -172,11 +188,11 @@ function syncAtmosphere(s) {
     return;
   }
   const lvl = careerLvl(match);
-  if (s.winner == null && sfxOn()) sfx.ambienceStart(lvl);
-  else if (s.winner != null || !sfxOn()) sfx.ambienceStop();
+  if (s.winner == null && sfxOn() && careerOpt('pubNoise')) sfx.ambienceStart(lvl);
+  else sfx.ambienceStop();
 
   // Mid-throw coughing gamesmanship during the human player's visit.
-  if (s.winner != null || warmupActive(match) || botUp(s) || quitAsk || s.turnOver) {
+  if (!careerOpt('coughing') || s.winner != null || warmupActive(match) || botUp(s) || quitAsk || s.turnOver) {
     clearCough();
     coughKey = '';
     return;
@@ -191,17 +207,17 @@ function syncAtmosphere(s) {
   const targetMatchId = match.id;
   coughTimer = setTimeout(() => {
     coughTimer = 0;
-    if (screen !== 'game' || !match || match.id !== targetMatchId || quitAsk || !careerActive(match)) return;
+    if (screen !== 'game' || !match || match.id !== targetMatchId || quitAsk || !careerActive(match) || !careerOpt('coughing')) return;
     const cur = compute(match);
     if (cur.winner != null || botUp(cur) || cur.turnOver) return;
     if (sfxOn()) sfx.cough(lvl);
-    setBanter('cough', lvl, match);
+    setBanter('cough', lvl, match, { delayMs: 360 });
     renderGame();
   }, plan.delayMs);
 }
 
 function banterHtml() {
-  if (!careerActive(match) || !banter || banter.matchId !== match.id) return '';
+  if (!careerActive(match) || !careerOpt('banter') || !banter || banter.matchId !== match.id) return '';
   const c = match.opts.career;
   const atm = tierAtmosphere(banter.intensity);
   const cls = banter.kind === 'cough' ? ' cough' : banter.intensity >= 3 ? ' hot' : '';
@@ -315,31 +331,32 @@ export function push(ev) {
   if (careerActive(match)) {
     const lvl = careerLvl(match);
     const byBot = ev.src === 'bot';
+    const crowdOn = sfxOn() && careerOpt('crowdCheers');
     if (after.winner != null) {
-      if (sfxOn()) { if (after.winner === 0) sfx.cheer('big', lvl); else sfx.groan(lvl); }
+      if (crowdOn) { if (after.winner === 0) sfx.cheer('big', lvl); else sfx.groan(lvl); }
       setBanter(after.winner === 0 ? 'matchWin' : 'matchLoss', lvl);
     } else if (after.legWon) {
-      if (sfxOn()) { if (after.legWon.player === 0) sfx.cheer('big', lvl); else sfx.groan(lvl); }
+      if (crowdOn) { if (after.legWon.player === 0) sfx.cheer('big', lvl); else sfx.groan(lvl); }
       setBanter(after.legWon.player === 0 ? 'playerCheckout' : 'botLeg', lvl);
     } else if (after.bust === 0 || after.noOut === 0) {
-      if (sfxOn()) sfx.groan(lvl);
+      if (crowdOn) sfx.groan(lvl);
       setBanter('playerBust', lvl);
     } else if (after.lastVisit) {
       const { player, total } = after.lastVisit;
       if (player === 0) {
-        if (total >= 180) { if (sfxOn()) sfx.cheer('big', lvl); setBanter('playerGood', lvl); }
-        else if (total >= 100) { if (sfxOn()) sfx.cheer('medium', lvl); setBanter('playerGood', lvl); }
-        else if (total <= 26) { if (sfxOn() && (total === 0 || total === 26)) sfx.groan(lvl); setBanter('playerMiss', lvl); }
+        if (total >= 180) { if (crowdOn) sfx.cheer('big', lvl); setBanter('playerGood', lvl); }
+        else if (total >= 100) { if (crowdOn) sfx.cheer('medium', lvl); setBanter('playerGood', lvl); }
+        else if (total <= 26) { if (crowdOn && (total === 0 || total === 26)) sfx.groan(lvl); setBanter('playerMiss', lvl); }
       } else if (player === 1) {
         if (total >= 100) setBanter('botBig', lvl);
         else if (left && after.current === 0) setBanter('playerOnFinish', lvl);
       }
     } else if (ev.t === 'dart' && !byBot) {
       if ((ev.seg === 25 && ev.mult === 2) || (ev.mult === 3 && ev.seg >= 15)) {
-        if (sfxOn()) sfx.cheer('small', lvl);
+        if (crowdOn) sfx.cheer('small', lvl);
         if (Math.random() < 0.55) setBanter('playerGood', lvl);
       } else if (!ev.mult) {
-        if (sfxOn()) sfx.groan(Math.max(0, lvl - 1));
+        if (crowdOn) sfx.groan(Math.max(0, lvl - 1));
       }
     }
   }
@@ -424,6 +441,7 @@ function quitGame(save, loser = null) {
   setMatch(null);
   store.set('match', null);
   clearCough();
+  clearTimeout(banterSpeakTimer);
   coughKey = '';
   banter = null;
   sfx.ambienceStop();

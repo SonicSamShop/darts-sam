@@ -365,17 +365,47 @@ const LINES = {
   ],
 };
 
-// Pick a banter line for a given event and intensity (0..4).
+// Pick a banter entry { text, idx } for a given event and intensity (0..4).
 // Avoids repeating `lastText` when possible.
-export function pickBanter(kind, intensity = 0, { lastText = '', random = Math.random } = {}) {
+export function pickBanterEntry(kind, intensity = 0, { lastText = '', random = Math.random } = {}) {
   const bank = LINES[kind];
-  if (!bank) return '';
-  const idx = Math.min(bank.length - 1, Math.max(0, intensity | 0));
-  const pool = bank[idx];
-  if (!pool?.length) return '';
-  const choices = pool.length > 1 && lastText ? pool.filter(t => t !== lastText) : pool;
-  return choices[Math.floor(random() * choices.length)] ?? pool[0];
+  if (!bank) return { text: '', idx: -1 };
+  const lvl = Math.min(bank.length - 1, Math.max(0, intensity | 0));
+  const pool = bank[lvl];
+  if (!pool?.length) return { text: '', idx: -1 };
+  const indices = pool.map((_, i) => i);
+  const choices = pool.length > 1 && lastText ? indices.filter(i => pool[i] !== lastText) : indices;
+  const idx = choices[Math.floor(random() * choices.length)] ?? 0;
+  return { text: pool[idx], idx };
 }
+
+// Pick a banter line for a given event and intensity (0..4).
+export function pickBanter(kind, intensity = 0, opts = {}) {
+  return pickBanterEntry(kind, intensity, opts).text;
+}
+
+// Map a pro's country code to one of our bundled neural-TTS regional accent packs.
+export function accentFor(country = '', proId = '') {
+  const c = String(country || '').toUpperCase();
+  if (c === 'GB-SCT') return 'scot';
+  if (c === 'US' || c === 'CA') return 'us';
+  if (c === 'ES') return 'es';
+  if (c === 'JP' || c === 'PH') return 'asia';
+  if (['DE', 'NL', 'BE', 'AT', 'PL', 'SE'].includes(c)) return 'euro';
+  if (c === 'GB-ENG' || c === 'GB-WLS' || c === 'GB-NIR') {
+    const n = parseInt(String(proId).replace(/\D/g, ''), 10) || 0;
+    return n % 3 === 0 ? 'uk_south' : 'uk_north';
+  }
+  return 'uk_south';
+}
+
+export function banterClipUrl(accent, kind, intensity, idx) {
+  if (!accent || !kind || idx < 0) return '';
+  const lvl = Math.min(4, Math.max(0, intensity | 0));
+  return `audio/banter/${accent}/${kind}-${lvl}-${idx}.mp3`;
+}
+
+export const BANTER_BANK = LINES;
 
 // Decide whether and when (ms) the opponent coughs during the player's visit.
 // Higher intensity and being on a checkout make a distracting cough more likely

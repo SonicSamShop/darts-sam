@@ -130,7 +130,7 @@ delete settings.board;  // (the one board there was, before boards had a list of
 export let totals = store.get('totals', null);  // {darts, reports}: everything on the server, as it last said
 export const setTotals = v => { totals = v; };  // for screens/home.js
 export let screen = match ? 'game' : 'home';
-export const setScreen = v => { screen = v; if (v !== 'game') { speech?.stop(); sfx?.ambienceStop(); } counted(); wakeCameras(); };  // for screens/*.js: each sets its own
+export const setScreen = v => { screen = v; if (v !== 'game') { speech?.stop?.(); sfx?.ambienceStop?.(); voice?.stopBanter?.(); } counted(); wakeCameras(); };  // for screens/*.js: each sets its own
 // The cameras rest after a while unused (standby, on the Cameras screen). A game,
 // or the Cameras screen, keeps them awake, and wakes them if they are resting.
 let woke = 0;
@@ -434,10 +434,24 @@ export const voice = createVoice({ chosen: store.get('voiceName', ''), onSpeakin
 export const sfx = createSfx();
 export const sfxOn = () => settings.sfx !== false;
 export const atmosphereOn = () => settings.atmosphere !== false;
+export const careerOpt = key => atmosphereOn() && settings.careerOpts?.[key] !== false;
 export function say(text) {
   if (settings.voice) voice.say(text);
 }
+export function sayBanter(text, opts = {}) {
+  if (!sfxOn() || !careerOpt('banter') || !careerOpt('banterVoice')) return;
+  if (opts.clipUrl && typeof sfx?.playClip === 'function') {
+    const rate = 1.0 + Math.min(4, Math.max(0, opts.intensity | 0)) * 0.02;
+    sfx.playClip(opts.clipUrl, { gain: 0.95, rate }).then(played => {
+      if (!played) voice?.sayBanter?.(text, opts);
+    });
+    return;
+  }
+  voice?.sayBanter?.(text, opts);
+}
 addEventListener('click', () => { voice.unlock(); sfx.unlock(); }, { capture: true, once: true });
+addEventListener('pointerdown', () => sfx.unlock(), { capture: true });
+addEventListener('keydown', () => sfx.unlock(), { capture: true });
 
 // ---------- one screen, no scrolling ----------
 // Every view is laid out to fill the window. If one still doesn't fit (a small

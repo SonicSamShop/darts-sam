@@ -2,16 +2,25 @@
 // AGPL v3: see LICENSE and NOTICE, or https://github.com/SonicSamShop/darts-sam
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Lightweight Web Audio sound effects & Career Mode pub/crowd atmosphere:
-// crisp dart thuds, treble chimes, bust buzzes, big-score fanfares, background
-// pub murmur with clinking glasses, mid-throw coughs, and crowd cheers/groans.
-// Pure synthesis so it works offline with zero audio asset downloads and fails
+// Web Audio sound effects & Career Mode pub/crowd atmosphere:
+// crisp synthesized dart thuds, treble chimes, bust buzzes, and big-score
+// fanfares, paired with Public Domain recordings (web/audio/*.mp3) for real
+// pub background chatter, crowd cheering, and mid-throw coughing. Fails
 // silently where Web Audio is unavailable.
+
+const CLIPS = {
+  pub: 'audio/pub.mp3',
+  cheer: 'audio/cheer.mp3',
+  cough: 'audio/cough.mp3',
+};
 
 export function createSfx() {
   let ctx = null;
   let noiseBuf = null;
-  let amb = null;  // active background pub/crowd ambience node graph
+  let amb = null;       // active background pub/crowd ambience node graph
+  let ambWant = null;   // { intensity } while ambience is requested (even while loading)
+  const buffers = new Map();  // key -> AudioBuffer
+  const loading = new Map();  // key -> Promise<AudioBuffer|null>
 
   function audio() {
     if (ctx) {
@@ -21,16 +30,34 @@ export function createSfx() {
     const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
     if (!AC) return null;
     try { ctx = new AC(); } catch { return null; }
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     return ctx;
   }
 
-  // Reusable 3-second pink-ish noise buffer for warm crowd/pub/cough synthesis.
+  // Fetch & decode a bundled MP3 clip once, caching the AudioBuffer.
+  function loadClip(c, key, explicitUrl = null) {
+    if (buffers.has(key)) return Promise.resolve(buffers.get(key));
+    if (loading.has(key)) return loading.get(key);
+    const url = explicitUrl || CLIPS[key];
+    if (!url || typeof fetch !== 'function') return Promise.resolve(null);
+    const p = fetch(url)
+      .then(r => (r.ok ? r.arrayBuffer() : null))
+      .then(ab => (ab ? c.decodeAudioData(ab) : null))
+      .then(buf => { if (buf) buffers.set(key, buf); return buf; })
+      .catch(() => null)
+      .finally(() => loading.delete(key));
+    loading.set(key, p);
+    return p;
+  }
+
+  // Reusable 3-second normalized pink-noise buffer (used for groans and fallback).
   function noise(c) {
     if (noiseBuf && noiseBuf.sampleRate === c.sampleRate) return noiseBuf;
     const len = Math.floor(c.sampleRate * 3);
     const buf = c.createBuffer(1, len, c.sampleRate);
     const data = buf.getChannelData(0);
     let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    let peak = 0;
     for (let i = 0; i < len; i++) {
       const w = Math.random() * 2 - 1;
       b0 = 0.99886 * b0 + w * 0.0555179;
@@ -39,9 +66,13 @@ export function createSfx() {
       b3 = 0.86650 * b3 + w * 0.3104856;
       b4 = 0.55000 * b4 + w * 0.5329522;
       b5 = -0.7616 * b5 - w * 0.0168980;
-      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.045;
+      const v = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362;
       b6 = w * 0.115926;
+      data[i] = v;
+      if (Math.abs(v) > peak) peak = Math.abs(v);
     }
+    const norm = peak > 0 ? 0.9 / peak : 1;
+    for (let i = 0; i < len; i++) data[i] *= norm;
     noiseBuf = buf;
     return buf;
   }
@@ -62,10 +93,9 @@ export function createSfx() {
     osc.stop(t0 + dur + 0.02);
   }
 
-  // Bandpass-filtered noise burst: foundation for crowd roars, applause, groans, and coughs.
   function noiseBurst(c, {
-    start = 0, dur = 0.5, freq = 600, toFreq = null, q = 1.2,
-    attack = 0.06, gain = 0.16, filterType = 'bandpass',
+    start = 0, dur = 0.5, freq = 600, toFreq = null, q = 1.1,
+    attack = 0.06, gain = 0.3, filterType = 'bandpass',
   }) {
     const t0 = c.currentTime + start;
     const src = c.createBufferSource();
@@ -87,104 +117,85 @@ export function createSfx() {
     src.stop(t0 + dur + 0.04);
   }
 
+  function playBuffer(c, buf, { gain = 0.7, rate = 1, dur = null, fadeOut = 0.25 } = {}) {
+    const now = c.currentTime;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    const g = c.createGain();
+    const playDur = dur ? Math.min(dur, buf.duration / rate) : buf.duration / rate;
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(gain, now + 0.03);
+    if (fadeOut > 0 && playDur > fadeOut) {
+      g.gain.setValueAtTime(gain, now + playDur - fadeOut);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + playDur);
+    }
+    src.connect(g);
+    g.connect(c.destination);
+    src.start(now);
+    src.stop(now + playDur + 0.05);
+  }
+
   function thud(c, freq = 145, gain = 0.22) {
     tone(c, { freq, to: 42, type: 'triangle', dur: 0.085, gain });
   }
 
-  // Subtle pint-glass clink for pub-tier background ambience.
-  function glassClink(c, vol = 0.025) {
-    const base = 2400 + Math.random() * 900;
-    tone(c, { freq: base, to: base * 0.99, type: 'sine', start: 0, dur: 0.14, gain: vol });
-    tone(c, { freq: base * 1.49, type: 'sine', start: 0.008, dur: 0.09, gain: vol * 0.5 });
-  }
-
   function stopAmbience() {
+    ambWant = null;
     if (!amb) return;
     const cur = amb;
     amb = null;
-    clearInterval(cur.detailTimer);
     try {
       const now = cur.ctx.currentTime;
       cur.master.gain.cancelScheduledValues(now);
       cur.master.gain.setValueAtTime(Math.max(0.0001, cur.master.gain.value), now);
-      cur.master.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      cur.master.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
       setTimeout(() => {
-        try { cur.src.stop(); cur.lfo.stop(); cur.master.disconnect(); } catch { /* already stopped */ }
-      }, 400);
+        try { cur.src.stop(); cur.master.disconnect(); } catch { /* already stopped */ }
+      }, 450);
     } catch { /* ignore */ }
   }
 
   function startAmbience(intensity = 0) {
     const lvl = Math.min(4, Math.max(0, intensity | 0));
-    if (amb && amb.intensity === lvl) {
-      if (ctx?.state === 'suspended') ctx.resume().catch(() => {});
-      return;
-    }
-    if (amb) stopAmbience();
+    ambWant = { intensity: lvl };
     const c = audio();
     if (!c) return;
-    try {
-      const src = c.createBufferSource();
-      src.buffer = noise(c);
-      src.loop = true;
-
-      // Two warm voice-formant bandpass filters give a cozy pub/crowd murmur rather than static.
-      const fLow = c.createBiquadFilter();
-      fLow.type = 'bandpass';
-      fLow.frequency.value = 340 + lvl * 28;
-      fLow.Q.value = 1.4;
-
-      const fMid = c.createBiquadFilter();
-      fMid.type = 'bandpass';
-      fMid.frequency.value = 720 + lvl * 45;
-      fMid.Q.value = 1.8;
-
-      // Slow organic swell so the background crowd breathes like a real room.
-      const lfo = c.createOscillator();
-      lfo.type = 'sine';
-      lfo.frequency.value = 0.14 + lvl * 0.03;
-      const lfoGain = c.createGain();
-      lfoGain.gain.value = 55 + lvl * 15;
-      lfo.connect(lfoGain);
-      lfoGain.connect(fMid.frequency);
-
-      const master = c.createGain();
-      const targetVol = 0.075 + lvl * 0.022;  // gentle pub hum -> livelier tournament hall
-      const now = c.currentTime;
-      master.gain.setValueAtTime(0.0001, now);
-      master.gain.linearRampToValueAtTime(targetVol, now + 0.7);
-
-      src.connect(fLow);
-      src.connect(fMid);
-      fLow.connect(master);
-      fMid.connect(master);
-      master.connect(c.destination);
-
-      src.start(now);
-      lfo.start(now);
-
-      // Periodic subtle pub/hall details (clinking glasses in pubs, distant murmur swells in arenas).
-      const detailTimer = setInterval(() => {
-        if (!amb || c.state !== 'running') return;
-        const r = Math.random();
-        if (lvl <= 2 && r < 0.35) {
-          glassClink(c, 0.022 - lvl * 0.004);
-        } else if (r < 0.55) {
-          noiseBurst(c, {
-            dur: 0.7 + Math.random() * 0.7,
-            freq: 520 + Math.random() * 260,
-            toFreq: 460 + Math.random() * 220,
-            q: 2.2,
-            attack: 0.25,
-            gain: 0.025 + lvl * 0.008,
-          });
-        }
-      }, 3400);
-
-      amb = { ctx: c, src, lfo, master, detailTimer, intensity: lvl };
-    } catch {
-      amb = null;
+    const targetVol = 0.24 + lvl * 0.075;  // cozy pub chatter -> lively tournament crowd
+    if (amb) {
+      if (amb.intensity !== lvl) {
+        amb.intensity = lvl;
+        const now = c.currentTime;
+        amb.master.gain.cancelScheduledValues(now);
+        amb.master.gain.linearRampToValueAtTime(targetVol, now + 0.5);
+      }
+      if (c.state === 'suspended') c.resume().catch(() => {});
+      return;
     }
+    // Preload cheer & cough clips quietly too so they fire with zero latency.
+    loadClip(c, 'cheer');
+    loadClip(c, 'cough');
+    loadClip(c, 'pub').then(buf => {
+      if (!buf || !ambWant || amb) return;
+      try {
+        const src = c.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        src.loopStart = 0;
+        src.loopEnd = buf.duration;
+        const master = c.createGain();
+        const now = c.currentTime;
+        const vol = 0.24 + ambWant.intensity * 0.075;
+        master.gain.setValueAtTime(0.0001, now);
+        master.gain.linearRampToValueAtTime(vol, now + 0.8);
+        src.connect(master);
+        master.connect(c.destination);
+        src.start(now);
+        amb = { ctx: c, src, master, intensity: ambWant.intensity };
+      } catch {
+        amb = null;
+      }
+    });
   }
 
   return {
@@ -229,67 +240,62 @@ export function createSfx() {
         freq, type: 'triangle', start: i * 0.08, dur: i === 3 ? 0.45 : 0.16, gain: 0.16,
       }));
     },
-    // Background pub / venue murmur for Career Mode (intensity 0..4).
+    // Real public-domain pub / crowd background chatter for Career Mode (intensity 0..4).
     ambienceStart(intensity = 0) { startAmbience(intensity); },
     ambienceStop() { stopAmbience(); },
-    ambienceActive: () => !!amb,
-    // Cheeky mid-throw cough / throat-clear to put the thrower off.
+    ambienceActive: () => !!(amb || ambWant),
+    // Real human cough clip to put the thrower off mid-visit.
     cough(intensity = 0) {
       const c = audio();
       if (!c) return;
       const lvl = Math.min(4, Math.max(0, intensity | 0));
-      const bursts = lvl >= 2 ? 2 : 1;
-      for (let i = 0; i < bursts; i++) {
-        const start = i * 0.19;
-        const f = 540 + Math.random() * 140 + i * 60;
-        // Chest thump + raspy vocal-tract burst
-        tone(c, { freq: 150 + i * 18, to: 85, type: 'triangle', start, dur: 0.09, gain: 0.14 + lvl * 0.015 });
-        noiseBurst(c, {
-          start, dur: 0.13, freq: f, toFreq: f * 0.68, q: 2.6,
-          attack: 0.015, gain: 0.24 + lvl * 0.025,
-        });
-        noiseBurst(c, {
-          start: start + 0.01, dur: 0.11, freq: f * 2.1, toFreq: f * 1.4, q: 2.2,
-          attack: 0.015, gain: 0.13 + lvl * 0.015,
-        });
-      }
+      loadClip(c, 'cough').then(buf => {
+        if (buf) {
+          playBuffer(c, buf, {
+            gain: 0.55 + lvl * 0.09,
+            rate: 0.94 + Math.random() * 0.12,
+            fadeOut: 0.08,
+          });
+        } else {
+          // Synthesized fallback if offline and clip wasn't cached yet
+          tone(c, { freq: 155, to: 82, type: 'triangle', start: 0, dur: 0.1, gain: 0.25 });
+          noiseBurst(c, { start: 0, dur: 0.14, freq: 580, toFreq: 380, q: 1.6, attack: 0.015, gain: 0.5 });
+        }
+      });
     },
-    // Crowd cheering & applause on good darts ('small'), big visits ('medium'), and 180s/checkouts ('big').
+    // Real crowd cheering & applause on good darts ('small'), big visits ('medium'), and 180s/checkouts ('big').
     cheer(size = 'medium', intensity = 2) {
       const c = audio();
       if (!c) return;
       const lvl = Math.min(4, Math.max(0, intensity | 0));
-      const scale = 0.72 + lvl * 0.14;
-      if (size === 'small') {
-        // Brief appreciative "ooh / yeah!" + quick clap scatter
-        noiseBurst(c, { start: 0.02, dur: 0.55, freq: 640, toFreq: 860, q: 1.8, attack: 0.08, gain: 0.13 * scale });
-        noiseBurst(c, { start: 0.06, dur: 0.45, freq: 1450, toFreq: 1200, q: 1.4, attack: 0.05, gain: 0.07 * scale });
-        return;
-      }
-      const big = size === 'big';
-      const dur = big ? 2.1 : 1.15;
-      // Layered crowd roar (low body + rising vocal cheer + bright applause shimmer)
-      noiseBurst(c, { start: 0.02, dur, freq: 420, toFreq: 560, q: 1.2, attack: 0.14, gain: (big ? 0.24 : 0.16) * scale });
-      noiseBurst(c, { start: 0.05, dur: dur * 0.92, freq: 820, toFreq: 1180, q: 1.5, attack: 0.18, gain: (big ? 0.20 : 0.13) * scale });
-      noiseBurst(c, { start: 0.08, dur: dur * 0.85, freq: 2100, toFreq: 1650, q: 0.9, attack: 0.12, gain: (big ? 0.12 : 0.08) * scale });
-      // Individual clap pops for texture
-      const claps = big ? 10 : 5;
-      for (let i = 0; i < claps; i++) {
-        noiseBurst(c, {
-          start: 0.12 + i * (big ? 0.14 : 0.15) + Math.random() * 0.06,
-          dur: 0.045, freq: 1700 + Math.random() * 700, q: 1.5,
-          attack: 0.005, gain: (0.06 + Math.random() * 0.04) * scale,
-        });
-      }
+      const scale = 0.78 + lvl * 0.08;
+      loadClip(c, 'cheer').then(buf => {
+        if (buf) {
+          if (size === 'small') playBuffer(c, buf, { gain: 0.36 * scale, dur: 1.2, fadeOut: 0.45, rate: 1.04 });
+          else if (size === 'big') playBuffer(c, buf, { gain: 0.8 * scale, dur: 3.8, fadeOut: 0.9, rate: 0.98 });
+          else playBuffer(c, buf, { gain: 0.56 * scale, dur: 2.3, fadeOut: 0.7, rate: 1.0 });
+        } else {
+          noiseBurst(c, { start: 0.02, dur: size === 'big' ? 1.8 : 0.9, freq: 640, toFreq: 980, q: 1.1, attack: 0.1, gain: 0.4 * scale });
+        }
+      });
+    },
+    // Play a pre-generated voice/banter MP3 clip. Resolves true if played, false to fall back to browser TTS.
+    async playClip(url, { gain = 0.92, rate = 1 } = {}) {
+      const c = audio();
+      if (!c || !url) return false;
+      const buf = await loadClip(c, url, url);
+      if (!buf) return false;
+      playBuffer(c, buf, { gain, rate, fadeOut: 0.04 });
+      return true;
     },
     // Sympathetic / mocking crowd "oooh..." groan on bust, miss, or 26.
     groan(intensity = 1) {
       const c = audio();
       if (!c) return;
       const lvl = Math.min(4, Math.max(0, intensity | 0));
-      const scale = 0.75 + lvl * 0.12;
-      noiseBurst(c, { start: 0.04, dur: 0.75, freq: 620, toFreq: 310, q: 2.4, attack: 0.1, gain: 0.16 * scale });
-      tone(c, { freq: 260, to: 175, type: 'sine', start: 0.05, dur: 0.55, gain: 0.045 * scale });
+      const scale = 0.78 + lvl * 0.11;
+      noiseBurst(c, { start: 0.04, dur: 0.8, freq: 620, toFreq: 300, q: 1.8, attack: 0.09, gain: 0.42 * scale });
+      tone(c, { freq: 260, to: 170, type: 'sine', start: 0.05, dur: 0.6, gain: 0.12 * scale });
     },
   };
 }

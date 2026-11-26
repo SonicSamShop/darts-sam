@@ -105,3 +105,18 @@ test('caller announces who throws first at match start and on each new leg or se
   assert.equal(starterCall(['Sam'], 0, { leg: true }), 'Next leg');
   assert.equal(starterCall(['Sam'], 0, { leg: true, set: true }), 'Next set');
 });
+
+test('sayBanter speaks opponent back-chat aloud, strips stage directions, and queues behind caller', () => {
+  const voices = [{ name: 'Daniel', lang: 'en-GB' }, { name: 'Oliver', lang: 'en-GB' }];
+  const f = fakes({ voices });
+  const voice = createVoice(f);
+  // Caller speaks first; banter queues until caller finishes.
+  voice.say('One hundred and forty');
+  voice.sayBanter('*COUGH!* Sorry mate, dry pint.', { intensity: 3, proId: 'p01' });
+  assert.equal(f.spoken.length, 1);
+  f.spoken[0].onend();
+  assert.equal(f.spoken.length, 2);
+  assert.equal(f.spoken[1].text, 'Sorry mate, dry pint.');
+  assert.equal(f.spoken[1].voice.name, 'Oliver');
+  assert.ok(f.spoken[1].rate > 1.0);
+});

@@ -55,6 +55,7 @@ export function createVoice({
   onSpeaking = () => {}, // notified (true/false) so speech-to-score pauses while the caller speaks
 } = {}) {
   let uttering = null;  // what the device is saying now; also keeps it from being dropped half-way
+  let pendingBanter = null;  // queued opponent banter waiting for the caller to finish
   let broken = false;   // the device has voices but couldn't speak with them
   const failed = new Set();  // device voices that couldn't speak (an online one, offline)
   synth?.getVoices();   // some browsers only start listing their voices once asked
@@ -67,14 +68,42 @@ export function createVoice({
     return voices.find(v => v.name === chosen) ?? rank(voices)[0] ?? null;
   }
 
+  // Pick a distinct voice for a Career Mode opponent when available, consistent per proId.
+  function pickOpponent(proId = '') {
+    const ranked = rank(all());
+    if (!ranked.length) return null;
+    const caller = pick();
+    const others = ranked.filter(v => v !== caller && score(v) >= 0);
+    const pool = others.length ? others : ranked;
+    let h = 0;
+    for (let i = 0; i < proId.length; i++) h = (h * 31 + proId.charCodeAt(i)) >>> 0;
+    return pool[h % pool.length];
+  }
+
+  // Strip *stage directions* like "*COUGH!*" so TTS speaks only the actual words after the SFX.
+  const spokenBanter = text => String(text || '').replace(/\*[^*]+\*/g, '').replace(/\s+/g, ' ').trim();
+
+  function finishUtterance(u) {
+    if (uttering !== u) return;
+    uttering = null;
+    if (pendingBanter) {
+      const next = pendingBanter;
+      pendingBanter = null;
+      speakBanterNow(next.text, next.opts);
+      return;
+    }
+    onSpeaking(false);
+  }
+
   function device(text) {
+    pendingBanter = null;
     // Cut off a call still being spoken. Not done when nothing is: some browsers
     // lose a call made straight after a cancel.
     if (uttering) synth.cancel();
     const u = uttering = new Utterance(text);
     const v = pick();
     if (v) { u.voice = v; u.lang = v.lang; }
-    u.onend = () => { if (uttering === u) { uttering = null; onSpeaking(false); } };
+    u.onend = () => finishUtterance(u);
     u.onerror = e => {
       if (uttering === u) { uttering = null; onSpeaking(false); }
       if (e?.error === 'network' && v) { failed.add(v.name); if (hasOwn()) device(text); return; }
@@ -84,8 +113,40 @@ export function createVoice({
     synth.speak(u);
   }
 
+  function speakBanterNow(text, { intensity = 0, proId = '' } = {}) {
+    const clean = spokenBanter(text);
+    if (!clean || !hasOwn()) return;
+    const u = uttering = new Utterance(clean);
+    const v = pickOpponent(proId);
+    const caller = pick();
+    if (v) { u.voice = v; u.lang = v.lang; }
+    const lvl = Math.min(4, Math.max(0, intensity | 0));
+    u.rate = 1.0 + lvl * 0.035;
+    // Slight pitch offset if sharing the caller's voice so the opponent sounds distinct.
+    if (!v || v === caller) u.pitch = 0.88;
+    u.onend = () => finishUtterance(u);
+    u.onerror = e => {
+      if (uttering === u) { uttering = null; onSpeaking(false); }
+      if (e?.error === 'network' && v) { failed.add(v.name); return; }
+      if (BROKEN.includes(e?.error)) broken = true;
+    };
+    onSpeaking(true);
+    synth.speak(u);
+  }
+
   return {
     say(text) { if (hasOwn()) device(String(text)); },
+    sayBanter(text, opts = {}) {
+      const clean = spokenBanter(text);
+      if (!clean || !hasOwn()) return;
+      if (uttering) {
+        // Let the score caller finish, then deliver the latest back-chat.
+        pendingBanter = { text: clean, opts };
+      } else {
+        speakBanterNow(clean, opts);
+      }
+    },
+    stopBanter() { pendingBanter = null; },
     // Browsers only let a page speak once it has made a sound in answer to a
     // tap. A dart the cameras saw is not a tap, so the first tap anywhere says
     // nothing, aloud.

@@ -4,7 +4,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ATMOSPHERE, careerIntensity, coughPlan, pickBanter, tierAtmosphere } from '../web/banter.js';
+import { ATMOSPHERE, accentFor, banterClipUrl, careerIntensity, coughPlan, pickBanter, pickBanterEntry, tierAtmosphere } from '../web/banter.js';
 import { createSfx } from '../web/sfx.js';
 
 const seeded = (seed = 1) => () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 2 ** 32; };
@@ -68,4 +68,20 @@ test('sfx: ambience, cough, cheer and groan fail silently when Web Audio is unav
     sfx.ambienceStop();
   });
   assert.equal(sfx.ambienceActive(), false);
+});
+
+test('banter: accentFor maps countries to regional packs and banterClipUrl formats clip paths', () => {
+  assert.equal(accentFor('GB-SCT', 'p03'), 'scot');
+  assert.equal(accentFor('US', 'p16'), 'us');
+  assert.equal(accentFor('CA', 'p11'), 'us');
+  assert.equal(accentFor('DE', 'p07'), 'euro');
+  assert.equal(accentFor('NL', 'p05'), 'euro');
+  assert.equal(accentFor('ES', 'p23'), 'es');
+  assert.equal(accentFor('JP', 'p19'), 'asia');
+  assert.equal(accentFor('GB-ENG', 'p01'), 'uk_north');
+  assert.equal(accentFor('GB-ENG', 'p06'), 'uk_south');
+  const entry = pickBanterEntry('intro', 0, { random: () => 0 });
+  assert.equal(entry.idx, 0);
+  assert.ok(entry.text.length > 0);
+  assert.equal(banterClipUrl('scot', 'intro', 0, entry.idx), 'audio/banter/scot/intro-0-0.mp3');
 });

@@ -292,23 +292,46 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
       const last = darts.at(-1), mark = marks.lastChild, still = matchMedia?.('(prefers-reduced-motion: reduce)').matches;
       if (fresh && !fly && last?.x != null && !still) land(last);
       if (!fly || !mark || last?.x == null || !mark.animate || still) return;
-      // The dart, drawn with its point at the spot and its flight down to the right.
-      const at = el('g', { transform: `translate(${last.x} ${-last.y})` }), dart = el('g', { class: 'b-dart' });
-      dart.append(el('path', { d: 'M0 0L9 12', class: 'point' }), el('path', { d: 'M9 12L21 28', class: 'barrel' }),
-        el('path', { d: 'M21 28L30 40', class: 'shaft' }), el('path', { d: 'M27 36L24 50L33 44L43 49L36 37Z', class: 'flight' }));
+      // Pro tungsten steel-tip dart drawn along +X from tip (0,0), angled down-right into the board.
+      const at = el('g', { transform: `translate(${last.x} ${-last.y})` });
+      const dart = el('g', { class: 'b-dart' });
+      const body = el('g', { transform: 'rotate(50)' });
+      body.append(
+        // Tapered steel needle point
+        el('path', { d: 'M0 0 L12 -1.1 L12 1.1 Z', class: 'point' }),
+        // Tungsten barrel with machined grip rings and gold collar
+        el('path', { d: 'M12 -2.2 L16 -3.3 L30 -3.0 L34 -1.9 L34 1.9 L30 3.0 L16 3.3 L12 2.2 Z', class: 'barrel' }),
+        el('path', { d: 'M18 -3.1 V3.1 M21.5 -3.1 V3.1 M25 -3.0 V3.0', class: 'grip' }),
+        el('path', { d: 'M14 -2.8 V2.8 M31 -2.3 V2.3', class: 'ring' }),
+        // Slim black shaft
+        el('path', { d: 'M34 -1.4 L47 -1.0 L47 1.0 L34 1.4 Z', class: 'shaft' }),
+        // Angled 3D-style pro flights (top wing, bottom wing, center spine, accent stripe)
+        el('path', { d: 'M43 -1.0 L48 -9.5 L61 -8.5 L63 -1.2 Z', class: 'flight' }),
+        el('path', { d: 'M43 1.0 L48 9.5 L61 8.5 L63 1.2 Z', class: 'flight flight-lo' }),
+        el('path', { d: 'M48 -5.5 L61 -5.0 M48 5.5 L61 5.0', class: 'stripe' }),
+        el('path', { d: 'M43 0 L64 0', class: 'spine' }),
+      );
+      dart.append(body);
       at.append(dart);
       marks.append(at);
       mark.style.opacity = 0;
       const flown = dart.animate([
-        { transform: 'translate(70px, 95px) scale(3.2)', opacity: 0 },
-        { opacity: 1, offset: 0.35 },
+        { transform: 'translate(76px, 98px) scale(2.8)', opacity: 0 },
+        { opacity: 1, offset: 0.28 },
         { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-      ], { duration: 420, easing: 'cubic-bezier(.45, 0, .85, .55)' });
+      ], { duration: 400, easing: 'cubic-bezier(.42, 0, .82, .52)' });
       flown.onfinish = flown.oncancel = () => {
         mark.style.opacity = '';
         mark.animate?.([{ r: r * 2.2 }, { r }], { duration: 220, easing: 'ease-out' });  // the thud
         if (fresh) land(last);
-        dart.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }).onfinish = () => at.remove();
+        // Brief sisal-impact settle wobble, then fade cleanly to the dot mark.
+        dart.animate([
+          { transform: 'rotate(0deg)', opacity: 1 },
+          { transform: 'rotate(-4deg)', opacity: 1, offset: 0.14 },
+          { transform: 'rotate(2.5deg)', opacity: 1, offset: 0.28 },
+          { transform: 'rotate(0deg)', opacity: 1, offset: 0.45 },
+          { transform: 'rotate(0deg)', opacity: 0 },
+        ], { duration: 680, fill: 'forwards' }).onfinish = () => at.remove();
       };
     },
     // Light up one bed {seg, mult} to aim at. With zoom (default, for Random Targets),
