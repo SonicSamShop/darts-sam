@@ -287,10 +287,73 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
   float: right; width: auto; max-width: calc(100% - 7em); height: 1.4em; margin: calc(-1.4em - 6px) 0 5px; overflow: hidden;
   justify-content: flex-end; gap: 20px 8px; font: 600 14px/1.4 var(--font); text-decoration: none; white-space: nowrap;
 }
+.page .pick .group-links {
+  float: right; display: flex; align-items: baseline; gap: 16px;
+  height: 1.4em; margin: calc(-1.4em - 6px) 0 5px;
+}
+.page .pick .group-links .tourline {
+  float: none; width: auto; max-width: none; height: auto; margin: 0; padding: 0; overflow: visible;
+}
+.page .pick .group-links .tourline span { display: none; }
 .pick .tourline b { font-weight: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .pick .tourline span { font-weight: 400; text-transform: none; letter-spacing: 0; }
 /* (a finger's room) */
-@media (pointer: coarse) { .page .pick .tourline { height: calc(1.4em + 20px); padding: 10px 0; margin: calc(-1.4em - 16px) 0 -5px; } }
+@media (pointer: coarse) {
+  .page .pick .tourline { height: calc(1.4em + 20px); padding: 10px 0; margin: calc(-1.4em - 16px) 0 -5px; }
+  .page .pick .group-links { height: calc(1.4em + 20px); padding: 10px 0; margin: calc(-1.4em - 16px) 0 -5px; }
+  .page .pick .group-links .tourline { height: auto; padding: 0; margin: 0; }
+}
+/* Career Mode */
+.career-wrap { overflow-y: auto; padding-bottom: 18px; }
+.career-setup { max-width: 640px; display: flex; flex-direction: column; gap: 12px; }
+.tier-list { display: grid; gap: 8px; }
+.tier-card { text-align: left; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; background: var(--panel); border: 2px solid transparent; border-radius: var(--round); }
+.tier-card.on { border-color: var(--accent); background: var(--panel2); }
+.tier-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.career-tiles { margin-bottom: 10px; }
+.career-pane { margin-top: 12px; display: flex; flex-direction: column; gap: 14px; }
+.career-prog { display: flex; flex-direction: column; gap: 6px; }
+.career-prog .row { justify-content: space-between; font-size: 14px; }
+.career-next { background: var(--panel); border: 2px solid var(--line); border-radius: var(--round); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.career-next.won { border-color: var(--gold); }
+.career-banner { font-size: 18px; font-weight: 700; }
+.career-vs { display: flex; align-items: center; gap: 12px; font-size: 18px; }
+.career-vs .flag { font-size: 28px; margin: 0; }
+.career-next-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.career-atm { color: var(--gold); font-weight: 600; }
+.career-taunt { font-style: italic; color: var(--ink); opacity: .9; border-left: 3px solid var(--accent); padding: 4px 10px; font-size: 14px; }
+/* Career Mode in-game opponent back-chat bubble */
+.banter { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--round); padding: 8px 11px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.banter.hot { border-left-color: var(--gold); }
+.banter.cough { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--panel)); animation: banter-shake .36s ease; }
+.banter-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.banter-head b { color: var(--ink); }
+.banter-heat { color: var(--gold); font-weight: 600; white-space: nowrap; }
+.banter-text { font-style: italic; line-height: 1.3; }
+@keyframes banter-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  45% { transform: translateX(4px); }
+  70% { transform: translateX(-2px); }
+}
+.fixture-list { display: grid; gap: 6px; }
+.fixture { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: var(--panel); border-radius: var(--round); border-left: 3px solid transparent; }
+.fixture.next { border-left-color: var(--accent); background: var(--panel2); }
+.fixture.won { border-left-color: var(--accent); }
+.fixture.lost { border-left-color: var(--warn); }
+.cup-grid { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.cup-col { flex: 1 0 180px; display: flex; flex-direction: column; gap: 8px; }
+.cup-col h4 { margin: 0; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.cup-slot { background: var(--panel); border: 1px solid var(--line); border-radius: var(--round); padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.cup-slot.mine { border-color: var(--accent); }
+.cup-slot > div { display: flex; justify-content: space-between; gap: 8px; }
+.cup-slot > div.win { color: var(--gold); font-weight: 700; }
+.trophy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.trophy-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--round); padding: 12px; text-align: center; display: flex; flex-direction: column; gap: 4px; }
+.trophy-card.won { border-color: var(--gold); }
+.trophy-card.locked { opacity: .45; filter: grayscale(1); }
+.trophy-icon { font-size: 28px; }
+.career-rank td.num, .career-rank th.num { text-align: right; }
 .inprogress { display: grid; gap: 10px; }
 /* the Tournament screen: the form to set one up, then the bracket filling the screen (going: .tour-main, its
    heading, the bracket and its buttons), and under either the list of past ones. Under a bracket that list is
@@ -392,13 +455,14 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .how-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 16px; }
 .page .how-head h3 { margin: 0; font: 700 17px/1.3 var(--font); color: var(--text); text-transform: none; letter-spacing: 0; }  /* .page: outranks the themes' headings */
 .how-phone { display: none; }
-@media (orientation: landscape) and (min-width: 801px) { .pick.rules-on :is(.games, h3.group, .blurb, .tourline) { display: none; } }
+@media (orientation: landscape) and (min-width: 801px) { .pick.rules-on :is(.games, h3.group, .blurb, .tourline, .group-links) { display: none; } }
 .rules-box { margin-top: 6px; font-size: 15px; line-height: 1.35; text-transform: none; letter-spacing: 0; }
 .rules-box :is(p, ul, ol, dl) { margin: 0 0 8px; }
 .rules-box :is(ul, ol) { padding-left: 20px; }
 .rules-box li { margin-bottom: 4px; }
 .page .rules-box h3 { font-family: var(--font); font-size: 15px; font-weight: 700; margin: 12px 0 4px; color: var(--text); }  /* .page: outranks the themes' headings */
 .player-row { display: flex; gap: 10px; margin-bottom: 8px; }
+.warmup-opt { margin-top: 8px; font-size: 14px; color: var(--muted); }
 .newplayer-row { flex-wrap: wrap; }
 .newplayer-row input { flex: 1 1 140px; min-width: 0; }
 .newplayer-row select { flex: 1 1 140px; min-width: 0; }
@@ -613,7 +677,7 @@ svg.heat .b-num { fill: #d9dce3; }
   .step.open .step-body { display: block; }
   .page .step-body > h2, .pick .blurb, .pick .how { display: none; }  /* .page: outranks the themes' headings */
   .how-phone { display: block; margin: 6px 0 0; scroll-margin-top: 6px; }
-  .pick .tourline { display: none; }
+  .pick .tourline, .pick .group-links { display: none; }
   .tourline.tour-phone { display: flex; }
   .warmup-phone { display: flex; }
   .quickstarts { display: block; }

@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, x01Trend, x01Brackets, headToHead, statsCsv, visitsOf, dartTable, visitsWith, setsSideBySide, boardsSideBySide } from '../web/stats.js';
-import { practiceStreak, recordPracticeDay } from '../web/routine.js';
+import { createWarmup, practiceStreak, recordPracticeDay, warmupDart, warmupNext, warmupUndo } from '../web/routine.js';
 
 const T20 = 203, S20 = 201, D20 = 202, D16 = 162, S1 = 11, MISS = 0;
 const match = (id, visits, more = {}) => ({
@@ -237,4 +237,25 @@ test('statsCsv exports X01 and non-X01 visits as RFC 4180 CSV', () => {
   assert.ok(lines[1].includes(',Won,1,1,180,No,3,T20 T20 T20,301,121,No'));
   assert.ok(lines[2].includes(',Won,1,2,121,No,3,T20 T19 D2,121,0,Yes'));
   assert.ok(lines[3].includes(',m2,Count Up,Sam,Finished,,1,40,No,3,20 20 Miss,,,'));
+});
+
+test('pre-match warm-up darts: 9 darts per human player, bots skipped, undo works', () => {
+  // Human + Bot: only human throws 9 warm-up darts
+  const w1 = createWarmup([null, 5], 9);
+  assert.deepEqual(w1.thrown, [0, 9]);
+  assert.equal(w1.current, 0);
+  for (let i = 0; i < 8; i++) assert.equal(warmupDart(w1, { seg: 20, mult: 1 }).done, false);
+  assert.equal(warmupUndo(w1), true);
+  assert.equal(w1.thrown[0], 7);
+  assert.equal(warmupDart(w1, { seg: 20, mult: 3 }).done, false);
+  assert.equal(warmupDart(w1, { seg: 20, mult: 3 }).done, true);
+  assert.equal(w1.done, true);
+
+  // Two humans alternate 3 darts each until both reach 9
+  const w2 = createWarmup([null, null], 9);
+  for (let i = 0; i < 3; i++) warmupDart(w2, { seg: 20, mult: 1 });
+  assert.equal(w2.current, 1);
+  warmupNext(w2);  // player 1 skips visit -> back to player 0
+  assert.equal(w2.current, 0);
+  assert.deepEqual(w2.thrown, [3, 3]);
 });

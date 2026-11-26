@@ -56,3 +56,4 @@ export const speech = { supported: () => false, active: () => false, listening: 
 // What the menu asks of the app as well (web/screens/home.js): nothing is fetched, and no new version looked for.
 export const connected = false, totals = null, setTotals = () => {}, statsPath = () => '', loadStats = async () => ({});
 export const updater = { check() {} };
+export const settings = {};

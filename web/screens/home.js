@@ -13,15 +13,22 @@ import { renderLanding } from './landing.js';
 import { newPlayerRow, roster } from './playerspanel.js';
 import { pct } from './stats.js';
 import { currentTournament, onMatchWon, slotTitle, tourMarked } from './tournament.js';
+import { tierByIndex } from '../career.js';
 import { WARMUP_STEPS, practiceStreak } from '../routine.js';
 import {
   $app, BOT, account, api, botAt, cleanSetup, connected, dartsFor, esc, fit, grams, loadStats, match, nameOf,
-  pageFoot, pageHead, players, redraw, refreshStatus, screen, seats, setMatch, setScreen, setTotals, setsOf,
+  pageFoot, pageHead, players, redraw, refreshStatus, screen, seats, setMatch, setScreen, setTotals, setsOf, settings,
   setup, statsPath, store, totals, updater
 } from '../app.js';
 
 // Whether "Tournament" is on the menu (a computer's line and a phone's). On since 1.8.
 const TOURNAMENT_ON_MENU = true;
+// Feature flag for Career Mode while we build out its pub/stage theatre & atmosphere.
+// Flip to true to ship, or enable locally with ?career=1 or localStorage.setItem('dartssam.career', '1').
+const CAREER_ON_MENU = false;
+const careerEnabled = () => CAREER_ON_MENU
+  || (typeof location !== 'undefined' && new URLSearchParams(location.search).get('career') === '1')
+  || (typeof localStorage !== 'undefined' && localStorage.getItem('dartssam.career') === '1');
 
 // What is open on the menu. step: on a phone, the step that is open ('game', 'options' or
 // 'players'), or null for none. Not chosen yet (undefined): none when somebody is down to
@@ -90,7 +97,7 @@ export function renderHome() {
     <div class="home-body">
     <div class="pick ${menu.rulesOpen ? 'rules-on' : ''}">
     ${going ? `<h2>In progress</h2><div class="inprogress">${going}</div>` : ''}
-    ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>${kind === 'match' ? tourLine('link') : warmupLine()}
+    ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>${kind === 'match' ? (careerEnabled() ? `<div class="group-links">${careerLine('link')}${tourLine('link')}</div>` : tourLine('link')) : warmupLine()}
     <div class="games">${GAMES.filter(g => g.kind === kind).map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
       <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>`).join('')}
     <p class="blurb muted small">${game.blurb}</p>
@@ -108,12 +115,14 @@ export function renderHome() {
       return `<button class="chip ${n >= 0 ? 'on' : ''}" data-pick="${p.id}">${n >= 0 ? `<i>${n + 1}</i>` : ''}${esc(p.name)}</button>`;
     }).join('')}${game.bot ? botChip() : ''}${roster.adding ? '' : '<button class="chip ghost" data-act="newplayer">+ New</button>'}</div>
     <p class="muted small">Tap who is playing, in throwing order. With two or more, Start asks who throws first: closest to the bull, or random.</p>
+    <label class="tick warmup-opt"><input type="checkbox" data-warmup-toggle ${settings.warmupDarts ? 'checked' : ''}> Throw 9 warm-up darts before the match</label>
     ${averagesLine() ? `<p class="muted small averages">${averagesLine()}</p>` : ''}
     ${botRow()}${dartsRows()}`
       : '<p class="muted">Add a player to get started.</p>'}
     ${roster.adding || !players.length ? newPlayerRow() : ''}`)}
     ${howToPlay(game, 'how-phone')}
     ${tourLine('tour-phone')}
+    ${careerLine('tour-phone')}
     ${warmupHtml()}
     ${quickStartsHtml()}
     <span class="spacer"></span>
@@ -168,8 +177,15 @@ function howToPlay(game, where = '') {
 // beside that heading: the menu there is laid out to fit one screen, and a line of its own would squeeze it all
 // smaller (style.css, .pick .tourline). On a phone (where: 'tour-phone'), where the menu scrolls, it is a line
 // of its own under the steps. Neither is drawn while TOURNAMENT_ON_MENU is off.
-const tourLine = (where = '') => (TOURNAMENT_ON_MENU ? `<button class="tourline ${where}" data-act="tournament"><b>Tournament</b>
+const tourLine = (where = '') => (TOURNAMENT_ON_MENU ? `<button class="tourline ${where}" data-act="tournament" title="A knockout for 3 to 16 players, people and bots"><b>Tournament</b>
   <span>A knockout for 3 to 16 players, people and bots</span></button>` : '');
+const careerLine = (where = '') => {
+  if (!careerEnabled()) return '';
+  const pid = setup.players?.[0] ?? players[0]?.id;
+  const c = pid != null ? settings.careers?.[pid] : null;
+  const sub = c ? `${tierByIndex(c.tier).name} · Season ${c.season}` : 'Climb 5 tiers against 30 AI pros';
+  return `<button class="tourline careerlink ${where}" data-act="career" title="${esc(sub)}"><b>Career</b><span>${esc(sub)}</span></button>`;
+};
 // One-tap recent setups on phones, filling the empty space below the 3 steps.
 export function quickPresets() {
   const valid = r => {

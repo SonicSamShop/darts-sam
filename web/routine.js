@@ -40,3 +40,71 @@ export function practiceStreak(store, now = new Date()) {
   }
   return { days, doneToday };
 }
+
+// ---------- pre-match warm-up darts ----------
+// Optional 9 warm-up darts per human player before leg 1 starts. Kept separate
+// from match.log so warm-up throws never affect stats, averages, or achievements.
+export const WARMUP_DARTS = 9;
+
+export function createWarmup(bots, darts = WARMUP_DARTS) {
+  const thrown = bots.map(b => (b ? darts : 0));
+  const first = thrown.findIndex(n => n < darts);
+  if (first < 0) return null;
+  return { darts, thrown, turn: [], log: [], current: first, done: false };
+}
+
+function nextWarmupPlayer(w) {
+  const n = w.thrown.length;
+  for (let k = 1; k <= n; k++) {
+    const i = (w.current + k) % n;
+    if (w.thrown[i] < w.darts) return i;
+  }
+  return -1;
+}
+
+export function warmupDart(w, dart) {
+  if (!w || w.done) return { done: true, changed: false };
+  const p = w.current;
+  w.log.push({ player: p, dart });
+  w.turn.push(dart);
+  w.thrown[p]++;
+  if (w.turn.length >= 3 || w.thrown[p] >= w.darts) {
+    const next = nextWarmupPlayer(w);
+    if (next < 0) { w.done = true; return { done: true, changed: true }; }
+    const changed = next !== p;
+    w.current = next;
+    w.turn = [];
+    return { done: false, changed };
+  }
+  return { done: false, changed: false };
+}
+
+export function warmupNext(w) {
+  if (!w || w.done) return { done: true, changed: false };
+  const p = w.current;
+  const rem = Math.min(3 - w.turn.length, w.darts - w.thrown[p]);
+  if (rem > 0) {
+    for (let i = 0; i < rem; i++) {
+      const miss = { seg: 0, mult: 0, src: 'miss' };
+      w.log.push({ player: p, dart: miss });
+      w.thrown[p]++;
+    }
+  }
+  const next = nextWarmupPlayer(w);
+  if (next < 0) { w.done = true; return { done: true, changed: true }; }
+  const changed = next !== p;
+  w.current = next;
+  w.turn = [];
+  return { done: false, changed };
+}
+
+export function warmupUndo(w) {
+  if (!w || !w.log.length) return false;
+  const last = w.log.pop();
+  w.done = false;
+  w.thrown[last.player] = Math.max(0, w.thrown[last.player] - 1);
+  w.current = last.player;
+  const turnLen = w.thrown[last.player] % 3;
+  w.turn = turnLen ? w.log.slice(-turnLen).filter(e => e.player === last.player).map(e => e.dart) : [];
+  return true;
+}

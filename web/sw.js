@@ -19,12 +19,12 @@ const WAIT = 2500;             // ms to give the server before using the saved c
 // Everything the app needs to start. Files not listed here (a new game module,
 // say) are still saved the first time they are loaded.
 const FILES = [
-  './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'achievements.js', 'engine.js', 'board.js', 'boards.js', 'bot.js', 'tournament.js', 'install.js', 'voice.js', 'speech.js', 'sfx.js', 'sharecard.js', 'routine.js', 'theme.js',
+  './', 'index.html', 'version.json', 'app.js', 'api.js', 'account.js', 'track.js', 'update.js', 'sync.js', 'stats.js', 'achievements.js', 'engine.js', 'board.js', 'boards.js', 'bot.js', 'tournament.js', 'career.js', 'banter.js', 'install.js', 'voice.js', 'speech.js', 'sfx.js', 'sharecard.js', 'routine.js', 'theme.js',
   'phoneui.js', 'phonecam.js', 'ask.js', 'phonecam.css',
   'screens/sharing.js', 'screens/accountpanel.js', 'screens/cameras.js', 'screens/landing.js', 'screens/achievements.js',
   'screens/home.js', 'screens/start.js', 'screens/game.js', 'screens/earned.js', 'screens/report.js', 'screens/stats.js',
   'screens/settings.js', 'screens/playerspanel.js', 'screens/boardspanel.js', 'screens/release.js', 'screens/welcome.js', 'screens/compare.js',
-  'screens/tournament.js', 'screens/bracket.js', 'screens/accuracy.js',
+  'screens/tournament.js', 'screens/bracket.js', 'screens/career.js', 'screens/accuracy.js',
   'games/index.js', 'games/x01.js', 'games/cricket.js', 'games/clock.js', 'games/bobs27.js', 'games/shanghai.js', 'games/bermuda.js', 'games/segment.js', 'games/rcheckout.js', 'games/countup.js', 'games/c121.js', 'games/random.js', 'games/killer.js', 'games/gotcha.js', 'games/free.js',
   'style.css', 'themes.css', 'manifest.json', 'privacy.html', 'faq.html', 'rules.html', 'download.html', 'opensource.html', 'releases.html', 'compare.html',
   'icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',

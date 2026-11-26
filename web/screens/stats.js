@@ -22,7 +22,7 @@ import {
 // stats, next to one for all games together. Any figure with a › can be tapped
 // to see what it was counted from (see "opening up the stats" below).
 // A big screen has room for the stats and the board side by side (see .panes in style.css).
-const BIG = matchMedia('(min-width: 1100px) and (min-height: 750px)');
+const BIG = typeof matchMedia === 'function' ? matchMedia('(min-width: 1100px) and (min-height: 750px)') : { matches: false };
 const STAT_TABS = [['stats', 'Stats'], ['games', 'Games'], ['board', 'Board'], ['achievements', 'Achievements']];
 export const statsView = {
   player: null,

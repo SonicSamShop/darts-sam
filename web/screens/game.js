@@ -15,18 +15,21 @@ import { renderLanding } from './landing.js';
 import { menu } from './home.js';
 import { summaryHtml } from './stats.js';
 import { onMatchQuit, onMatchUndone, onMatchWon, openTournament, quitTerms } from './tournament.js';
-import { WARMUP_STEPS, recordPracticeDay } from '../routine.js';
+import { onCareerUndone, onCareerWon, openCareer } from './career.js';
+import { careerIntensity, coughPlan, pickBanter, tierAtmosphere } from '../banter.js';
+import { WARMUP_STEPS, recordPracticeDay, warmupDart, warmupNext, warmupUndo } from '../routine.js';
 import {
   achieved, achievementsOn, askPhotos, bases, dropPictures, dropSlips, earnedLine, endedHere, forgetEnded,
   loadBases, photoAsk, photosOn, slipHtml
 } from './earned.js';
 import {
-  $app, account, cameraCount, connected, dartsName, data, esc, fit, flagHtml, goHome, icon, mark, match, phone, queueSync,
+  $app, account, atmosphereOn, cameraCount, connected, dartsName, data, esc, fit, flagHtml, goHome, icon, mark, match, phone, queueSync,
   refreshStatus, say, screen, setMatch, setScreen, setsOf, settings, sfx, sfxOn, speech, store, tracker
 } from '../app.js';
 
 // The level of the computer player whose throw it is in the game in progress, or null.
-export const botUp = (s = compute(match)) => s.winner == null ? match.bots?.[s.current] ?? null : null;
+export const warmupActive = (m = match) => !!m?.warmup && !m.warmup.done;
+export const botUp = (s = compute(match)) => warmupActive() ? null : s.winner == null ? match.bots?.[s.current] ?? null : null;
 // The computer throws by itself, a dart at a time, whenever the game is on screen and it is its
 // turn: renderGame() asks for the next dart each time it draws. Straight after a person's visit
 // it holds off for a while, counting down on screen, so a wrongly scored dart can be put right
@@ -141,8 +144,105 @@ function holdVisit(before, after, ev) {
     bust: after.bust != null || after.noOut != null, until: Date.now() + secs * 1000 };
 }
 
+// ---------- Career Mode atmosphere, banter & coughing ----------
+let banter = null;      // { matchId, text, kind, intensity, seq }
+let coughTimer = 0;
+let coughKey = '';      // visit key so we schedule at most one cough per human visit
+
+const careerActive = (m = match) => !!m?.opts?.career && atmosphereOn();
+const careerLvl = (m = match) => careerIntensity(m?.opts?.career);
+
+function setBanter(kind, intensity, m = match) {
+  if (!careerActive(m)) return;
+  const text = pickBanter(kind, intensity, { lastText: banter?.text || '' });
+  if (!text) return;
+  banter = { matchId: m.id, text, kind, intensity, seq: (banter?.seq ?? 0) + 1 };
+}
+
+function clearCough() {
+  clearTimeout(coughTimer);
+  coughTimer = 0;
+}
+
+function syncAtmosphere(s) {
+  if (screen !== 'game' || !match || !careerActive(match)) {
+    clearCough();
+    coughKey = '';
+    sfx.ambienceStop();
+    return;
+  }
+  const lvl = careerLvl(match);
+  if (s.winner == null && sfxOn()) sfx.ambienceStart(lvl);
+  else if (s.winner != null || !sfxOn()) sfx.ambienceStop();
+
+  // Mid-throw coughing gamesmanship during the human player's visit.
+  if (s.winner != null || warmupActive(match) || botUp(s) || quitAsk || s.turnOver) {
+    clearCough();
+    coughKey = '';
+    return;
+  }
+  const key = `${match.id}:${s.throws.length}:${s.current}`;
+  if (coughKey === key) return;
+  clearCough();
+  coughKey = key;
+  const onFinish = !!gameById(match.gameId).left?.(s);
+  const plan = coughPlan(lvl, { onFinish });
+  if (!plan.willCough) return;
+  const targetMatchId = match.id;
+  coughTimer = setTimeout(() => {
+    coughTimer = 0;
+    if (screen !== 'game' || !match || match.id !== targetMatchId || quitAsk || !careerActive(match)) return;
+    const cur = compute(match);
+    if (cur.winner != null || botUp(cur) || cur.turnOver) return;
+    if (sfxOn()) sfx.cough(lvl);
+    setBanter('cough', lvl, match);
+    renderGame();
+  }, plan.delayMs);
+}
+
+function banterHtml() {
+  if (!careerActive(match) || !banter || banter.matchId !== match.id) return '';
+  const c = match.opts.career;
+  const atm = tierAtmosphere(banter.intensity);
+  const cls = banter.kind === 'cough' ? ' cough' : banter.intensity >= 3 ? ' hot' : '';
+  return `<div class="banter${cls}" data-seq="${banter.seq}" role="status">
+    <div class="banter-head"><span>${c.proFlag ? `<span class="flag">${c.proFlag}</span>` : ''}<b>${esc(c.proName)}</b></span>
+      <span class="banter-heat" title="${esc(atm.venue)}">${atm.heat} ${esc(atm.vibe)}</span></div>
+    <div class="banter-text">“${esc(banter.text)}”</div>
+  </div>`;
+}
+
 // ---------- match actions ----------
+export function finishWarmup() {
+  if (!match || !match.warmup) return;
+  match.warmup = null;
+  match.started = Date.now();
+  store.set('match', match);
+  const opening = compute(match), aim = gameById(match.gameId).aim?.(opening);
+  say(starterCall(opening.players, opening.current, { aim }));
+  renderGame();
+}
 export function push(ev) {
+  if (warmupActive(match)) {
+    const w = match.warmup;
+    if (ev.t === 'dart') {
+      if (sfxOn()) sfx.dart(ev);
+      const res = warmupDart(w, ev);
+      if (res.done) return finishWarmup();
+      const parts = [settings.eachDart ? spoken(ev) : '', res.changed && match.players.length > 1 ? match.players[w.current] : ''].filter(Boolean);
+      if (parts.length) say(parts.join('. '));
+      store.set('match', match);
+      return renderGame();
+    }
+    if (ev.t === 'next') {
+      const res = warmupNext(w);
+      if (res.done) return finishWarmup();
+      if (res.changed && match.players.length > 1) say(match.players[w.current]);
+      store.set('match', match);
+      return renderGame();
+    }
+    return;
+  }
   const before = compute(match);
   if (before.winner != null) return;
   const sheetBefore = achievementsOn() && bases?.id === match.id ? matchSheet(match) : null;
@@ -154,6 +254,7 @@ export function push(ev) {
   store.set('match', match);
   queueSync();
   if (after.winner != null && match.opts?.tournament) onMatchWon(match);  // the result counts from the winning dart
+  if (after.winner != null && match.opts?.career) onCareerWon(match);
   // What the next thrower has left, once they are on a finish (X01, 170 or
   // below). Called once, at the start of the visit ("Sam, you require 121"),
   // not again after each dart.
@@ -211,6 +312,37 @@ export function push(ev) {
     else if (ev.t === 'visit') sfx.dart(ev.total === 0 ? { seg: 0, mult: 0 } : { seg: 20, mult: ev.total >= 60 ? 3 : 1 });
     else if (ev.t === 'next' && ev.force) sfx.dart({ seg: 0, mult: 0 });
   }
+  if (careerActive(match)) {
+    const lvl = careerLvl(match);
+    const byBot = ev.src === 'bot';
+    if (after.winner != null) {
+      if (sfxOn()) { if (after.winner === 0) sfx.cheer('big', lvl); else sfx.groan(lvl); }
+      setBanter(after.winner === 0 ? 'matchWin' : 'matchLoss', lvl);
+    } else if (after.legWon) {
+      if (sfxOn()) { if (after.legWon.player === 0) sfx.cheer('big', lvl); else sfx.groan(lvl); }
+      setBanter(after.legWon.player === 0 ? 'playerCheckout' : 'botLeg', lvl);
+    } else if (after.bust === 0 || after.noOut === 0) {
+      if (sfxOn()) sfx.groan(lvl);
+      setBanter('playerBust', lvl);
+    } else if (after.lastVisit) {
+      const { player, total } = after.lastVisit;
+      if (player === 0) {
+        if (total >= 180) { if (sfxOn()) sfx.cheer('big', lvl); setBanter('playerGood', lvl); }
+        else if (total >= 100) { if (sfxOn()) sfx.cheer('medium', lvl); setBanter('playerGood', lvl); }
+        else if (total <= 26) { if (sfxOn() && (total === 0 || total === 26)) sfx.groan(lvl); setBanter('playerMiss', lvl); }
+      } else if (player === 1) {
+        if (total >= 100) setBanter('botBig', lvl);
+        else if (left && after.current === 0) setBanter('playerOnFinish', lvl);
+      }
+    } else if (ev.t === 'dart' && !byBot) {
+      if ((ev.seg === 25 && ev.mult === 2) || (ev.mult === 3 && ev.seg >= 15)) {
+        if (sfxOn()) sfx.cheer('small', lvl);
+        if (Math.random() < 0.55) setBanter('playerGood', lvl);
+      } else if (!ev.mult) {
+        if (sfxOn()) sfx.groan(Math.max(0, lvl - 1));
+      }
+    }
+  }
   holdVisit(before, after, ev);
   const f = visitFlash(game, before, after);
   if (f) flash = { ...f, until: Date.now() + Math.max(FLASH_MS, held ? held.until - Date.now() : 0) };
@@ -218,6 +350,10 @@ export function push(ev) {
   renderGame();
 }
 export function undo() {
+  if (warmupActive(match)) {
+    if (warmupUndo(match.warmup)) { store.set('match', match); renderGame(); }
+    return;
+  }
   // Undo is for the people playing: the computer's darts since go with the dart being undone
   // (it throws again when its turn comes back round).
   const won = compute(match).winner != null;
@@ -233,6 +369,7 @@ export function undo() {
   store.set('match', match);
   queueSync();
   if (won && match.opts?.tournament) onMatchUndone(match);  // the winning dart undone: so is the result
+  if (won && match.opts?.career) onCareerUndone(match);
   renderGame();
 }
 
@@ -282,12 +419,18 @@ function quitGame(save, loser = null) {
   if (save) data.saveMatch(match);  // as it stands: every dart of it is already queued
   else data.quitMatch(match);
   const ofTournament = match.opts?.tournament?.id;
+  const ofCareer = match.opts?.career?.playerId;
   if (ofTournament) onMatchQuit(match, loser, save);  // given up: the other goes through
   setMatch(null);
   store.set('match', null);
+  clearCough();
+  coughKey = '';
+  banter = null;
+  sfx.ambienceStop();
   speech.stop();
   numPad.value = ''; numPad.ask = null; numPad.error = '';
   data.sync();
+  if (ofCareer != null) { openCareer(ofCareer); return mark(); }
   if (!ofTournament) return goHome();
   openTournament(ofTournament);
   mark();
@@ -466,8 +609,12 @@ export function toggleMatchStats() {
   gameBoard.boardBack = gameBoard.boardBack === match.id ? null : match.id;
   renderGame();
 }
-// The country flag for player i, if set on their profile.
-const playerFlag = i => flagHtml(match?.playerIds?.[i]);
+// The country flag for player i, if set on their profile (or for a Career Mode AI pro).
+const playerFlag = i => {
+  const cf = match?.opts?.career?.proFlag;
+  if (cf && i === 1) return `<span class="flag" aria-hidden="true">${cf}</span>`;
+  return flagHtml(match?.playerIds?.[i]);
+};
 // The darts a player is throwing in this game, said beside their name once they have more than one set.
 function playingWith(i) {
   const set = match.darts?.[i], id = match.playerIds?.[i];
@@ -488,6 +635,7 @@ export function renderGame() {
   }
   const game = gameById(match.gameId);
   const s = compute(match);
+  if (careerActive(match) && banter?.matchId !== match.id) setBanter('intro', careerLvl(match), match);
   loadBases();  // (once a game: what everyone held before it)
   if (s.winner != null && photoAsk && photosOn() === null) askPhotos();
   if (flash && Date.now() >= flash.until) flash = null;
@@ -500,9 +648,11 @@ export function renderGame() {
     const el = document.querySelector('.visithold b');
     if (el) el.textContent = heldLeft();
   }, 250);
-  const pad = usingPad(game);
+  const warming = warmupActive(match);
+  const w = warming ? match.warmup : null;
+  const pad = !warming && usingPad(game);
   // The TV view: the player cards give way to one scoreboard along the bottom.
-  const tv = usingTv(game, s);
+  const tv = !warming && usingTv(game, s);
   document.querySelector('.game').classList.toggle('tv', tv);
   const tvBar = document.querySelector('.tvbar');
   tvBar.toggleAttribute('hidden', !tv);
@@ -519,8 +669,8 @@ export function renderGame() {
   // new visit; the board keeps the old darts marked until the next one lands,
   // and the old visit is listed in small print under the slots.
   // While a visit is kept up (above), its darts stay in the slots instead.
-  const inSlots = held ? held.darts : s.turn;
-  const shown = held ? held.darts : s.turn.length ? s.turn : s.lastVisit?.darts ?? s.turn;
+  const inSlots = warming ? w.turn : held ? held.darts : s.turn;
+  const shown = warming ? w.turn : held ? held.darts : s.turn.length ? s.turn : s.lastVisit?.darts ?? s.turn;
   const total = inSlots.reduce((t, d) => t + value(d), 0);
   const same = seen.id === match.id, grew = same && match.log.length > seen.len, shrank = same && match.log.length < seen.len;
   // a dart that has just come into its slot drops in; one an Undo has given back fades back in
@@ -541,7 +691,8 @@ export function renderGame() {
   const nextWarmup = routine && WARMUP_STEPS[routine.step + 1];
   const routineTag = routine ? ` <span class="rtag">Warm-up ${routine.step + 1}/${WARMUP_STEPS.length}</span>` : '';
   let banner = '';
-  if (s.winner != null) banner = `<div class="banner win">${routine && !nextWarmup ? 'Warm-up complete! ' : ''}${esc(game.result?.(s) ?? `${s.players[s.winner]} wins!`)}</div>`;
+  if (warming) banner = `<div class="banner">Warm-up · ${esc(s.players[w.current])} · ${w.darts - w.thrown[w.current]} dart${w.darts - w.thrown[w.current] === 1 ? '' : 's'} left</div>`;
+  else if (s.winner != null) banner = `<div class="banner win">${routine && !nextWarmup ? 'Warm-up complete! ' : ''}${esc(game.result?.(s) ?? `${s.players[s.winner]} wins!`)}</div>`;
   else if (s.legWon) banner = `<div class="banner win">${s.legWon.set ? 'Set' : 'Leg'} to ${esc(s.players[s.legWon.player])}!${
     s.players.length > 1 ? ` ${esc(s.players[s.current])} throws first` : ''}</div>`;
   else if (s.bust != null) banner = `<div class="banner bust">Bust!${s.players.length > 1
@@ -590,10 +741,14 @@ export function renderGame() {
       <button class="ghost soundbtn ${sfxOn() ? 'on' : ''}" data-act="sfx-toggle" title="${sfxOn() ? 'Mute sound effects' : 'Turn on sound effects'}" aria-label="${sfxOn() ? 'Mute sound effects' : 'Turn on sound effects'}">${sfxIcon}</button></div>
     ${micBar}
     ${tv ? '' : flash ? `<div class="players">${flashHtml(s)}</div>` : `<div class="players">${s.players.map((p, i) => {
-      const v = game.summary(s, i);
-      return `<div class="pcard ${s.winner === i ? 'win' : s.winner == null && i === s.current ? 'cur' : ''}${v.out ? ' out' : ''}${moved(i)}">
+      const v = warming
+        ? { big: w.thrown[i] >= w.darts ? 'Ready' : w.darts - w.thrown[i], small: w.thrown[i] >= w.darts ? 'warm-up done' : 'warm-up darts left' }
+        : game.summary(s, i);
+      const cur = warming ? i === w.current : s.winner == null && i === s.current;
+      return `<div class="pcard ${!warming && s.winner === i ? 'win' : cur ? 'cur' : ''}${v.out ? ' out' : ''}${warming ? '' : moved(i)}">
         <div class="name">${playerFlag(i)}${esc(p)}${playingWith(i)}</div><div class="big">${v.big}</div><div class="small">${v.small}</div></div>`;
     }).join('')}</div>`}
+    ${banterHtml()}
     ${game.panel ? game.panel(s) : ''}
     ${visit}
     ${game.hint ? `<div class="hint">${s.winner == null ? esc(game.hint(s, { checkouts: settings.checkouts !== false })) : ''}</div>` : ''}
@@ -604,17 +759,21 @@ export function renderGame() {
     ${botHolds(s) ? `<div class="botwait"><span>${esc(s.players[s.current])} throws in <b>${botHold?.at === match.log.length ? botHoldLeft() : botHoldSecs()}</b>s. Score wrong? Undo it now.</span>
       <button data-act="botgo">Throw now</button></div>` : ''}
     <div class="actions ${pad && s.winner == null ? 'solo' : ''}">
-      <button data-act="undo" ${match.log.length ? '' : 'disabled'}>Undo</button>
-      ${s.winner != null
-        ? `<button data-act="home">Menu</button>${match.opts?.tournament
-          ? '<button class="primary" data-act="tour-back">Back to the tournament</button>'
-          : nextWarmup
-            ? `<button class="primary" data-act="warmup-next">Next: ${esc(nextWarmup.short)} ›</button>`
-            : '<button class="primary" data-act="rematch">Play again</button>'}`
-        : pad ? '' : `<button data-act="miss" ${botUp(s) ? 'disabled' : ''}>Miss</button>
-           <button class="primary end${s.turnOver ? ' ready' : ''}" data-act="next" ${botUp(s) ? 'disabled' : ''}>End turn</button>`}
+      <button data-act="undo" ${(warming ? w.log.length : match.log.length) ? '' : 'disabled'}>Undo</button>
+      ${warming
+        ? '<button data-act="miss">Miss</button><button class="primary" data-act="warmup-skip">Start match</button>'
+        : s.winner != null
+          ? `<button data-act="home">Menu</button>${match.opts?.tournament
+            ? '<button class="primary" data-act="tour-back">Back to the tournament</button>'
+            : match.opts?.career
+              ? '<button class="primary" data-act="career-back">Back to Career</button>'
+              : nextWarmup
+                ? `<button class="primary" data-act="warmup-next">Next: ${esc(nextWarmup.short)} ›</button>`
+                : '<button class="primary" data-act="rematch">Play again</button>'}`
+          : pad ? '' : `<button data-act="miss" ${botUp(s) ? 'disabled' : ''}>Miss</button>
+             <button class="primary end${s.turnOver ? ' ready' : ''}" data-act="next" ${botUp(s) ? 'disabled' : ''}>End turn</button>`}
     </div>
-    ${s.winner == null && !pad ? `<div class="quick-acts${game.bust ? '' : ' solo'}">
+    ${!warming && s.winner == null && !pad ? `<div class="quick-acts${game.bust ? '' : ' solo'}">
       <button data-act="noscore" ${botUp(s) || s.turn.length || s.turnOver ? 'disabled' : ''}>No score</button>${
       game.bust ? `<button class="bust-btn" data-act="bust" ${botUp(s) || s.turnOver || !game.canBust?.(s) ? 'disabled' : ''}>Bust</button>` : ''}
     </div>` : ''}
@@ -649,6 +808,7 @@ export function renderGame() {
   refreshStatus();
   fit();
   botSoon();
+  syncAtmosphere(s);
 }
 
 // The match clock in the top bar ticks between renders.

@@ -11,7 +11,7 @@ import { accountPanel, feedbackBox } from './accountpanel.js';
 import { renderLanding } from './landing.js';
 import { playersPanel } from './playerspanel.js';
 import {
-  $app, THEMES, account, applyTheme, depth, esc, fit, icon, mark, pageFoot, pageHead, players, refreshStatus,
+  $app, THEMES, account, applyTheme, atmosphereOn, depth, esc, fit, icon, mark, pageFoot, pageHead, players, refreshStatus,
   screen, setScreen, settings, sfxOn, store, voice
 } from '../app.js';
 import { BOT_HOLD_MAX, BOT_HOLD_USUAL, VISIT_HOLD_MAX, botHoldSecs, flashOn, visitHoldSecs } from './game.js';
@@ -94,6 +94,7 @@ export function renderSettings(jump) {
   const hints = settings.checkouts !== false;
   const game = `<div class="settings"><div class="rows">
     ${switchRow('Sound effects', sfxOn(), `data-sfx="${sfxOn() ? 'off' : 'on'}"`, 'Dart thuds, bust buzzes, and fanfares on 100+, 140+, 180 and checkouts.')}
+    ${switchRow('Career pub noise & banter', atmosphereOn(), `data-atmosphere="${atmosphereOn() ? 'off' : 'on'}"`, 'Background pub and crowd murmur, cheering on big darts and checkouts, opponent back-chat, and mid-throw coughs.')}
     ${switchRow('Voice caller', settings.voice, `data-voice="${settings.voice ? 'off' : 'on'}"`, 'Calls each visit\'s total, busts, what you require and game shot.')}
     ${settings.voice ? `${switchRow('Call each dart', !!settings.eachDart, `data-eachdart="${settings.eachDart ? 'off' : 'on'}"`, 'Say every dart as it lands too, not just the total. Cricket, Killer and the practice games call each dart anyway.')}
     ${voicePicker()}` : ''}

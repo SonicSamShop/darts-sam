@@ -10,13 +10,14 @@
 import { compute, gameById, newMatch } from '../engine.js';
 import { buildBoard, bullMm, bullUp, label } from '../board.js';
 import { starterCall } from '../voice.js';
+import { createWarmup } from '../routine.js';
 import { botLevel, throwAt } from '../bot.js';
 import { renderHome, startOpts } from './home.js';
 import { BOT_WAIT, gameBoard, renderGame } from './game.js';
 import { onMatchStarted, openTournament, playBounced, playStands, tourName } from './tournament.js';
 import {
   $app, BOT, botAt, botPlayer, bots, dartsFor, data, esc, fit, isBotId, levelOf, mark, match, nameOf, players,
-  randomOrder, refreshStatus, saveSetup, say, screen, seats, setMatch, setScreen, setup, store
+  randomOrder, refreshStatus, saveSetup, say, screen, seats, setMatch, setScreen, settings, setup, store
 } from '../app.js';
 
 // The menu's game: its players (BOT for the computer, made its level's player at the start), game and options.
@@ -190,10 +191,13 @@ export function startMatch(act, play, order) {
   const level = botAt().level;
   const ids = seated.map(id => id === BOT ? botPlayer(level) : id).filter(id => id != null);
   const opts = play.tournament ? { ...play.opts, tournament: play.tournament } : play.opts;
+  const botLevels = ids.map(levelOf);
+  const warmup = settings.warmupDarts && !opts.routine ? createWarmup(botLevels) : null;
   setMatch({
     ...newMatch(play.gameId, ids.map(nameOf), opts),
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-    playerIds: ids, darts: ids.map(dartsFor), board: data.wallBoard(), bots: ids.map(levelOf), seq: 0,
+    playerIds: ids, darts: ids.map(dartsFor), board: data.wallBoard(), bots: botLevels, seq: 0,
+    ...(warmup ? { warmup } : {}),
   });
   store.set('match', match);
   if (!play.tournament) {
@@ -204,8 +208,12 @@ export function startMatch(act, play, order) {
     store.set('recents', list);
   }
   if (play.tournament) onMatchStarted(match);
-  const opening = compute(match), aim = gameById(match.gameId).aim?.(opening);  // the first thing to aim at (Random Targets, Around the Clock)
-  say(starterCall(opening.players, opening.current, { aim }));
+  if (warmup) {
+    say(`Warm-up darts. ${match.players[warmup.current]} to throw`);
+  } else {
+    const opening = compute(match), aim = gameById(match.gameId).aim?.(opening);  // the first thing to aim at (Random Targets, Around the Clock)
+    say(starterCall(opening.players, opening.current, { aim }));
+  }
   renderGame();
   mark(act === 'start');
 }

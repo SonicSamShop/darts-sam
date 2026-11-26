@@ -33,7 +33,7 @@ import { deep, drawPlayers, exportStatsCsv, renderPlayers, renderSheet, sheet, s
 import { avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, quickPresets, renderHome } from './screens/home.js';
 import { slipTapped } from './screens/earned.js';
 import {
-  askQuit, botThrow, botTimer, botUp, bustVisit, closeQuit, endHold, handleVoice, micState, noScore, numPad, padCommit, padKey, padQuick, push, renderGame, toggleMatchStats, undo
+  askQuit, botThrow, botTimer, botUp, bustVisit, closeQuit, endHold, finishWarmup, handleVoice, micState, noScore, numPad, padCommit, padKey, padQuick, push, renderGame, toggleMatchStats, undo
 } from './screens/game.js';
 import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, playRemapped, renderBull, startMatch
@@ -41,6 +41,7 @@ import {
 import { reportProblem } from './screens/report.js';
 import { labEvent, renderAccuracy } from './screens/accuracy.js';
 import { openTournament, renderTournament, tourAct, tourRemapped, tourView } from './screens/tournament.js';
+import { careerAct, careerRemapped, careerView, openCareer, renderCareer } from './screens/career.js';
 import { finishWelcome, nameDue, renderWelcome, welcomeDue, welcomeForm, welcomeNamed } from './screens/welcome.js';
 
 export const $app = document.getElementById('app');
@@ -129,7 +130,7 @@ delete settings.board;  // (the one board there was, before boards had a list of
 export let totals = store.get('totals', null);  // {darts, reports}: everything on the server, as it last said
 export const setTotals = v => { totals = v; };  // for screens/home.js
 export let screen = match ? 'game' : 'home';
-export const setScreen = v => { screen = v; if (v !== 'game') speech?.stop(); counted(); wakeCameras(); };  // for screens/*.js: each sets its own
+export const setScreen = v => { screen = v; if (v !== 'game') { speech?.stop(); sfx?.ambienceStop(); } counted(); wakeCameras(); };  // for screens/*.js: each sets its own
 // The cameras rest after a while unused (standby, on the Cameras screen). A game,
 // or the Cameras screen, keeps them awake, and wakes them if they are resting.
 let woke = 0;
@@ -288,6 +289,7 @@ function synced({ remapped, pulled, sent, tournaments }) {
     }
   }
   tourRemapped(remapped);
+  careerRemapped(remapped);
   playRemapped(remapped);
   cleanSetup();
   // Someone who has just signed up has one player, themselves: ready to throw.
@@ -431,6 +433,7 @@ export const speech = createSpeech({
 export const voice = createVoice({ chosen: store.get('voiceName', ''), onSpeaking: busy => speech.setMuted(busy) });
 export const sfx = createSfx();
 export const sfxOn = () => settings.sfx !== false;
+export const atmosphereOn = () => settings.atmosphere !== false;
 export function say(text) {
   if (settings.voice) voice.say(text);
 }
@@ -497,6 +500,7 @@ function place() {
   if (screen === 'cameras') url = '#/cameras';
   if (screen === 'accuracy') url = '#/accuracy';
   if (screen === 'tournament') { at.tourId = tourView.id; at.tourPast = tourView.past; url = '#/tournament'; }
+  if (screen === 'career') { at.careerPlayer = careerView.player; url = '#/career'; }
   return [at, '', url];
 }
 // Note where the app is now: as a new history entry (push), or in place of the current one.
@@ -515,6 +519,7 @@ function fromHash() {
   if (a === 'cameras' && !b) return { screen: 'cameras' };
   if (a === 'accuracy' && !b) return { screen: 'accuracy' };
   if (a === 'tournament' && !b) return { screen: 'tournament' };
+  if (a === 'career' && !b) return { screen: 'career' };
   if (a === 'start' && !b) return { screen: 'start' };
   // the link the cameras' computer shows when pairing: Cameras with its code filled in
   if (a === 'pair' && /^[A-Za-z0-9]{6}$/.test(b ?? '')) { pairing.code = b.toUpperCase(); return { screen: 'cameras' }; }
@@ -538,6 +543,7 @@ function show(at) {
   if (at.screen === 'cameras' || (at.screen === 'settings' && at.settingsTab === 'cams')) return renderCameras();
   if (at.screen === 'accuracy') return renderAccuracy();
   if (at.screen === 'tournament') return openTournament(at.tourId ?? null, !!at.tourPast);
+  if (at.screen === 'career') return openCareer(at.careerPlayer ?? null);
   if (at.screen === 'settings') { settingsView.tab = at.settingsTab ?? settingsView.tab; settingsView.open = !!at.settingsOpen; settingsView.fromList = !!at.fromList; return renderSettings(); }
   return renderHome();
 }
@@ -718,7 +724,13 @@ $app.addEventListener('click', e => {
   if (d.sfx) {
     settings.sfx = d.sfx === 'on';
     saveSettings();
-    if (settings.sfx) sfx.ton(180);
+    if (settings.sfx) sfx.ton(180); else sfx.ambienceStop();
+    return renderSettings();
+  }
+  if (d.atmosphere) {
+    settings.atmosphere = d.atmosphere === 'on';
+    saveSettings();
+    if (!settings.atmosphere) sfx.ambienceStop();
     return renderSettings();
   }
   if (d.checkouts) { settings.checkouts = d.checkouts === 'on'; saveSettings(); return renderSettings(); }
@@ -816,6 +828,8 @@ $app.addEventListener('click', e => {
     case 'tournament': openTournament(); return mark(true);
     // A tournament's match is won: to its bracket, in place of the game (the result is in already).
     case 'tour-back': openTournament(match?.opts?.tournament?.id ?? null); return mark();
+    case 'career': openCareer(); return mark(true);
+    case 'career-back': openCareer(match?.opts?.career?.playerId ?? null); return mark();
     case 'quit': return askQuit();
     case 'home': return goHome();
     case 'settings': settingsView.open = settingsView.fromList = false; renderSettings(); return mark(true);
@@ -844,12 +858,13 @@ $app.addEventListener('click', e => {
     case 'sfx-toggle':
       settings.sfx = !sfxOn();
       saveSettings();
-      if (settings.sfx) sfx.dart({ seg: 20, mult: 3 });
+      if (settings.sfx) sfx.dart({ seg: 20, mult: 3 }); else sfx.ambienceStop();
       return renderGame();
     case 'mic-toggle':
       speech.toggle();
       return renderGame();
     case 'miss': return botUp() ? undefined : push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
+    case 'warmup-skip': return finishWarmup();
     case 'noscore': return noScore();
     case 'bust': return bustVisit();
     case 'holdgo': return endHold();
@@ -895,6 +910,7 @@ $app.addEventListener('click', e => {
     case 'share-delete-yes': return deleteShared();
   }
   if (d.act?.startsWith('tour-')) return tourAct(d.act, d);
+  if (d.act?.startsWith('career-')) return careerAct(d.act, d);
 });
 // The stats screen's drop-downs: whose stats, for which game, and with which darts.
 $app.addEventListener('change', e => {
@@ -918,11 +934,17 @@ $app.addEventListener('change', e => {
     setPlayerFlag(+e.target.dataset.flag, e.target.value);
     return renderSettings();
   }
+  if (e.target.dataset?.warmupToggle !== undefined) {
+    settings.warmupDarts = !!e.target.checked;
+    saveSettings();
+    return;
+  }
   if (e.target.dataset?.tapnumber !== undefined) { camScreen.number = +e.target.value; return renderCameras(); }
   if (e.target.dataset?.place !== undefined) return placeCamera(+e.target.dataset.place, e.target.value);
   if (e.target.dataset?.camset !== undefined) return cameraSettings();
   const choose = e.target.dataset?.choose;
   if (!choose) return;
+  if (choose === 'career-player') { openCareer(+e.target.value); return; }
   statsView.drill = [];
   if (choose === 'game') statsView.game = e.target.value || null;
   if (choose === 'darts') statsView.darts = e.target.value || null;
@@ -1002,7 +1024,7 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     settings.sfx = !sfxOn();
     saveSettings();
-    if (settings.sfx) sfx.dart({ seg: 20, mult: 3 });
+    if (settings.sfx) sfx.dart({ seg: 20, mult: 3 }); else sfx.ambienceStop();
     return renderGame();
   }
   if (k === 'v' && speech.supported() && s.winner == null) {
