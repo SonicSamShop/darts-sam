@@ -114,10 +114,11 @@ export const HEAT = [[0, 0, 4], [87, 16, 110], [188, 55, 84], [249, 142, 9], [25
 // busiest spot). points are [x, y] in mm. Every dart is spread over its
 // neighbouring cells so that a group of darts reads as one warm patch: widely
 // when there are only a few darts (or they would just be dots), tightly once
-// there are thousands and the detail is worth seeing.
+// there are thousands and the detail is worth seeing. Kept fairly tight
+// throughout (3 to 8 mm), so separate groups stay separate.
 const GRID = 226, CELL = 2;
 export function heatGrid(points) {
-  const sigma = Math.min(14, Math.max(5, 38 * points.length ** -0.25)) / CELL;  // in cells
+  const sigma = Math.min(8, Math.max(3, 24 * points.length ** -0.25)) / CELL;  // in cells
   const SPREAD = Math.ceil(sigma * 3);  // cells either side that a dart reaches
   let grid = new Float32Array(GRID * GRID);
   for (const [x, y] of points) {
@@ -358,10 +359,12 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
     // Turn the board into a heat map of where `points` ([x, y] in mm) landed:
     // the board takes the standard colours in every theme (see svg.heat in
     // style.css) and the heat lies over it, see-through where no darts landed.
-    showHeat(points) {
+    // mode: 'heat' the heat alone, 'dots' a dot where each dart landed, 'both' the dots over a fainter heat.
+    showHeat(points, mode = 'heat') {
       svg.classList.add('heat');
-      marks.before(
-        el('image', { href: heatPicture(points), x: -226, y: -226, width: 452, height: 452, class: 'b-heat' }));
+      if (mode !== 'dots') marks.before(
+        el('image', { href: heatPicture(points), x: -226, y: -226, width: 452, height: 452, class: 'b-heat' + (mode === 'both' ? ' faint' : '') }));
+      if (mode !== 'heat') marks.replaceChildren(...points.map(([x, y]) => el('circle', { cx: x, cy: -y, r: 2.6, class: 'b-dot' })));
     },
   };
 }

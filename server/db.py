@@ -1049,14 +1049,14 @@ def _segment(db, player_id: int, dart_set: str | None = None, board: str | None 
     }
 
 
-def _d99(db, player_id: int, dart_set: str | None = None):
+def _d99(db, player_id: int, dart_set: str | None = None, board: str | None = None):
     """99 Darts: a dart is a hit if it is anywhere in the game's number. The
     rates are of all darts thrown, over every 99 Darts game whatever the number
     or the darts; best game is the best hit rate in a finished game."""
     darts = hits = 0
     by = [0, 0, 0, 0]
     best = []
-    for m, _ids, throws in _matches(db, player_id, "d99", dart_set):
+    for m, _ids, throws in _matches(db, player_id, "d99", dart_set, board):
         seg = json.loads(m["opts"]).get("seg", 20)
         mine = [t for t in throws if t["player_id"] == player_id]
         got = [t for t in mine if t["mult"] and t["seg"] == seg]

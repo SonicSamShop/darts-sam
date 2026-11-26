@@ -14,8 +14,12 @@ import { renderLanding } from './landing.js';
 import { achTab, achievementView, achievementsPane } from './achievements.js';
 import {
   $app, Machine, account, boards, connected, dartsName, data, esc, grams, loadStats, mark, nameOf, pageFoot, pageHead, machine,
-  players, refreshStatus, screen, setScreen, setsOf, shelf, statsPath
+  players, refreshStatus, screen, setScreen, setsOf, settings, shelf, statsPath
 } from '../app.js';
+
+// How the stats board shows where darts landed: each dart as a dot, a heat map, or both.
+const HEAT_MODES = [['dots', 'Darts'], ['both', 'Both'], ['heat', 'Heat map']];
+const heatMode = () => HEAT_MODES.some(([id]) => id === settings.heatMode) ? settings.heatMode : 'dots';
 
 // ---------- stats ----------
 // One player at a time, one tab at a time. Each game type has its own page of
@@ -416,8 +420,11 @@ export function drawPlayers() {
       : '<p class="muted">No finished games yet.</p>'}${gearHtml(st, game)}${boardsHtml(st, game, !!gearHtml(st, game))}</div>
     <div class="p-board">${st.recent.length ? `<h2>Heat map · ${game ? `${game.name}, ` : ''}${
       st.recent.length === 1 ? '1 dart' : `${st.recent.length < 5000 ? '' : 'last '}${st.recent.length} darts`}</h2>
+    <div class="row heatmode">${HEAT_MODES.map(([id, name]) =>
+      `<button class="${heatMode() === id ? 'on' : ''}" data-heatmode="${id}">${name}</button>`).join('')}</div>
     <div class="statboard"><svg id="statboard"></svg></div>
-    <div class="heatkey"><span>Fewer darts</span><i></i><span>More</span></div>`
+    ${heatMode() === 'dots' ? '<div class="heatkey"><span>Each dot is one dart</span></div>'
+      : '<div class="heatkey"><span>Fewer darts</span><i></i><span>More</span></div>'}`
       : `<p class="muted">No dart positions recorded yet${game ? ` in ${game.name}` : ''}.</p>`}</div>
     ${tab === 'achievements' ? achievementsPane(game) : ''}`;
   const lit = id => id === tab || (id === 'stats' && tab === 'board' && BIG.matches);
@@ -443,7 +450,7 @@ export function drawPlayers() {
     ${pageFoot('players')}
   </div>`;
   const svg = document.getElementById('statboard');
-  if (svg) buildBoard(svg).showHeat(st.recent);
+  if (svg) buildBoard(svg).showHeat(st.recent, heatMode());
   refreshStatus();
 }
 // Putting the sets side by side needs the games of every set, on the board picked; putting the

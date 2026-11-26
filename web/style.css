@@ -636,6 +636,11 @@ svg.heat .b-red { fill: #e3292e; } svg.heat .b-green { fill: #309f6a; }
 svg.heat .b-dark, svg.heat .b-light, svg.heat .b-red, svg.heat .b-green { stroke: #c9c9cf; }
 svg.heat .b-num { fill: #d9dce3; }
 .b-heat { pointer-events: none; opacity: .8; }
+.b-heat.faint { opacity: .45; }
+/* one dart on the stats board: bright against every colour of the board, and see-through, so a pile of darts reads darker */
+.b-dot { fill: #38e8ff; fill-opacity: .7; stroke: #001a22; stroke-width: .7; pointer-events: none; }
+.heatmode { justify-content: center; gap: 6px; margin-bottom: 6px; }
+.heatmode button { padding: 4px 14px; font-size: 14px; }
 .heatkey { display: flex; align-items: center; justify-content: center; gap: 10px; padding-top: 8px; color: var(--muted); font-size: 14px; }
 .heatkey i { width: min(220px, 40%); height: 10px; border-radius: 5px; border: 1px solid var(--line);
   background: linear-gradient(90deg, rgb(0 0 4), rgb(87 16 110), rgb(188 55 84), rgb(249 142 9), rgb(252 255 164)); }
