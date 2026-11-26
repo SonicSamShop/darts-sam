@@ -396,8 +396,51 @@ def test_odds_wider_for_a_small_dart():
     assert small[0]["p"] < big[0]["p"], (big, small)
 
 
+def _tipped(x, y, dx, dy, tip, area=900):
+    ln = _line(x, y, dx, dy, area)
+    ln.tip = np.array(tip, float)
+    return ln
+
+
+def test_wire_dart_goes_with_the_cameras_tips():
+    # Lines that cross 0.8 mm outside the treble (r 107.8), with two cameras'
+    # own tips in the treble: scored T20, and the point moved just inside it.
+    lines = [_tipped(0, 107.8, 1.0, 0.0, (3.0, 104.0)), _tipped(0, 107.8, 0.0, 1.0, (0.0, 105.5)),
+             _tipped(0, 107.8, 0.6, 0.8, (0.5, 112.0))]
+    (x, y), conf = detect.locate(lines)
+    assert board.score(x, y) == {"seg": 20, "mult": 3}, (x, y)
+    assert 106.0 < math.hypot(x, y) <= 107.0 and conf == 0.95
+
+
+def test_wire_vote_needs_two_tips():
+    # one tip in the treble is not enough: the crossing stands
+    lines = [_tipped(0, 107.8, 1.0, 0.0, (3.0, 104.0)), _tipped(0, 107.8, 0.0, 1.0, (0.0, 110.0)),
+             _tipped(0, 107.8, 0.6, 0.8, (0.5, 112.0))]
+    (x, y), _ = detect.locate(lines)
+    assert (x, y) == (0.0, 107.8) or np.allclose((x, y), (0.0, 107.8)), (x, y)
+
+
+def test_wire_vote_ignores_far_tips():
+    # tips more than 10 mm from the crossing (a camera that sees the dart end-on) don't count
+    lines = [_tipped(0, 107.8, 1.0, 0.0, (12.0, 102.0)), _tipped(0, 107.8, 0.0, 1.0, (0.0, 96.0)),
+             _tipped(0, 107.8, 0.6, 0.8, (0.5, 112.0))]
+    (x, y), _ = detect.locate(lines)
+    assert board.score(x, y) == {"seg": 20, "mult": 1}, (x, y)
+
+
+def test_wire_vote_leaves_a_clear_dart_alone():
+    # 4 mm from any wire: tips elsewhere don't move it
+    lines = [_tipped(0, 120.0, 1.0, 0.0, (0.0, 104.0)), _tipped(0, 120.0, 0.0, 1.0, (0.0, 105.0))]
+    (x, y), _ = detect.locate(lines)
+    assert np.allclose((x, y), (0.0, 120.0)), (x, y)
+
+
 def main(trials=120, seed=7):
     test_single_camera_odds()
+    test_wire_dart_goes_with_the_cameras_tips()
+    test_wire_vote_needs_two_tips()
+    test_wire_vote_ignores_far_tips()
+    test_wire_vote_leaves_a_clear_dart_alone()
     test_odds_middle_of_bed()
     test_odds_on_treble_wire()
     test_odds_spread_is_along_the_line()

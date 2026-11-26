@@ -187,6 +187,44 @@ def find_dart(mask: np.ndarray, H, strength: np.ndarray | None = None) -> DartLi
                     tip=to_board(H, [tip_img])[0], area=total, ends_px=view.bend(ends), tip_px=view.bend(tip_img)[0])
 
 
+# A dart on a wire: where the cameras' lines cross can be a millimetre or two
+# out, and on some set-ups each of x and y is set by one camera alone, so it
+# lands on the wrong side (players' reports, 25 Nov 2026). When the crossing is
+# this close to another bed, the bed that at least two cameras' own tips agree
+# on wins, counting only tips this near the crossing (a camera that sees the
+# dart end-on puts its tip 15-35 mm out).
+WIRE_MM = 2.0
+WIRE_TIP_MM = 10.0
+_WIRE_GRID = [np.array([dx, dy]) for dx in np.linspace(-WIRE_MM, WIRE_MM, 17)
+              for dy in np.linspace(-WIRE_MM, WIRE_MM, 17) if dx * dx + dy * dy <= WIRE_MM * WIRE_MM]
+
+
+def _bed(p) -> tuple[int, int]:
+    s = board.score(float(p[0]), float(p[1]))
+    return s["seg"], s["mult"]
+
+
+def _wire_vote(x: np.ndarray, lines: list[DartLine]) -> np.ndarray:
+    """x, or the nearest point in the bed the cameras' tips agree on (see WIRE_MM)."""
+    near = {}  # each bed within WIRE_MM of x: its nearest point to x
+    for d in sorted(_WIRE_GRID, key=lambda d: float(d @ d)):
+        near.setdefault(_bed(x + d), x + d)
+    if len(near) < 2:
+        return x
+    votes = {}
+    for ln in lines:
+        bed = _bed(ln.tip)
+        if bed in near and np.linalg.norm(ln.tip - x) <= WIRE_TIP_MM:
+            votes[bed] = votes.get(bed, 0) + 1
+    if not votes:
+        return x
+    most = max(votes.values())
+    winners = [b for b, n in votes.items() if n == most]
+    if most < 2 or len(winners) > 1 or winners[0] == _bed(x):
+        return x
+    return near[winners[0]]
+
+
 def locate(lines: list[DartLine]) -> tuple[np.ndarray, float] | None:
     """Combine per-camera sightings into one board position.
 
@@ -196,6 +234,12 @@ def locate(lines: list[DartLine]) -> tuple[np.ndarray, float] | None:
         return None
     if len(lines) == 1:
         return lines[0].tip, 0.3  # single camera: usable but shaky
+    found = _cross(lines)
+    return None if found is None else (_wire_vote(found[0], lines), found[1])
+
+
+def _cross(lines: list[DartLine]) -> tuple[np.ndarray, float] | None:
+    """Where two or more cameras' lines cross, and how sure that is."""
 
     def intersect(ls):
         A = np.zeros((2, 2))

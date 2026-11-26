@@ -1,5 +1,5 @@
 {
-  "version": "1.8.3",
+  "version": "1.8.4",
   "unreleased": [],
   "notes": {
     "1.0": [
@@ -102,6 +102,9 @@
     ],
     "1.8.3": [
       "Match stats when a game is over: everyone's 3-dart and first 9 averages, 180s, 140+ and 100+, checkout rate, highest checkout, best leg, trebles, doubles and more, side by side, with each leg's average in X01. Tap Show the board to see the board again. The same summary now heads every game's scoresheet in Stats."
+    ],
+    "1.8.4": [
+      "Darts on a wire are scored more accurately with two or more cameras. When a dart sits right on the edge of a treble, double or number, the cameras' own views of its point now decide which side of the wire it is on."
     ]
   }
 }
