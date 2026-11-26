@@ -1,6 +1,11 @@
 {
   "version": "1.9.1",
-  "unreleased": [],
+  "unreleased": [
+    "Stats: X01 visits below 100 are now counted in steps of ten (90+, 80+, 70+, 60+, 50+), in the tiles and in the visit scoring breakdown.",
+    "New training game: 99 Darts. Pick a number or the bull and throw 33, 66 or 99 darts at it; every dart in it is a hit, with singles, doubles and trebles counted apart, and its own stats.",
+    "More X01 stats: the 3-dart average day by day, how often scoring darts find the 20, the treble 20 and the 1 or 5, the points of the 1st, 2nd and 3rd dart, checkouts from 2-40, 41-80 and 81-170, your best and weakest double, visits under 30 and 26s.",
+    "The board on the Stats screen can now show each dart as a dot where it landed, the heat map, or both, and the heat map is sharper, so separate groups of darts stay apart."
+  ],
   "notes": {
     "1.0": [
       "First release."
