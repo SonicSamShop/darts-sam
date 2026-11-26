@@ -1049,6 +1049,32 @@ def _segment(db, player_id: int, dart_set: str | None = None, board: str | None 
     }
 
 
+def _d99(db, player_id: int, dart_set: str | None = None):
+    """99 Darts: a dart is a hit if it is anywhere in the game's number. The
+    rates are of all darts thrown, over every 99 Darts game whatever the number
+    or the darts; best game is the best hit rate in a finished game."""
+    darts = hits = 0
+    by = [0, 0, 0, 0]
+    best = []
+    for m, _ids, throws in _matches(db, player_id, "d99", dart_set):
+        seg = json.loads(m["opts"]).get("seg", 20)
+        mine = [t for t in throws if t["player_id"] == player_id]
+        got = [t for t in mine if t["mult"] and t["seg"] == seg]
+        darts += len(mine)
+        hits += len(got)
+        for t in got:
+            by[t["mult"]] += 1
+        if m["finished"] and mine:
+            best.append(len(got) / len(mine) * 100)
+    if not darts:
+        return None
+    rate = lambda n: round(n / darts * 100, 1)
+    return {
+        "hit_rate": rate(hits), "single_rate": rate(by[1]), "double_rate": rate(by[2]), "treble_rate": rate(by[3]),
+        "best_rate": round(max(best), 1) if best else None, "darts": darts,
+    }
+
+
 # Finishes that three darts cannot make (double out): everything over 170 too.
 _NO_FINISH = {159, 162, 163, 165, 166, 168, 169}
 
@@ -1194,7 +1220,7 @@ def _rcheckout(db, player_id: int, dart_set: str | None = None, board: str | Non
     }
 
 
-GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai, "bermuda": _bermuda, "segment": _segment, "rcheckout": _rcheckout, "gotcha": _gotcha}
+GAME_STATS = {"cricket": _cricket, "clock": _clock, "countup": _countup, "c121": _c121, "bobs27": _bobs27, "shanghai": _shanghai, "bermuda": _bermuda, "segment": _segment, "d99": _d99, "rcheckout": _rcheckout, "gotcha": _gotcha}
 
 
 def _gear(db, player_id: int, game_id: str | None, board: str | None = None) -> list[dict]:

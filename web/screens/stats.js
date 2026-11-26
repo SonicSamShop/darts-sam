@@ -8,7 +8,7 @@
 import { GAMES } from '../games/index.js';
 import { clock, gameById, timeSpent } from '../engine.js';
 import { buildBoard, label } from '../board.js';
-import { ENOUGH, X01_TILES, boardsSideBySide, dartTable, headToHead, matchSummary, setsSideBySide, statsCsv, visitsOf, visitsWith, x01Brackets, x01Legs, x01Stats, x01Tile, x01Trend } from '../stats.js';
+import { ENOUGH, X01_TILES, boardsSideBySide, dartTable, headToHead, matchSummary, setsSideBySide, statsCsv, visitsOf, visitsWith, x01Brackets, x01Legs, x01Stats, x01Tile, x01Trend, x01Daily } from '../stats.js';
 import { boardName } from '../boards.js';
 import { renderLanding } from './landing.js';
 import { achTab, achievementView, achievementsPane } from './achievements.js';
@@ -51,6 +51,8 @@ const GAME_TILES = {
   bermuda: [['Average total', 'avg_total'], ['Best total', 'best_total'], ['Rounds halved per game', 'avg_halved'],
     ['Hit rate', 'hit_rate', '%']],
   segment: [['Hit rate', 'hit_rate', '%'], ['Points per dart', 'points_per_dart'], ['Best session', 'best_points']],
+  d99: [['Hit rate', 'hit_rate', '%'], ['Singles', 'single_rate', '%'], ['Doubles', 'double_rate', '%'], ['Trebles', 'treble_rate', '%'],
+    ['Best game (hit rate)', 'best_rate', '%'], ['Darts thrown', 'darts']],
   gotcha: [['Games won', 'won'], ['3-dart average', 'average']],
   rcheckout: [['Checkout rate', 'rate', '%'], ['Checkouts hit', 'made'], ['Average darts per checkout', 'avg_darts']],
   c121: [['Checkout rate', 'rate', '%'], ['Checkouts hit', 'made'], ['Highest checkout', 'highest'],
@@ -148,7 +150,32 @@ function x01ChartsHtml(x) {
       </div>`;
     }).join('')}</div>
   </div>` : '';
-  return trendCard || barsCard ? `<div class="charts">${trendCard}${barsCard}</div>` : '';
+  const dayCard = dayChart(x);
+  return trendCard || barsCard || dayCard ? `<div class="charts">${trendCard}${dayCard}${barsCard}</div>` : '';
+}
+
+// The three-dart average day by day (the last 60 days played), with the
+// overall average as a dashed line: is it going up over the weeks?
+function dayChart(x) {
+  const days = x01Daily(x).filter(d => d.avg != null).slice(-60);
+  if (days.length < 2) return '';
+  const W = 320, H = 104, L = 24, R = 6, T = 8, B = 8;
+  const avgs = days.map(d => d.avg), all = x.average ?? 0;
+  let lo = Math.floor(Math.min(...avgs, all) / 10) * 10, hi = Math.ceil(Math.max(...avgs, all) / 10) * 10;
+  if (hi === lo) hi = lo + 10;
+  const px = i => L + i * (W - L - R) / (days.length - 1), py = v => T + (hi - v) * (H - T - B) / (hi - lo);
+  const line = days.map((d, i) => `${px(i).toFixed(1)},${py(d.avg).toFixed(1)}`).join(' ');
+  const short = day => `${+day.slice(8)}.${+day.slice(5, 7)}.`;
+  return `<div class="chart-card">
+    <div class="chart-head"><span>3-dart average · by day</span><span class="muted small">${days.length} days</span></div>
+    <svg class="trend-svg daytrend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Three-dart average by day, from ${days[0].avg.toFixed(1)} to ${days.at(-1).avg.toFixed(1)}">
+      ${[lo, hi].map(v => `<text x="${L - 4}" y="${py(v) + 3}" text-anchor="end">${v}</text>`).join('')}
+      <line class="trend-ref" x1="${L}" y1="${py(all).toFixed(1)}" x2="${W - R}" y2="${py(all).toFixed(1)}"/>
+      <polyline class="trend-line" points="${line}"/>
+      ${days.map((d, i) => `<circle class="trend-dot" cx="${px(i).toFixed(1)}" cy="${py(d.avg).toFixed(1)}" r="3.2"><title>${short(d.day)}: ${d.avg.toFixed(1)} (${d.darts} darts)</title></circle>`).join('')}
+    </svg>
+    <div class="chart-foot"><span>${short(days[0].day)}</span><span>Avg ${all.toFixed(1)}</span><span>${short(days.at(-1).day)}</span></div>
+  </div>`;
 }
 
 function h2hHtml(matches) {

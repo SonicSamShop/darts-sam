@@ -250,6 +250,12 @@ def main():
         d = db.stats(alex["id"], "segment")["detail"]
         assert d["hit_rate"] == 55.6 and d["points_per_dart"] == 1.22, d
 
+        # 99 Darts: any ring of the number is a hit; the rates are of every dart thrown
+        dd = [throw(0, 1, 20, 1), throw(0, 1, 20, 3), throw(0, 1, 5, 1), throw(0, 2, 20, 2)]
+        assert db.save_match("dd1", match(1, [alex["id"]], dd, winner=0, game="d99", opts={"seg": 20, "darts": 33}))
+        d = db.stats(alex["id"], "d99")["detail"]
+        assert d == {"hit_rate": 75.0, "single_rate": 25.0, "double_rate": 25.0, "treble_rate": 25.0, "best_rate": 75.0, "darts": 4}, d
+
         # Random Checkout: the server makes the same targets from the seed as the app.
         # Expected lists are the output of
         #   node -e "import('./web/games/rcheckout.js').then(m => console.log(JSON.stringify(m.targets(12345, 'mid', 5))))"

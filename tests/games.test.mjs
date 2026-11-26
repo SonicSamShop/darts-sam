@@ -691,7 +691,7 @@ test('closest to the bull: who throws first', () => {
 test('games are grouped into matches and training', () => {
   const ids = k => GAMES.filter(g => g.kind === k).map(g => g.id);
   assert.deepEqual(ids('match'), ['x01', 'cricket', 'killer', 'gotcha']);
-  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'shanghai', 'bermuda', 'segment', 'rcheckout', 'c121', 'countup', 'random', 'free']);
+  assert.deepEqual(ids('training'), ['clock', 'bobs27', 'shanghai', 'bermuda', 'segment', 'd99', 'rcheckout', 'c121', 'countup', 'random', 'free']);
   assert.ok(GAMES.every(g => g.kind === 'match' || g.kind === 'training'));
 });
 
@@ -851,6 +851,30 @@ test('segment: two players, most points wins, a tie goes to the first', () => {
   assert.match(gameById('segment').result(s), /B wins/);
   s = play('segment', ['A', 'B'], opts, [...Array(10).fill(turn(D(20))).flat(), ...Array(10).fill(turn(D(20))).flat()]);
   assert.equal(s.winner, 0);
+});
+
+test('99 darts: hits anywhere in the number, counted by ring', () => {
+  const s = play('d99', ['A'], { seg: 20, darts: 33 }, [D(20), D(20, 2), D(20, 3), D(1), D(0, 0), D(20, 3)]);
+  assert.deepEqual([s.hits[0], s.thrown[0], s.by[0]], [4, 6, [2, 1, 1, 2]]);
+  assert.equal(s.winner, null);
+  assert.match(gameById('d99').summary(s, 0).small, /S 1 · D 1 · T 2 · 6 of 33 thrown · 67%/);
+});
+test('99 darts: ends after the set number of darts; on the bull, 25 and bull', () => {
+  const s = play('d99', ['A'], { seg: 25, darts: 33 }, [...Array(32).fill(D(25)), D(25, 2)]);
+  assert.equal(s.winner, 0); assert.deepEqual(s.by[0], [0, 32, 1, 0]);
+  assert.equal(gameById('d99').result(s), 'You hit 33 of 33 in the bull (100%).');
+});
+test('99 darts: most hits wins, then more trebles', () => {
+  const opts = { seg: 19, darts: 33 };
+  const visit = d => [d, d, d];
+  let log = [];
+  for (let r = 0; r < 11; r++) log.push(...visit(D(19)), ...visit(r === 10 ? D(19, 3) : D(19)));
+  let s = play('d99', ['A', 'B'], opts, log.slice(0, -1));
+  assert.equal(s.winner, null);  // not over until B's last dart
+  s = play('d99', ['A', 'B'], opts, log);
+  assert.equal(s.winner, 1);  // 33 hits each, B has the trebles
+  assert.match(gameById('d99').result(s), /^B wins with 33 of 33 in the 19/);
+  assert.match(gameById('d99').panel(s), /Trebles/);
 });
 
 test('random checkout: targets are seeded, in range and finishable', () => {
