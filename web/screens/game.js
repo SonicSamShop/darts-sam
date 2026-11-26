@@ -188,7 +188,7 @@ function syncAtmosphere(s) {
     return;
   }
   const lvl = careerLvl(match);
-  if (s.winner == null && sfxOn() && careerOpt('pubNoise')) sfx.ambienceStart(lvl);
+  if (s.winner == null && sfxOn() && careerOpt('pubNoise')) sfx.ambienceStart(lvl, match.id);
   else sfx.ambienceStop();
 
   // Mid-throw coughing gamesmanship during the human player's visit.

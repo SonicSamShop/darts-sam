@@ -8,9 +8,19 @@
 // pub background chatter, crowd cheering, and mid-throw coughing. Fails
 // silently where Web Audio is unavailable.
 
+const PUB_CLIPS = [
+  'audio/pub.mp3',
+  'audio/pub-cafe.mp3',
+  'audio/pub-lively.mp3',
+  'audio/pub-crowd.mp3',
+];
+const CHEER_CLIPS = [
+  'audio/cheer.mp3',
+  'audio/cheer-2.mp3',
+];
 const CLIPS = {
-  pub: 'audio/pub.mp3',
-  cheer: 'audio/cheer.mp3',
+  pub: PUB_CLIPS[0],
+  cheer: CHEER_CLIPS[0],
   cough: 'audio/cough.mp3',
 };
 
@@ -18,9 +28,30 @@ export function createSfx() {
   let ctx = null;
   let noiseBuf = null;
   let amb = null;       // active background pub/crowd ambience node graph
-  let ambWant = null;   // { intensity } while ambience is requested (even while loading)
-  const buffers = new Map();  // key -> AudioBuffer
-  const loading = new Map();  // key -> Promise<AudioBuffer|null>
+  let ambWant = null;   // { intensity, url } while ambience is requested (even while loading)
+  let lastPubUrl = '';
+  let lastCheerIdx = -1;
+  const matchPub = new Map();  // matchKey -> chosen pub URL for that match
+  const buffers = new Map();   // key -> AudioBuffer
+  const loading = new Map();   // key -> Promise<AudioBuffer|null>
+
+  function pickPubUrl(intensity, matchKey) {
+    if (matchKey && matchPub.has(matchKey)) return matchPub.get(matchKey);
+    // All 4 tracks are in the pool, weighted slightly by venue intensity and avoiding immediate repeats.
+    const pool = intensity >= 3
+      ? [PUB_CLIPS[2], PUB_CLIPS[3], PUB_CLIPS[0]]
+      : intensity <= 1
+        ? [PUB_CLIPS[0], PUB_CLIPS[1], PUB_CLIPS[2]]
+        : PUB_CLIPS;
+    const choices = pool.length > 1 && lastPubUrl ? pool.filter(u => u !== lastPubUrl) : pool;
+    const url = choices[Math.floor(Math.random() * choices.length)] ?? PUB_CLIPS[0];
+    lastPubUrl = url;
+    if (matchKey) {
+      if (matchPub.size > 20) matchPub.clear();
+      matchPub.set(matchKey, url);
+    }
+    return url;
+  }
 
   function audio() {
     if (ctx) {
@@ -156,9 +187,12 @@ export function createSfx() {
     } catch { /* ignore */ }
   }
 
-  function startAmbience(intensity = 0) {
+  function startAmbience(intensity = 0, matchKey = '') {
     const lvl = Math.min(4, Math.max(0, intensity | 0));
-    ambWant = { intensity: lvl };
+    const url = pickPubUrl(lvl, matchKey);
+    const prevUrl = amb?.url || ambWant?.url;
+    if (amb && prevUrl !== url) stopAmbience();
+    ambWant = { intensity: lvl, url };
     const c = audio();
     if (!c) return;
     const targetVol = 0.24 + lvl * 0.075;  // cozy pub chatter -> lively tournament crowd
@@ -173,10 +207,10 @@ export function createSfx() {
       return;
     }
     // Preload cheer & cough clips quietly too so they fire with zero latency.
-    loadClip(c, 'cheer');
+    CHEER_CLIPS.forEach(u => loadClip(c, u, u));
     loadClip(c, 'cough');
-    loadClip(c, 'pub').then(buf => {
-      if (!buf || !ambWant || amb) return;
+    loadClip(c, url, url).then(buf => {
+      if (!buf || !ambWant || ambWant.url !== url || amb) return;
       try {
         const src = c.createBufferSource();
         src.buffer = buf;
@@ -191,7 +225,7 @@ export function createSfx() {
         src.connect(master);
         master.connect(c.destination);
         src.start(now);
-        amb = { ctx: c, src, master, intensity: ambWant.intensity };
+        amb = { ctx: c, src, master, intensity: ambWant.intensity, url };
       } catch {
         amb = null;
       }
@@ -240,8 +274,8 @@ export function createSfx() {
         freq, type: 'triangle', start: i * 0.08, dur: i === 3 ? 0.45 : 0.16, gain: 0.16,
       }));
     },
-    // Real public-domain pub / crowd background chatter for Career Mode (intensity 0..4).
-    ambienceStart(intensity = 0) { startAmbience(intensity); },
+    // Real public-domain pub / crowd background chatter for Career Mode (intensity 0..4, randomized per match).
+    ambienceStart(intensity = 0, matchKey = '') { startAmbience(intensity, matchKey); },
     ambienceStop() { stopAmbience(); },
     ambienceActive: () => !!(amb || ambWant),
     // Real human cough clip to put the thrower off mid-visit.
@@ -269,7 +303,12 @@ export function createSfx() {
       if (!c) return;
       const lvl = Math.min(4, Math.max(0, intensity | 0));
       const scale = 0.78 + lvl * 0.08;
-      loadClip(c, 'cheer').then(buf => {
+      const idx = CHEER_CLIPS.length > 1 && lastCheerIdx >= 0
+        ? (lastCheerIdx + 1 + Math.floor(Math.random() * (CHEER_CLIPS.length - 1))) % CHEER_CLIPS.length
+        : Math.floor(Math.random() * CHEER_CLIPS.length);
+      lastCheerIdx = idx;
+      const url = CHEER_CLIPS[idx];
+      loadClip(c, url, url).then(buf => {
         if (buf) {
           if (size === 'small') playBuffer(c, buf, { gain: 0.36 * scale, dur: 1.2, fadeOut: 0.45, rate: 1.04 });
           else if (size === 'big') playBuffer(c, buf, { gain: 0.8 * scale, dur: 3.8, fadeOut: 0.9, rate: 0.98 });

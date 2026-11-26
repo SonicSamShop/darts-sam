@@ -32,7 +32,8 @@ const FILES = [
   'fonts/bungee-400.woff2', 'fonts/playpen-sans-100-800.woff2',
   'fonts/rokkitt-500-800.woff2', 'fonts/russo-one-400.woff2', 'fonts/special-elite-400.woff2',
   'fonts/vt323-400.woff2',
-  'audio/pub.mp3', 'audio/cheer.mp3', 'audio/cough.mp3',
+  'audio/pub.mp3', 'audio/pub-cafe.mp3', 'audio/pub-lively.mp3', 'audio/pub-crowd.mp3',
+  'audio/cheer.mp3', 'audio/cheer-2.mp3', 'audio/cough.mp3',
 ];
 const save = (cache, url) => cache.add(new Request(url, { cache: 'reload' })).catch(() => {});
 
