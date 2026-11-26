@@ -7,7 +7,8 @@
 // out from the history the server sends.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, visitsOf, dartTable, visitsWith, setsSideBySide, boardsSideBySide } from '../web/stats.js';
+import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, x01Trend, x01Brackets, headToHead, visitsOf, dartTable, visitsWith, setsSideBySide, boardsSideBySide } from '../web/stats.js';
+import { practiceStreak, recordPracticeDay } from '../web/routine.js';
 
 const T20 = 203, S20 = 201, D20 = 202, D16 = 162, S1 = 11, MISS = 0;
 const match = (id, visits, more = {}) => ({
@@ -167,4 +168,48 @@ test('matchSummary: everyone side by side, the best marked, X01 leg by leg', asy
   // other games: the darts alone
   assert.deepEqual(matchSummary({ ...m, game: 'cricket' }).rows.map(r => r.label),
     ['Darts thrown', 'Trebles', 'Doubles', 'Bulls (25 and 50)', 'Misses']);
+});
+
+test('x01Trend and x01Brackets summarise recent form and visit score distribution', () => {
+  // Two 101 legs: first leg 6 darts (50.5 avg), second leg 3 darts (101.0 avg -> +50.5 delta)
+  const m = {
+    game: 'x01', opts: { start: 101, legs: 2 }, players: ['Sam'], me: 0, started: 1000,
+    visits: [
+      [0, 1, 1001, 0, null, 61, 3], [0, 2, 1002, 0, null, 40, 3],
+      [0, 1, 1003, 0, null, 101, 3],
+    ],
+  };
+  const s = x01Stats([m]);
+  const trend = x01Trend(s);
+  assert.equal(trend.legs.length, 2);
+  assert.equal(Math.round(trend.min * 10) / 10, 50.5);
+  assert.equal(Math.round(trend.max * 10) / 10, 101);
+  assert.equal(Math.round(trend.delta * 10) / 10, 50.5);
+
+  const brackets = x01Brackets(s);
+  const byLabel = Object.fromEntries(brackets.map(b => [b.label, b.count]));
+  assert.deepEqual(byLabel, { '180': 0, '140+': 0, '100+': 1, '60+': 1, 'Under 60': 1 });
+});
+
+test('headToHead aggregates 2-player rivalry records and X01 averages', () => {
+  const m1 = { game: 'x01', opts: { start: 101 }, players: ['Sam', 'Jo'], me: 0, winner: 0, started: 1,
+    visits: [[0, 1, 1, 0, null, 101, 3]] };
+  const m2 = { game: 'x01', opts: { start: 101 }, players: ['Sam', 'Jo'], me: 0, winner: 1, started: 2,
+    visits: [[0, 1, 2, 0, null, 41, 3], [1, 1, 3, 0, null, 101, 3]] };
+  const rows = headToHead([m1, m2]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].opponent, 'Jo');
+  assert.equal(rows[0].won, 1);
+  assert.equal(rows[0].lost, 1);
+  assert.equal(rows[0].bestCheckout, 101);
+});
+
+test('practiceStreak counts consecutive practice days', () => {
+  const mem = new Map();
+  const st = { get: (k, d) => mem.has(k) ? mem.get(k) : d, set: (k, v) => mem.set(k, v) };
+  recordPracticeDay(st, new Date(2026, 10, 24));
+  recordPracticeDay(st, new Date(2026, 10, 25));
+  assert.deepEqual(practiceStreak(st, new Date(2026, 10, 26)), { days: 2, doneToday: false });
+  recordPracticeDay(st, new Date(2026, 10, 26));
+  assert.deepEqual(practiceStreak(st, new Date(2026, 10, 26)), { days: 3, doneToday: true });
 });

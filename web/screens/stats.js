@@ -8,7 +8,7 @@
 import { GAMES } from '../games/index.js';
 import { clock, gameById, timeSpent } from '../engine.js';
 import { buildBoard, label } from '../board.js';
-import { ENOUGH, X01_TILES, boardsSideBySide, dartTable, matchSummary, setsSideBySide, visitsOf, visitsWith, x01Legs, x01Stats, x01Tile } from '../stats.js';
+import { ENOUGH, X01_TILES, boardsSideBySide, dartTable, headToHead, matchSummary, setsSideBySide, visitsOf, visitsWith, x01Brackets, x01Legs, x01Stats, x01Tile, x01Trend } from '../stats.js';
 import { boardName } from '../boards.js';
 import { renderLanding } from './landing.js';
 import { achTab, achievementView, achievementsPane } from './achievements.js';
@@ -93,6 +93,64 @@ const gameTiles = (id, d, to) => (GAME_TILES[id] ?? []).map(([name, key, unit = 
   tile(name, d[key] == null ? null : d[key] + unit, to)).join('');
 // The X01 tiles: all of them under their headings, or just the ones named.
 const X01_HEADLINES = ['average', 'first9', 'checkout', 'bestCheckout', 't180', 't140', 'won', 'bestLeg'];
+// Visual X01 dashboard cards: 3-dart average trend line + score bracket bars.
+function x01ChartsHtml(x) {
+  if (!x) return '';
+  const trend = x01Trend(x, 20);
+  const brackets = x01Brackets(x);
+  let trendCard = '';
+  if (trend) {
+    const W = 320, H = 104, padX = 10, padY = 12;
+    const lo = Math.max(0, Math.floor((trend.min - 5) / 5) * 5);
+    const hi = Math.max(lo + 10, Math.ceil((trend.max + 5) / 5) * 5);
+    const px = i => padX + (i / (trend.legs.length - 1)) * (W - padX * 2);
+    const py = v => H - padY - ((v - lo) / (hi - lo)) * (H - padY * 2);
+    const pts = trend.legs.map((l, i) => [px(i), py(l.avg), l]);
+    const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+    const area = `${pts[0][0].toFixed(1)},${H - padY} ${line} ${pts.at(-1)[0].toFixed(1)},${H - padY}`;
+    const refY = py(trend.overall).toFixed(1);
+    const sign = trend.delta >= 0.05 ? '+' : '';
+    const dCls = trend.delta >= 0.5 ? 'up' : trend.delta <= -0.5 ? 'down' : '';
+    trendCard = `<div class="chart-card">
+      <div class="chart-head"><span>3-dart average · last ${trend.legs.length} legs</span>
+        <b class="chart-delta ${dCls}">${sign}${trend.delta.toFixed(1)}</b></div>
+      <svg class="trend-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="3-dart average trend">
+        <line class="trend-ref" x1="${padX}" y1="${refY}" x2="${W - padX}" y2="${refY}"/>
+        <polygon class="trend-area" points="${area}"/>
+        <polyline class="trend-line" points="${line}"/>
+        ${pts.map(([cx, cy, l]) => `<circle class="trend-dot ${l.won ? 'won' : ''}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.2"><title>Leg ${l.n}: ${l.avg.toFixed(1)} (${l.darts} darts)</title></circle>`).join('')}
+      </svg>
+      <div class="chart-foot"><span>Low ${trend.min.toFixed(1)}</span><span>Avg ${trend.overall.toFixed(1)}</span><span>High ${trend.max.toFixed(1)}</span></div>
+    </div>`;
+  }
+  const barsCard = brackets.length ? `<div class="chart-card">
+    <div class="chart-head"><span>Visit scoring breakdown</span><span class="muted small">${x.visits.filter(v => !v.bust).length} visits</span></div>
+    <div class="bars">${brackets.map(b => {
+      const to = b.key && b.count ? { v: 'tile', key: b.key } : null;
+      return `<div class="barrow ${to ? 'tap' : ''}"${opens(to)}>
+        <span class="barlbl">${b.label}</span>
+        <span class="bartrack"><i class="barfill ${b.tone}" style="width:${b.count ? Math.max(4, b.width).toFixed(1) : 0}%"></i></span>
+        <span class="barval"><b>${b.count}</b> <small>${b.pct.toFixed(0)}%</small></span>
+      </div>`;
+    }).join('')}</div>
+  </div>` : '';
+  return trendCard || barsCard ? `<div class="charts">${trendCard}${barsCard}</div>` : '';
+}
+
+function h2hHtml(matches) {
+  const rows = headToHead(matches);
+  if (!rows.length) return '';
+  return `<h2>Head-to-head</h2><div class="h2h">${rows.slice(0, 6).map(r => {
+    const avg = r.myAvg != null ? `<span>Avg <b>${r.myAvg.toFixed(1)}</b> vs ${r.oppAvg != null ? r.oppAvg.toFixed(1) : '–'}</span>` : '';
+    const co = r.bestCheckout ? `<span>Best out <b>${r.bestCheckout}</b></span>` : '';
+    return `<div class="h2h-row">
+      <div class="h2h-top"><b>vs ${esc(r.opponent)}</b><span class="h2h-rec"><b class="w">${r.won}</b>–<b class="l">${r.lost}</b></span></div>
+      <div class="h2h-bar"><i style="width:${r.winPct.toFixed(1)}%"></i></div>
+      <div class="h2h-meta"><span>${r.played} ${r.played === 1 ? 'match' : 'matches'} · ${r.winPct.toFixed(0)}% won</span>${avg}${co}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function x01Tiles(s, only) {
   const draw = t => {
     const rows = t.rows(s);
@@ -301,13 +359,14 @@ export function drawPlayers() {
   const numbers = st?.darts && deep(st).mine.some(v => v.darts) ? { v: 'numbers' } : null;
   const gamesOf = name => deep(st).matches.some(m => m.name === name && m.winner != null) ? { v: 'matches', name } : null;
   const panes = () => `<div class="p-stats">
-    ${game?.id === 'x01' ? (x ? x01Tiles(x) : '')
+    ${game?.id === 'x01' ? (x ? `${x01ChartsHtml(x)}${x01Tiles(x)}` : '')
       : game && st.detail ? `<h2>${game.name} averages</h2><div class="tiles">${gameTiles(game.id, st.detail, gamesOf(game.name))}</div>` : ''}
     <h2>${game ? `${game.name} darts` : 'All games'}${st.since ? ` · since ${new Date(st.since).toLocaleDateString()}` : ''}</h2>
     <div class="tiles">${tile('Darts thrown', st.darts, numbers)}${tile('Time played', st.played_ms ? timeSpent(st.played_ms) : null)}${tile('Trebles', pct(st.trebles, st.darts), numbers)}
       ${tile('Doubles', pct(st.doubles, st.darts), numbers)}${tile('Bulls and 25s', st.bulls, numbers)}${tile('Misses', pct(st.misses, st.darts), numbers)}
       ${tile('Most hit', st.segments.slice(0, 3).map(g => g.seg === 25 ? 'Bull' : g.seg).join(', ') || null, numbers)}</div>
-    ${x && !game ? `<h2>X01</h2><div class="tiles">${x01Tiles(x, X01_HEADLINES)}</div>` : ''}</div>
+    ${x && !game ? `<h2>X01</h2>${x01ChartsHtml(x)}<div class="tiles">${x01Tiles(x, X01_HEADLINES)}</div>` : ''}
+    ${h2hHtml(deep(st).matches)}</div>
     <div class="p-games">${st.games.length ? `<h2>Finished games</h2>
     <table class="plain"><tr><th>Game</th><th>Played</th><th>Won (2+ players)</th><th>Average time</th><th>Quickest</th><th class="wide">Total time</th></tr>${st.games.map(g =>
       `<tr${opens(gamesOf(g.game))}><td>${esc(g.game)}</td><td>${g.played}</td><td>${g.won}</td>

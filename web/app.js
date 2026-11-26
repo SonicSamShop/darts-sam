@@ -10,6 +10,9 @@ import { request } from './api.js';
 import { createAccount } from './account.js';
 import { createTracker } from './track.js';
 import { createVoice } from './voice.js';
+import { createSfx } from './sfx.js';
+import { shareMatchCard } from './sharecard.js';
+import { WARMUP_STEPS } from './routine.js';
 import { botLevel } from './bot.js';
 import { createPhoneUi } from './phoneui.js';
 import { deleteShared, loadShare, openDetail, setShare, share, sharing } from './screens/sharing.js';
@@ -26,10 +29,10 @@ import { closeSection, listShown, openSection, renderSettings, sectShown, settin
 import { boardAct } from './screens/boardspanel.js';
 import { loadRelease } from './screens/release.js';
 import { deep, drawPlayers, renderPlayers, renderSheet, sheet, statsData, statsView } from './screens/stats.js';
-import { avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, renderHome } from './screens/home.js';
+import { avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, quickPresets, renderHome } from './screens/home.js';
 import { slipTapped } from './screens/earned.js';
 import {
-  askQuit, botThrow, botTimer, botUp, closeQuit, endHold, numPad, padCommit, padKey, push, renderGame, toggleMatchStats, undo
+  askQuit, botThrow, botTimer, botUp, closeQuit, endHold, numPad, padCommit, padKey, padQuick, push, renderGame, toggleMatchStats, undo
 } from './screens/game.js';
 import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, playRemapped, renderBull, startMatch
@@ -392,10 +395,12 @@ export function refreshStatus() {
 // Which of the device's voices to use is kept on this device, not with the
 // other settings: another device won't have the same voices.
 export const voice = createVoice({ chosen: store.get('voiceName', '') });
+export const sfx = createSfx();
+export const sfxOn = () => settings.sfx !== false;
 export function say(text) {
   if (settings.voice) voice.say(text);
 }
-addEventListener('click', () => voice.unlock(), { capture: true, once: true });
+addEventListener('click', () => { voice.unlock(); sfx.unlock(); }, { capture: true, once: true });
 
 // ---------- one screen, no scrolling ----------
 // Every view is laid out to fill the window. If one still doesn't fit (a small
@@ -660,9 +665,30 @@ $app.addEventListener('click', e => {
   if (d.showcam) { camScreen.shown = +d.showcam; camScreen.one = true; camScreen.adding = false; camScreen.calib = {}; camScreen.autoCal = null; camScreen.calibNote = camScreen.note = ''; camScreen.calibFailed = false; return renderCameras(); }
   if (d.key === 'cancel') { numPad.ask = null; numPad.value = ''; return renderGame(); }
   if (d.key) return padKey(d.key);
+  if (d.quick !== undefined) return padQuick(+d.quick);
+  if (d.quickstart !== undefined) {
+    const preset = quickPresets()[+d.quickstart];
+    if (!preset) return;
+    setup.gameId = preset.gameId;
+    setup.opts = { ...preset.opts };
+    setup.players = [...preset.players];
+    if (preset.bot != null) setup.bot = preset.bot;
+    cleanSetup();
+    saveSetup();
+    if (seats().length > 1) return askFirst('start', homePlay());
+    return startMatch('start', homePlay());
+  }
   if (d.fin) return padCommit(numPad.ask.total, +d.fin);
   if (d.theme) { settings.theme = d.theme; saveSettings(); applyTheme(); renderSettings(); return mark(); }
+  if (d.wtheme) { settings.theme = d.wtheme; saveSettings(); applyTheme(); return renderWelcome(); }
+  if (d.sfx) {
+    settings.sfx = d.sfx === 'on';
+    saveSettings();
+    if (settings.sfx) sfx.ton(180);
+    return renderSettings();
+  }
   if (d.checkouts) { settings.checkouts = d.checkouts === 'on'; saveSettings(); return renderSettings(); }
+  if (d.checkouthighlight) { settings.checkoutHighlight = d.checkouthighlight === 'on'; saveSettings(); return renderSettings(); }
   if (d.achievements) { settings.achievements = d.achievements === 'on'; saveSettings(); return renderSettings(); }
   if (d.photos) { settings.photos = d.photos === 'on'; saveSettings(); return renderSettings(); }
   if (d.visitflash) { settings.visitFlash = d.visitflash === 'on'; saveSettings(); return renderSettings(); }
@@ -731,6 +757,19 @@ $app.addEventListener('click', e => {
       cleanSetup();
       if (seats().length > 1) return askFirst(d.act, homePlay());
       return startMatch(d.act, homePlay());
+    case 'warmup': {
+      cleanSetup();
+      const pid = seats().find(id => id !== BOT) ?? players[0]?.id;
+      if (pid == null) return;
+      const step = WARMUP_STEPS[0];
+      return startMatch('start', { gameId: step.gameId, ids: [pid], opts: { ...step.opts, routine: { step: 0, playerId: pid } } });
+    }
+    case 'warmup-next': {
+      const r = match?.opts?.routine;
+      const next = r && WARMUP_STEPS[r.step + 1];
+      if (!next) return goHome();
+      return startMatch('rematch', { gameId: next.gameId, ids: [r.playerId], opts: { ...next.opts, routine: { step: r.step + 1, playerId: r.playerId } } });
+    }
     case 'bull-cancel': return closeBull();
     case 'bull-undo':
       clearTimeout(bull.timer);
@@ -765,7 +804,13 @@ $app.addEventListener('click', e => {
       saveSettings();
       return renderGame();
     case 'matchstats': return toggleMatchStats();
+    case 'sharecard': return shareMatchCard(match);
     case 'tv': settings.view = settings.view === 'tv' ? 'cards' : 'tv'; saveSettings(); return renderGame();
+    case 'sfx-toggle':
+      settings.sfx = !sfxOn();
+      saveSettings();
+      if (settings.sfx) sfx.dart({ seg: 20, mult: 3 });
+      return renderGame();
     case 'miss': return botUp() ? undefined : push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
     case 'holdgo': return endHold();
     case 'botgo': return botUp() ? (clearTimeout(botTimer), botThrow()) : undefined;
@@ -855,6 +900,59 @@ $app.addEventListener('keydown', e => {
   if (e.target.id === 'pair-code') pairCameras();
   if (e.target.id === 'mail-addr') sendCode();
   if (e.target.id === 'mail-code') signIn('email', { email: mailTo, code: e.target.value });
+});
+// Desktop keyboard shortcuts during a match (ignored when typing in a field or dialog).
+document.addEventListener('keydown', e => {
+  if (screen !== 'game' || !match) return;
+  if (e.metaKey || e.altKey) return;
+  if (e.target?.closest?.('input, textarea, select, [contenteditable]')) return;
+  if (document.querySelector('.quitask, .firstask')) return;
+  const game = gameById(match.gameId);
+  const s = compute(match);
+  const pad = !!game.visit && settings.entry === 'pad';
+  const k = e.key.toLowerCase();
+  if (e.ctrlKey && k === 'z') { e.preventDefault(); return undo(); }
+  if (e.ctrlKey) return;
+  if (pad && s.winner == null) {
+    if (/^[0-9]$/.test(e.key) && !numPad.ask) { e.preventDefault(); return padKey(e.key); }
+    if (e.key === 'Backspace' && !numPad.ask) { e.preventDefault(); return padKey('back'); }
+    if (e.key === 'Enter' && !numPad.ask && numPad.value) { e.preventDefault(); return padKey('enter'); }
+    if (e.key === 'Escape' && numPad.ask) { e.preventDefault(); numPad.ask = null; numPad.value = ''; return renderGame(); }
+  }
+  if (k === 'z' || (e.key === 'Backspace' && !pad)) {
+    if (!match.log.length) return;
+    e.preventDefault();
+    numPad.value = ''; numPad.ask = null; numPad.error = '';
+    return undo();
+  }
+  if (k === 'm' && !pad && s.winner == null && !botUp(s)) {
+    e.preventDefault();
+    return push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
+  }
+  if (e.key === ' ' && !pad && s.winner == null && !botUp(s)) {
+    e.preventDefault();
+    if (!s.lastVisit?.auto) return push({ t: 'next' });
+  }
+  if (k === 't' && game.tv && s.players.length <= 2) {
+    e.preventDefault();
+    settings.view = settings.view === 'tv' ? 'cards' : 'tv';
+    saveSettings();
+    return renderGame();
+  }
+  if (k === 'p' && game.visit) {
+    e.preventDefault();
+    settings.entry = settings.entry === 'pad' ? 'board' : 'pad';
+    numPad.value = ''; numPad.ask = null; numPad.error = '';
+    saveSettings();
+    return renderGame();
+  }
+  if (k === 's') {
+    e.preventDefault();
+    settings.sfx = !sfxOn();
+    saveSettings();
+    if (settings.sfx) sfx.dart({ seg: 20, mult: 3 });
+    return renderGame();
+  }
 });
 
 applyTheme();

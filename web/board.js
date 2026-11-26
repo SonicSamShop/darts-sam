@@ -311,18 +311,19 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
         dart.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }).onfinish = () => at.remove();
       };
     },
-    // Light up one bed {seg, mult} to aim at and zoom in on it, the rest of the
-    // board dimmed; null puts the board back. Taps still score as usual. A
-    // single may be just one half of it: part 'in' or 'out' (see half()).
-    showTarget(t) {
-      const key = t ? `${t.seg}x${t.mult}${t.part ?? ''}` : '';
+    // Light up one bed {seg, mult} to aim at. With zoom (default, for Random Targets),
+    // zooms in and dims the rest of the board; with zoom: false (X01 checkout hint),
+    // pulses the recommended bed in place without moving the board.
+    showTarget(t, { zoom = true } = {}) {
+      const key = t ? `${t.seg}x${t.mult}${t.part ?? ''}:${zoom ? 1 : 0}` : '';
       if (key === aimed) return;
       aimed = key;
-      svg.classList.toggle('aiming', !!t);
+      svg.classList.toggle('aiming', !!t && zoom);
       if (!t) { aimAt.replaceChildren(); return glide(FULL); }
-      const lit = d => el('path', { d, class: 'b-target', 'fill-rule': 'evenodd' });
-      let at = [0, 0];  // the middle of the bed
+      const lit = d => el('path', { d, class: zoom ? 'b-target' : 'b-target b-hint', 'fill-rule': 'evenodd' });
       aimAt.replaceChildren(...bed(t).map(lit));
+      if (!zoom) return glide(FULL);
+      let at = [0, 0];  // the middle of the bed
       if (t.seg !== 25) {
         const i = SEGMENTS.indexOf(t.seg), [r0, r1] = rings(t).at(-1);
         at = pt((r0 + r1) / 2, i * 18).split(' ').map(Number);

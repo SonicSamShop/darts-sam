@@ -57,6 +57,14 @@ test('x01: bust restores the score and moves straight on', () => {
   assert.equal(s.winner, 0);
   s = play('x01', ['A'], { start: 301, out: 'straight' }, [...to32, D(16), D(16)]);
   assert.equal(s.winner, 0);
+  // double-in: non-doubles don't count until a double opens the leg
+  const di = play('x01', ['A'], { start: 301, in: 'double', out: 'double' }, [D(20, 3), D(20, 2), D(20, 3)]);
+  assert.equal(di.score[0], 201);
+  // master-out: finishing on a treble wins, finishing on a single busts
+  const moBust = play('x01', ['A'], { start: 301, out: 'master' }, [...to32, D(16), D(16)]);
+  assert.equal(moBust.winner, null);
+  const moWin = play('x01', ['A'], { start: 60, out: 'master' }, [D(20, 3)]);
+  assert.equal(moWin.winner, 0);
 });
 
 test('x01: checkout suggestions are valid', () => {

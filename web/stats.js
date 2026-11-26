@@ -218,6 +218,78 @@ export const X01_TILES = [
 ];
 export const x01Tile = key => X01_TILES.flatMap(g => g.tiles).find(t => t.key === key);
 
+// Recent X01 legs for the 3-dart average trend chart (oldest first, up to `limit` legs).
+export function x01Trend(s, limit = 20) {
+  const legs = (s?.legs ?? []).filter(l => l.avg != null).slice(-limit);
+  if (legs.length < 2) return null;
+  const avgs = legs.map(l => l.avg);
+  const mid = Math.floor(legs.length / 2);
+  const mean = list => list.reduce((t, v) => t + v, 0) / list.length;
+  const delta = mean(avgs.slice(mid)) - mean(avgs.slice(0, mid));
+  return {
+    legs,
+    min: Math.min(...avgs),
+    max: Math.max(...avgs),
+    latest: avgs.at(-1),
+    overall: s.average,
+    delta,
+  };
+}
+
+// Visit score distribution for X01 horizontal breakdown bars.
+export function x01Brackets(s) {
+  const visits = (s?.visits ?? []).filter(v => !v.bust);
+  if (!visits.length) return [];
+  const total = visits.length;
+  const defs = [
+    ['t180', '180', 180, 180, 'gold'],
+    ['t140', '140+', 140, 179, 'accent'],
+    ['t100', '100+', 100, 139, 'accent'],
+    ['t60', '60+', 60, 99, 'mid'],
+    [null, 'Under 60', 0, 59, 'muted'],
+  ];
+  const rows = defs.map(([key, label, lo, hi, tone]) => {
+    const count = visits.filter(v => v.score >= lo && v.score <= hi).length;
+    return { key, label, count, pct: count / total * 100, tone };
+  });
+  const peak = Math.max(1, ...rows.map(r => r.count));
+  return rows.map(r => ({ ...r, width: r.count / peak * 100 }));
+}
+
+// Head-to-head rivalry records across finished 2-player matches, most-played rivals first.
+export function headToHead(matches) {
+  const map = new Map();
+  for (const m of matches ?? []) {
+    if (m.players?.length !== 2 || m.winner == null) continue;
+    const me = m.me ?? 0, them = 1 - me, opp = m.players[them];
+    const r = map.get(opp) ?? { opponent: opp, played: 0, won: 0, lost: 0, myPts: 0, myDarts: 0, oppPts: 0, oppDarts: 0, bestCo: 0 };
+    r.played++;
+    if (m.winner === me) r.won++; else r.lost++;
+    if (m.game === 'x01') {
+      for (const l of x01Legs(m)) {
+        r.myPts += l.sides[me].points;
+        r.myDarts += l.sides[me].darts;
+        r.oppPts += l.sides[them].points;
+        r.oppDarts += l.sides[them].darts;
+        if (l.sides[me].checkout) r.bestCo = Math.max(r.bestCo, l.sides[me].checkout);
+      }
+    }
+    map.set(opp, r);
+  }
+  return [...map.values()]
+    .map(r => ({
+      opponent: r.opponent,
+      played: r.played,
+      won: r.won,
+      lost: r.lost,
+      winPct: r.won / r.played * 100,
+      myAvg: avg3(r.myPts, r.myDarts),
+      oppAvg: avg3(r.oppPts, r.oppDarts),
+      bestCheckout: r.bestCo || null,
+    }))
+    .sort((a, b) => b.played - a.played || b.won - a.won);
+}
+
 // How often each number was hit, from visits whose single darts are known:
 // [{seg, by: [misses, singles, doubles, trebles], n, share}], most hit first.
 // seg is 25 for the bull and 0 for a miss.

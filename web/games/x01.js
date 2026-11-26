@@ -15,6 +15,8 @@ for (let n = 20; n >= 1; n--) SETUP.push({ seg: n, mult: 2 });
 // Finishing doubles, the ones players like to leave first.
 const DOUBLES = [20, 16, 18, 12, 8, 10, 14, 6, 4, 2, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1]
   .map(seg => ({ seg, mult: 2 })).concat({ seg: 25, mult: 2 });
+// Master out: any double, treble, or bullseye.
+const MASTERS = [...DOUBLES, ...Array.from({ length: 20 }, (_, i) => ({ seg: 20 - i, mult: 3 }))];
 
 // The standard double-out chart: the route most published charts agree on for
 // each score, with three darts in hand. Sources: dartbase.com out charts, the
@@ -61,21 +63,21 @@ function chart(text) {
 }
 
 // The route to show for `score` with `darts` left in this visit, or null if
-// it can't be finished. Double out uses the standard chart; straight out (and
-// anything the chart doesn't cover) is worked out by search.
-export function checkout(score, darts, doubleOut) {
-  if (doubleOut) {
+// it can't be finished. `outMode` is 'double' (or true), 'master', or 'straight' (or false).
+export function checkout(score, darts, outMode = 'double') {
+  const mode = outMode === true ? 'double' : outMode === false ? 'straight' : outMode;
+  if (mode === 'double') {
     if (darts >= 3 && THREE[score]) return THREE[score];
     if (darts === 2 && TWO[score]) return TWO[score];
     if (darts === 2 && THREE[score]?.length <= 2) return THREE[score];
     if (darts === 1 && score === 50) return [{ seg: 25, mult: 2 }];
     if (darts === 1 && score <= 40 && score % 2 === 0) return [{ seg: score / 2, mult: 2 }];
   }
-  return search(score, darts, doubleOut);
+  return search(score, darts, mode);
 }
 
-function search(score, darts, doubleOut) {
-  const lasts = doubleOut ? DOUBLES : SETUP;
+function search(score, darts, mode) {
+  const lasts = mode === 'double' ? DOUBLES : mode === 'master' ? MASTERS : SETUP;
   for (let n = 1; n <= darts; n++) {
     for (const last of lasts) {
       const rest = score - value(last);
@@ -106,6 +108,7 @@ function wonLeg(s, p) {
   if (set && s.sets[p] >= setsTo(s)) { s.winner = p; return; }
   if (set) s.legs.fill(0);
   s.score.fill(s.opts.start);
+  s.opened.fill(s.opts.in !== 'double');
   // The throw passes round with each leg, and with each set: the player who
   // threw first in one set throws second in the next, however many legs it took.
   s.newLeg = { starter: (sum(s.sets) + sum(s.legs)) % s.players.length, set };
@@ -125,11 +128,21 @@ export default {
     { key: 'sets', label: 'Sets to win', min: 1, max: 99, default: 1, brief: v => v > 1 ? `${v} sets` : '',
       help: (v, o) => v > 1 ? `The first to win ${v} sets wins the match. A set goes to the first to win ${o?.legs > 1 ? `${o.legs} legs` : 'a leg'}.`
         : 'No sets: the match is decided on legs alone.' },
+    { key: 'in', label: 'In', choices: [['straight', 'Straight'], ['double', 'Double']], default: 'straight',
+      brief: v => v === 'double' ? 'double in' : '',
+      help: v => v === 'double' ? 'You must hit a double (or bullseye) before your score starts counting down.'
+        : 'Any dart starts your score counting down.' },
+    { key: 'out', label: 'Out', choices: [['double', 'Double'], ['master', 'Master'], ['straight', 'Straight']], default: 'double',
+      brief: v => v === 'double' ? '' : `${v} out`,
+      help: v => v === 'master' ? 'Finish on any double, treble, or bullseye.'
+        : v === 'straight' ? 'Finish on any bed that brings your score to exactly zero.'
+        : 'The last dart must be a double or the bullseye.' },
   ],
 
   init(n, opts) {
     return {
       score: Array(n).fill(opts.start),
+      opened: Array(n).fill(opts.in !== 'double'),
       turnStartScore: opts.start,
       points: Array(n).fill(0),  // for averages, over the whole match
       thrown: Array(n).fill(0),
@@ -141,10 +154,16 @@ export default {
   turnStart(s) { s.turnStartScore = s.score[s.current]; },
 
   dart(s, d) {
-    const p = s.current, dbl = s.opts.out !== 'straight';
-    const left = s.score[p] - value(d);
+    const p = s.current, outMode = s.opts.out ?? 'double';
     s.thrown[p]++;
-    if (left < 0 || (dbl && left === 1) || (left === 0 && dbl && d.mult !== 2)) {
+    if (!s.opened[p]) {
+      if (d.mult !== 2) return;
+      s.opened[p] = true;
+    }
+    const left = s.score[p] - value(d);
+    const badLeave = outMode !== 'straight' && left === 1;
+    const badOut = left === 0 && ((outMode === 'double' && d.mult !== 2) || (outMode === 'master' && d.mult < 2));
+    if (left < 0 || badLeave || badOut) {
       s.points[p] -= s.turnStartScore - s.score[p];
       s.thrown[p] += 3 - s.turn.length;  // a bust uses up the whole visit
       s.score[p] = s.turnStartScore;
@@ -159,8 +178,10 @@ export default {
 
   // A whole visit typed in as one number.
   visit(s, total, n) {
-    const p = s.current, left = s.score[p] - total;
-    if (left < 0 || (s.opts.out !== 'straight' && left === 1)) {
+    const p = s.current, outMode = s.opts.out ?? 'double';
+    if (!s.opened[p] && total > 0) s.opened[p] = true;
+    const left = s.score[p] - total;
+    if (left < 0 || (outMode !== 'straight' && left === 1)) {
       s.thrown[p] += 3;
       s.note = 'BUST';
       return;
@@ -175,7 +196,7 @@ export default {
   visitDarts(s, total) {
     const n = s.score[s.current];
     if (total !== n) return null;
-    return [1, 2, 3].filter(d => checkout(n, d, s.opts.out !== 'straight'));
+    return [1, 2, 3].filter(d => checkout(n, d, s.opts.out ?? 'double'));
   },
 
   summary(s, i) {
@@ -225,8 +246,9 @@ export default {
   // dart after it. Anything else is thrown with its `spread`: scoring, and a
   // treble or the bull on the way to a finish.
   bot(s, skill, random) {
-    const n = s.score[s.current], dbl = s.opts.out !== 'straight';
-    const route = n > 180 ? null : checkout(n, 3 - s.turn.length, dbl) ?? checkout(n, 3, dbl);
+    if (!s.opened[s.current]) return throwAt({ seg: 20, mult: 2 }, skill.finish, random);
+    const n = s.score[s.current], outMode = s.opts.out ?? 'double';
+    const route = n > 180 ? null : checkout(n, 3 - s.turn.length, outMode) ?? checkout(n, 3, outMode);
     const aim = route?.[0] ?? { seg: 20, mult: 3 };
     const finishing = route?.length === 1 || (route?.length === 2 && aim.mult === 1 && aim.seg !== 25);
     return throwAt(aim, finishing ? skill.finish : skill.spread, random);
@@ -234,7 +256,15 @@ export default {
 
   hint(s, { checkouts = true } = {}) {
     if (s.turnOver || !checkouts) return '';
-    const route = checkout(s.score[s.current], 3 - s.turn.length, s.opts.out !== 'straight');
+    if (!s.opened[s.current]) return 'Double in: hit any double to start';
+    const route = checkout(s.score[s.current], 3 - s.turn.length, s.opts.out ?? 'double');
     return route ? 'Checkout: ' + route.map(label).join('  ') : '';
+  },
+
+  // The first recommended bed of the current checkout route, to highlight subtly on the board.
+  checkoutTarget(s, { checkouts = true } = {}) {
+    if (s.turnOver || !checkouts || s.winner != null) return null;
+    if (!s.opened[s.current]) return { seg: 20, mult: 2 };
+    return checkout(s.score[s.current], 3 - s.turn.length, s.opts.out ?? 'double')?.[0] ?? null;
   },
 };

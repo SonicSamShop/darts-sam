@@ -12,7 +12,7 @@ import { renderLanding } from './landing.js';
 import { playersPanel } from './playerspanel.js';
 import {
   $app, THEMES, account, applyTheme, depth, esc, fit, icon, mark, pageFoot, pageHead, players, refreshStatus,
-  screen, setScreen, settings, store, voice
+  screen, setScreen, settings, sfxOn, store, voice
 } from '../app.js';
 import { BOT_HOLD_MAX, BOT_HOLD_USUAL, VISIT_HOLD_MAX, botHoldSecs, flashOn, visitHoldSecs } from './game.js';
 import { achievementsOn, photosOn } from './earned.js';
@@ -93,12 +93,14 @@ export function renderSettings(jump) {
     pickRow(t.name, t.id === theme.id, `data-theme="${t.id}"`, t.blurb)).join('')}</div></div>`;
   const hints = settings.checkouts !== false;
   const game = `<div class="settings"><div class="rows">
-    ${switchRow('Sound', settings.voice, `data-voice="${settings.voice ? 'off' : 'on'}"`, 'Calls each visit\'s total, busts, what you require and game shot.')}
+    ${switchRow('Sound effects', sfxOn(), `data-sfx="${sfxOn() ? 'off' : 'on'}"`, 'Dart thuds, bust buzzes, and fanfares on 100+, 140+, 180 and checkouts.')}
+    ${switchRow('Voice caller', settings.voice, `data-voice="${settings.voice ? 'off' : 'on'}"`, 'Calls each visit\'s total, busts, what you require and game shot.')}
     ${settings.voice ? `${switchRow('Call each dart', !!settings.eachDart, `data-eachdart="${settings.eachDart ? 'off' : 'on'}"`, 'Say every dart as it lands too, not just the total. Cricket, Killer and the practice games call each dart anyway.')}
     ${voicePicker()}` : ''}
     ${switchRow('Show each visit\'s score large', flashOn(), `data-visitflash="${flashOn() ? 'off' : 'on'}"`, 'For a couple of seconds after a visit, what it scored takes over the scores, for when the voice can\'t be heard.')}
     ${visitHoldPicker()}
     ${switchRow('Checkout hints', hints, `data-checkouts="${hints ? 'off' : 'on'}"`, 'Switch off to practise working out your finishes yourself.')}
+    ${hints ? switchRow('Highlight checkout bed on the board', settings.checkoutHighlight !== false, `data-checkouthighlight="${settings.checkoutHighlight !== false ? 'off' : 'on'}"`, 'Pulses the next recommended bed on the dartboard when you are on a finish.') : ''}
     ${switchRow('Show achievements as they are earned', achievementsOn(), `data-achievements="${achievementsOn() ? 'off' : 'on'}"`, 'A first 180, a big finish and the like are shown, and called, as they happen. Off, they are still kept on the Stats page.')}
     ${switchRow('Keep a picture of the board with an achievement', photosOn() === true, `data-photos="${photosOn() === true ? 'off' : 'on'}"`, 'When a camera scores the dart that earns one. Kept with your games and nowhere else, and deleted with the game.')}
     ${switchRow('Show the bot\'s darts landing', settings.flight !== false, `data-flight="${settings.flight !== false ? 'off' : 'on'}"`, 'Against the computer, each of its darts flies in to where it lands on the board.')}

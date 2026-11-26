@@ -13,13 +13,14 @@ import { renderLanding } from './landing.js';
 import { menu } from './home.js';
 import { summaryHtml } from './stats.js';
 import { onMatchQuit, onMatchUndone, onMatchWon, openTournament, quitTerms } from './tournament.js';
+import { WARMUP_STEPS, recordPracticeDay } from '../routine.js';
 import {
   achieved, achievementsOn, askPhotos, bases, dropPictures, dropSlips, earnedLine, endedHere, forgetEnded,
   loadBases, photoAsk, photosOn, slipHtml
 } from './earned.js';
 import {
-  $app, account, cameraCount, connected, dartsName, data, esc, fit, goHome, mark, match, phone, queueSync,
-  refreshStatus, say, screen, setMatch, setScreen, setsOf, settings, store, tracker
+  $app, account, cameraCount, connected, dartsName, data, esc, fit, goHome, icon, mark, match, phone, queueSync,
+  refreshStatus, say, screen, setMatch, setScreen, setsOf, settings, sfx, sfxOn, store, tracker
 } from '../app.js';
 
 // The level of the computer player whose throw it is in the game in progress, or null.
@@ -101,9 +102,15 @@ function visitFlash(game, before, after) {
 const bigOf = (i, usual) => flash?.player === i
   ? `<span class="flash${flash.bust ? ' bust' : ''}${flash.noOut ? ' noout' : ''}">${flash.text}</span>` : usual;
 // The panel that stands in for the player cards while the flash is on.
-const flashHtml = s => `<div class="vflash${flash.bust ? ' bust' : ''}${flash.noOut ? ' noout' : ''}" role="status">
+const flashHtml = s => {
+  const n = typeof flash.text === 'number' ? flash.text : 0;
+  const cls = flash.bust ? `bust${flash.noOut ? ' noout' : ''}` : n >= 180 ? 'max' : n >= 100 ? 'ton' : '';
+  const sub = flash.noOut ? 'Not enough darts left' : flash.bust ? 'Scores nothing'
+    : n >= 180 ? 'Maximum!' : n >= 140 ? 'Ton forty!' : n >= 100 ? 'Ton+!' : 'Scored this visit';
+  return `<div class="vflash ${cls}" role="status">
   ${s.players.length > 1 ? `<div class="name">${esc(s.players[flash.player])}</div>` : ''}
-  <div class="big">${flash.text}</div><div class="small">${flash.noOut ? 'Not enough darts left' : flash.bust ? 'Scores nothing' : 'Scored this visit'}</div></div>`;
+  <div class="big">${flash.text}</div><div class="small">${sub}</div></div>`;
+};
 
 // ---------- a visit kept up ----------
 // After a person's visit, their darts can stay in the dart slots (and on the board) for a few
@@ -141,7 +148,7 @@ export function push(ev) {
   match.log.push({ ...ev, ts: Date.now() });
   const after = compute(match);
   const earned = sheetBefore ? achieved(before, sheetBefore, after, ev.src === 'cam') : [];  // said after the score: "Sam, Maximum"
-  if (after.winner != null) endedHere();
+  if (after.winner != null) { endedHere(); recordPracticeDay(store); }
   store.set('match', match);
   queueSync();
   if (after.winner != null && match.opts?.tournament) onMatchWon(match);  // the result counts from the winning dart
@@ -190,6 +197,15 @@ export function push(ev) {
   const next = name ? (aim ? `${name}, ${aim}` : name) : aim && `${changed ? 'Next,' : 'Aim for'} ${aim}`;
   const said = [dart, call, ...rest, ...earned, next].filter(x => x !== '');
   if (said.length) say(said.join('. '));
+  if (sfxOn()) {
+    const scored = after.lastVisit ? after.lastVisit.total
+      : after.turnOver && !before.turnOver ? after.turn.reduce((t, d) => t + value(d), 0) : 0;
+    if (after.winner != null || after.legWon) sfx.win();
+    else if (after.bust != null || after.noOut != null) sfx.bust();
+    else if (game.showTotal !== false && scored >= 100) sfx.ton(scored);
+    else if (ev.t === 'dart') sfx.dart(ev);
+    else if (ev.t === 'visit') sfx.dart({ seg: 20, mult: ev.total >= 60 ? 3 : 1 });
+  }
   holdVisit(before, after, ev);
   const f = visitFlash(game, before, after);
   if (f) flash = { ...f, until: Date.now() + Math.max(FLASH_MS, held ? held.until - Date.now() : 0) };
@@ -297,6 +313,13 @@ function padEnter() {
   else return padCommit(total, finish ? finish[0] : 3);
   renderGame();
 }
+export function padQuick(total) {
+  if (botUp()) return;
+  numPad.error = '';
+  numPad.value = String(total);
+  padEnter();
+}
+const QUICK_SCORES = [26, 41, 45, 60, 81, 85, 100];
 export function padCommit(total, darts) {
   numPad.value = ''; numPad.ask = null; numPad.error = '';
   push({ t: 'visit', total, darts });
@@ -309,6 +332,8 @@ function padHtml(s) {
     : s.legWon ? `${esc(s.players[s.legWon.player])} won the ${s.legWon.set ? 'set' : 'leg'}`
     : s.lastVisit ? `${esc(s.players[s.lastVisit.player])} scored ${s.lastVisit.total}` : 'Type the visit total');
   const off = bot || midVisit || s.winner != null ? 'disabled' : '';
+  const quick = numPad.ask ? ''
+    : `<div class="pad-quick">${QUICK_SCORES.map(n => `<button data-quick="${n}" ${off}>${n}</button>`).join('')}</div>`;
   const keys = numPad.ask
     ? numPad.ask.darts.map(n => `<button class="primary" data-fin="${n}">${n} dart${n > 1 ? 's' : ''}</button>`).join('')
       + '<button class="wide" data-key="cancel">Cancel</button>'
@@ -316,7 +341,7 @@ function padHtml(s) {
       + `<button data-key="back" ${off} aria-label="Delete">⌫</button><button data-key="0" ${off}>0</button>
          <button class="primary" data-key="enter" ${off}>Enter</button>`;
   return `<div class="pad-out ${numPad.error ? 'bad' : ''}">${numPad.ask ? numPad.ask.total : numPad.value || '0'}</div>
-    <div class="pad-msg ${numPad.error ? 'warn' : ''}">${msg}</div><div class="pad-keys">${keys}</div>`;
+    <div class="pad-msg ${numPad.error ? 'warn' : ''}">${msg}</div>${quick}<div class="pad-keys">${keys}</div>`;
 }
 
 // ---------- TV view ----------
@@ -417,8 +442,11 @@ export function renderGame() {
     : game.showTotal === false ? '' : `<b>${prev.darts.reduce((t, d) => t + value(d), 0)}</b>`);
   const last = prev && !prev.typed && !held ? `<div class="lastvisit"><div><span>Last visit${
     s.players.length > 1 ? ` · ${esc(s.players[prev.player])}` : ''}</span><span class="lastdarts">${lastDarts}</span></div>${lastScore}</div>` : '';
+  const routine = match.opts?.routine;
+  const nextWarmup = routine && WARMUP_STEPS[routine.step + 1];
+  const routineTag = routine ? ` <span class="rtag">Warm-up ${routine.step + 1}/${WARMUP_STEPS.length}</span>` : '';
   let banner = '';
-  if (s.winner != null) banner = `<div class="banner win">${esc(game.result?.(s) ?? `${s.players[s.winner]} wins!`)}</div>`;
+  if (s.winner != null) banner = `<div class="banner win">${routine && !nextWarmup ? 'Warm-up complete! ' : ''}${esc(game.result?.(s) ?? `${s.players[s.winner]} wins!`)}</div>`;
   else if (s.legWon) banner = `<div class="banner win">${s.legWon.set ? 'Set' : 'Leg'} to ${esc(s.players[s.legWon.player])}!${
     s.players.length > 1 ? ` ${esc(s.players[s.current])} throws first` : ''}</div>`;
   else if (s.bust != null) banner = `<div class="banner bust">Bust!${s.players.length > 1
@@ -435,6 +463,7 @@ export function renderGame() {
   // the rest of the game's controls, out of the way under the buttons that score
   const tools = [
     s.winner != null && `<button class="ghost" data-act="matchstats">${statsUp(s) ? 'Show the board' : 'Match stats'}</button>`,
+    s.winner != null && '<button class="ghost" data-act="sharecard">Share card</button>',
     canTv(game, s) && `<button class="ghost" data-act="tv">${tv ? 'Card view' : 'TV view'}</button>`,
     game.visit && `<button class="ghost" data-act="entry">${pad ? 'Use board' : 'Type scores'}</button>`,
     ((connected && cameraCount > 0) || phone.scoring()) && '<button class="ghost" data-act="report" title="A dart was scored wrongly: save what the cameras saw">Report a dart</button>',
@@ -446,10 +475,14 @@ export function renderGame() {
       <div class="turn">${slots}<div class="slot total ${held?.bust || !held && s.note ? 'bust' : ''}"><b>${held ? (held.bust ? 'Bust' : game.showTotal === false ? '' : total)
         : s.note || (game.showTotal === false ? '' : total)}</b><small>${!held && s.note || held?.bust ? '' : 'Total'}</small></div></div>`}
       ${last}</div>`;
+  const sfxIcon = sfxOn()
+    ? icon('<path d="M11 5L6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/>')
+    : icon('<path d="M11 5L6 9H3v6h3l5 4zM22 9l-6 6M16 9l6 6"/>');
   document.querySelector('.side').innerHTML = `
     <div class="top"><button class="ghost" data-act="home">‹ Menu</button>
-      <span class="title"><b>${game.name}</b> <span class="clock" title="Match time">${clock(elapsed(match, s))}</span></span>
-      <span class="spacer"></span><span class="conn brief muted"></span></div>
+      <span class="title"><b>${game.name}</b>${routineTag} <span class="clock" title="Match time">${clock(elapsed(match, s))}</span></span>
+      <span class="spacer"></span><span class="conn brief muted"></span>
+      <button class="ghost soundbtn ${sfxOn() ? 'on' : ''}" data-act="sfx-toggle" title="${sfxOn() ? 'Mute sound effects' : 'Turn on sound effects'}" aria-label="${sfxOn() ? 'Mute sound effects' : 'Turn on sound effects'}">${sfxIcon}</button></div>
     ${tv ? '' : flash ? `<div class="players">${flashHtml(s)}</div>` : `<div class="players">${s.players.map((p, i) => {
       const v = game.summary(s, i);
       return `<div class="pcard ${s.winner === i ? 'win' : s.winner == null && i === s.current ? 'cur' : ''}${v.out ? ' out' : ''}${moved(i)}">
@@ -469,11 +502,14 @@ export function renderGame() {
       ${s.winner != null
         ? `<button data-act="home">Menu</button>${match.opts?.tournament
           ? '<button class="primary" data-act="tour-back">Back to the tournament</button>'
-          : '<button class="primary" data-act="rematch">Play again</button>'}`
+          : nextWarmup
+            ? `<button class="primary" data-act="warmup-next">Next: ${esc(nextWarmup.short)} ›</button>`
+            : '<button class="primary" data-act="rematch">Play again</button>'}`
         : pad ? '' : `<button data-act="miss" ${botUp(s) ? 'disabled' : ''}>Miss</button>
            <button class="primary end${s.turnOver ? ' ready' : ''}" data-act="next" ${botUp(s) ? 'disabled' : ''}>End turn</button>`}
     </div>
-    ${tools ? `<div class="tools">${tools}</div>` : ''}`;
+    ${tools ? `<div class="tools">${tools}</div>` : ''}
+    ${s.winner == null ? `<div class="kbd-hint">${pad ? 'Keys: 0–9 type · Enter submit · Backspace delete · P board · Z undo' : 'Keys: M miss · Space end turn · Z undo · T TV · P keypad'}</div>` : ''}`;
   // A score that has changed counts down (or up) to its new figure.
   const cards = [...document.querySelectorAll('.side .pcard .big')];
   if (cards.length) {
@@ -496,7 +532,10 @@ export function renderGame() {
   const fresh = grew && match.log.at(-1)?.t === 'dart';
   Object.assign(seen, { id: match.id, len: match.log.length, turn: s.turn.length, current: s.current });
   gameBoard.ui.showDarts(shown, 5, botFlight && settings.flight !== false && !pad, fresh && !pad);
-  gameBoard.ui.showTarget(game.target?.(s) ?? null);
+  const target = game.target?.(s) ?? null;
+  const coOn = settings.checkouts !== false && settings.checkoutHighlight !== false;
+  const coTarget = !target && !botUp(s) ? game.checkoutTarget?.(s, { checkouts: coOn }) ?? null : null;
+  gameBoard.ui.showTarget(target ?? coTarget, { zoom: !!target });
   refreshStatus();
   fit();
   botSoon();

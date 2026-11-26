@@ -7,7 +7,29 @@
 
 import { shareAsk } from './sharing.js';
 import { camScreen } from './cameras.js';
-import { $app, account, begin, data, esc, fit, loadPlayers, open, saveSetup, setScreen, setup, store } from '../app.js';
+import { $app, THEMES, account, applyTheme, begin, data, esc, fit, loadPlayers, open, saveSetup, setScreen, setup, store } from '../app.js';
+
+// Visual swatch colours for the live theme picker on the welcome screen.
+const SWATCH = {
+  chalk: ['#1e2623', '#f2d16b', '#efeadb'],
+  stage: ['#0a0a0c', '#d3252b', '#ffd21f'],
+  classic: ['#111111', '#23804a', '#e9dfc3'],
+  arcade: ['#050505', '#38f26b', '#ffb21a'],
+  sheet: ['#eadfc4', '#17693b', '#17130f'],
+};
+function themePickerHtml() {
+  const cur = applyTheme().id;
+  return `<div class="wthemes" role="radiogroup" aria-label="Choose a look">
+    <p class="dim">Pick your look (change any time in Settings)</p>
+    <div class="wtheme-row">${THEMES.map(t => {
+      const [bg, ac, tx] = SWATCH[t.id] ?? ['#111', '#fff', '#fff'];
+      const on = t.id === cur;
+      return `<button class="wtheme ${on ? 'on' : ''}" data-wtheme="${t.id}" role="radio" aria-checked="${on}">
+        <span class="wswatch" style="--sw-bg:${bg};--sw-ac:${ac};--sw-tx:${tx}"><i></i><b></b></span>
+        <span>${esc(t.name)}</span>
+      </button>`;
+    }).join('')}</div></div>`;
+}
 
 // ---------- the first time the desktop app is opened ----------
 // After the question about sharing (askShare(), which lies over this until it
@@ -46,7 +68,7 @@ export function renderWelcome() {
     ${welcomeForm.note ? `<p class="warn">${esc(welcomeForm.note)}</p>` : ''}`;
   $app.innerHTML = `<div class="page"><div class="camsetup fill">
     ${welcomeForm.step && !hosted ? '<div class="row"><button class="ghost" data-act="welcome-back">‹ Back</button></div>' : ''}
-    <div class="camwizard">${step}</div></div></div>`;
+    <div class="camwizard">${step}${themePickerHtml()}</div></div></div>`;
   fit();
   if (!shareAsk) document.getElementById('welcome-name')?.focus();
 }

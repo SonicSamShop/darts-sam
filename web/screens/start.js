@@ -195,6 +195,13 @@ export function startMatch(act, play, order) {
     playerIds: ids, darts: ids.map(dartsFor), board: data.wallBoard(), bots: ids.map(levelOf), seq: 0,
   });
   store.set('match', match);
+  if (!play.tournament) {
+    // Remember the last 3 setups for one-tap Quick start on mobile.
+    const entry = { gameId: play.gameId, opts: { ...play.opts }, players: [...(setup.players ?? [])], bot: setup.bot ?? 5 };
+    const key = e => JSON.stringify([e.gameId, e.opts, e.players, e.bot]);
+    const list = [entry, ...store.get('recents', []).filter(r => key(r) !== key(entry))].slice(0, 3);
+    store.set('recents', list);
+  }
   if (play.tournament) onMatchStarted(match);
   const opening = compute(match), aim = gameById(match.gameId).aim?.(opening);  // the first thing to aim at (Random Targets, Around the Clock)
   const who = opening.players.length > 1 ? opening.players[opening.current] : '';  // who throws first, when there is more than one

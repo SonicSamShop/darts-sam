@@ -13,6 +13,7 @@ import { renderLanding } from './landing.js';
 import { newPlayerRow, roster } from './playerspanel.js';
 import { pct } from './stats.js';
 import { currentTournament, onMatchWon, slotTitle, tourMarked } from './tournament.js';
+import { WARMUP_STEPS, practiceStreak } from '../routine.js';
 import {
   $app, BOT, account, api, botAt, cleanSetup, connected, dartsFor, esc, fit, grams, loadStats, match, nameOf,
   pageFoot, pageHead, players, redraw, refreshStatus, screen, seats, setMatch, setScreen, setTotals, setsOf,
@@ -89,7 +90,7 @@ export function renderHome() {
     <div class="home-body">
     <div class="pick ${menu.rulesOpen ? 'rules-on' : ''}">
     ${going ? `<h2>In progress</h2><div class="inprogress">${going}</div>` : ''}
-    ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>${kind === 'match' ? tourLine('link') : ''}
+    ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>${kind === 'match' ? tourLine('link') : warmupLine()}
     <div class="games">${GAMES.filter(g => g.kind === kind).map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
       <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>`).join('')}
     <p class="blurb muted small">${game.blurb}</p>
@@ -113,6 +114,8 @@ export function renderHome() {
     ${roster.adding || !players.length ? newPlayerRow() : ''}`)}
     ${howToPlay(game, 'how-phone')}
     ${tourLine('tour-phone')}
+    ${warmupHtml()}
+    ${quickStartsHtml()}
     <span class="spacer"></span>
     ${start}
     </div>
@@ -167,6 +170,53 @@ function howToPlay(game, where = '') {
 // of its own under the steps. Neither is drawn while TOURNAMENT_ON_MENU is off.
 const tourLine = (where = '') => (TOURNAMENT_ON_MENU ? `<button class="tourline ${where}" data-act="tournament"><b>Tournament</b>
   <span>A knockout for 3 to 16 players, people and bots</span></button>` : '');
+// One-tap recent setups on phones, filling the empty space below the 3 steps.
+export function quickPresets() {
+  const valid = r => {
+    const g = gameById(r.gameId);
+    if (!g) return false;
+    const ps = (r.players ?? []).filter(id => id === BOT ? !!g.bot : players.some(p => p.id === id));
+    return ps.some(id => id !== BOT) && canStart(g, ps.length);
+  };
+  const saved = store.get('recents', []).filter(valid);
+  if (saved.length) return saved;
+  if (!players.length) return [];
+  const p = players[0].id;
+  return [
+    { gameId: 'x01', opts: { start: 501, legs: 1, sets: 1 }, players: [p, BOT], bot: setup.bot ?? 5 },
+    { gameId: 'clock', opts: {}, players: [p], bot: setup.bot ?? 5 },
+  ];
+}
+function quickStartsHtml() {
+  const list = quickPresets();
+  if (!list.length) return '';
+  const describe = r => {
+    const g = gameById(r.gameId);
+    const title = r.gameId === 'x01' ? `${r.opts?.start ?? 501}${r.opts?.legs > 1 ? ` · ${r.opts.legs} legs` : ''}` : g.name;
+    const who = r.players.map(id => id === BOT ? `Bot ${r.bot ?? 5}` : nameOf(id)).join(', ');
+    return { title, who };
+  };
+  return `<div class="quickstarts"><h3>Quick start</h3><div class="qlist">${list.map((r, i) => {
+    const { title, who } = describe(r);
+    return `<button class="qcard" data-quickstart="${i}"><b>${esc(title)}</b><span>${esc(who)}</span></button>`;
+  }).join('')}</div></div>`;
+}
+function warmupLine() {
+  if (!players.length) return '';
+  const { days, doneToday } = practiceStreak(store);
+  const tag = days ? `${days}-day streak${doneToday ? ' ✓' : ''}` : 'Clock → Bob\'s 27 → 121';
+  return `<button class="tourline link" data-act="warmup"><b>Daily warm-up</b> <span>${tag}</span></button>`;
+}
+function warmupHtml() {
+  if (!players.length) return '';
+  const { days, doneToday } = practiceStreak(store);
+  const badge = days ? `${days}-day streak${doneToday ? ' ✓' : ''}` : 'Start your streak';
+  const chain = WARMUP_STEPS.map(s => s.short).join(' → ');
+  return `<button class="warmup warmup-phone" data-act="warmup">
+    <span><b>Daily warm-up</b><small>${chain}</small></span>
+    <span class="streak ${days ? 'lit' : ''}">${badge}</span>
+  </button>`;
+}
 // An option's name with its "?" after it, kept on a line with the name's last word.
 function optLabelHelp(o) {
   const cut = o.label.lastIndexOf(' ') + 1;

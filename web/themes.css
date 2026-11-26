@@ -210,6 +210,9 @@
 .t-chalk :is(input[type=text], input[type=number], input[type=date]):focus { border-bottom-color: var(--accent); outline: none; }
 .t-chalk .opt > span { color: var(--text); }
 .t-chalk .tile { border-bottom-color: var(--hair); }
+.t-chalk .chart-card { background: var(--sunk); border: 0; border-radius: var(--wobble); }
+.t-chalk .h2h-row { background: var(--sunk); border: 0; border-radius: var(--wobble); }
+.t-chalk .wthemes { border-top-color: var(--hair); }
 .t-chalk .camstate, .t-chalk .camoff { background: var(--sunk); border: 0; border-radius: var(--wobble); }  /* cut in: their buttons stand proud */
 .t-chalk .camextra, .t-chalk .camside .camlink { border-top-color: var(--hair); }
 .t-chalk .banner { background: var(--sunk); border: 0; border-radius: var(--wobble); }
