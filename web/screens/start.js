@@ -9,6 +9,7 @@
 
 import { compute, gameById, newMatch } from '../engine.js';
 import { buildBoard, bullMm, bullUp, label } from '../board.js';
+import { starterCall } from '../voice.js';
 import { botLevel, throwAt } from '../bot.js';
 import { renderHome, startOpts } from './home.js';
 import { BOT_WAIT, gameBoard, renderGame } from './game.js';
@@ -204,9 +205,7 @@ export function startMatch(act, play, order) {
   }
   if (play.tournament) onMatchStarted(match);
   const opening = compute(match), aim = gameById(match.gameId).aim?.(opening);  // the first thing to aim at (Random Targets, Around the Clock)
-  const who = opening.players.length > 1 ? opening.players[opening.current] : '';  // who throws first, when there is more than one
-  const opener = aim ? (who ? `${who}, aim for ${aim}` : `Aim for ${aim}`) : who && `${who} to throw first`;
-  say(opener ? `Game on. ${opener}` : 'Game on');
+  say(starterCall(opening.players, opening.current, { aim }));
   renderGame();
   mark(act === 'start');
 }

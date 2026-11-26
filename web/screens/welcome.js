@@ -7,7 +7,7 @@
 
 import { shareAsk } from './sharing.js';
 import { camScreen } from './cameras.js';
-import { $app, THEMES, account, applyTheme, begin, data, esc, fit, loadPlayers, open, saveSetup, setScreen, setup, store } from '../app.js';
+import { $app, COUNTRIES, THEMES, account, applyTheme, begin, data, esc, fit, loadPlayers, open, saveSetup, setPlayerFlag, setScreen, setup, store } from '../app.js';
 
 // Visual swatch colours for the live theme picker on the welcome screen.
 const SWATCH = {
@@ -47,6 +47,7 @@ export const welcomeDue = () => account.hosted && !!account.account && store.get
 export const nameDue = () => account.hosted && !!account.account && store.get('unnamed', null) === account.account.id;
 export const welcomeForm = {
   name: '',  // their name, once given
+  flag: '',  // their country code
   note: '',  // why it was refused
   step: '',  // '' their name, then 'camera'
 };
@@ -62,8 +63,12 @@ export function renderWelcome() {
       <button class="game-card" data-act="welcome-nocam"><b>No, I'll tap the board</b></button>
     </div>`
     : `<b class="camlead">Welcome to Darts S.A.M</b>
-    <p class="dim"><label for="welcome-name">What's your name?</label></p>
-    <div class="row camadd"><input type="text" id="welcome-name" maxlength="16" autocomplete="off" value="${esc(welcomeForm.name)}">
+    <p class="dim"><label for="welcome-name">What's your name and country?</label></p>
+    <div class="row camadd"><input type="text" id="welcome-name" placeholder="Your name" maxlength="16" autocomplete="off" value="${esc(welcomeForm.name)}">
+      <select class="plain" id="welcome-flag" aria-label="Country">
+        <option value="">Country…</option>
+        ${COUNTRIES.map(([code, flag, name]) => `<option value="${code}" ${code === welcomeForm.flag ? 'selected' : ''}>${flag} ${name}</option>`).join('')}
+      </select>
       <button class="primary" data-act="welcome-name">Continue</button></div>
     ${welcomeForm.note ? `<p class="warn">${esc(welcomeForm.note)}</p>` : ''}`;
   $app.innerHTML = `<div class="page"><div class="camsetup fill">
@@ -74,9 +79,17 @@ export function renderWelcome() {
 }
 export function welcomeNamed() {
   welcomeForm.name = document.getElementById('welcome-name').value.trim();
-  welcomeForm.note = welcomeForm.name ? '' : 'Type your name first.';
-  if (welcomeForm.name && nameDue()) return nameAccount();
-  if (welcomeForm.name) welcomeForm.step = 'camera';
+  welcomeForm.flag = document.getElementById('welcome-flag')?.value ?? '';
+  if (!welcomeForm.name) { welcomeForm.note = 'Type your name first.'; return renderWelcome(); }
+  if (!welcomeForm.flag) {
+    welcomeForm.note = 'Pick your country.';
+    renderWelcome();
+    document.getElementById('welcome-flag')?.focus();
+    return;
+  }
+  welcomeForm.note = '';
+  if (nameDue()) return nameAccount();
+  welcomeForm.step = 'camera';
   renderWelcome();
 }
 // Hosted, signed up by email: the account and its player take the name given.
@@ -98,6 +111,7 @@ export function finishWelcome(camera) {
   else try {
     const p = data.addPlayer(welcomeForm.name);
     loadPlayers();
+    if (welcomeForm.flag) setPlayerFlag(p.id, welcomeForm.flag);
     setup.players = [p.id];  // ready to throw
     saveSetup();
   } catch (e) {

@@ -6,10 +6,11 @@
 // state is always recomputed by replaying the log, which makes undo trivial
 // (drop the last entry) and keeps every game a small pure module.
 //
-// Log entries:  {t:'dart', seg, mult, x?, y?, ts?, src?}   or   {t:'next'}
+// Log entries:  {t:'dart', seg, mult, x?, y?, ts?, src?}   or   {t:'next', force?}
 //               ('next' before the third dart counts the rest as misses; play
 //               moves on by itself after the third, so a 'next' straight after
-//               that does nothing)
+//               that does nothing unless force: true, used by No score)
+//          or   {t:'bust'}   ends the current visit as a bust (games with bust() only)
 //          or   {t:'visit', total, darts?}   a whole visit typed in as one
 //               number (games with visit() only); darts is how many it took,
 //               which only differs from 3 on a finish.
@@ -148,9 +149,10 @@ function throwDart(game, s, ev) {
     // A bust ends the visit there and then: play moves straight on rather
     // than waiting for the remaining darts or a takeout.
     for (const t of s.throws.slice(-s.turn.length)) t.bust = true;
-    const who = s.current;
-    advance(game, s);
+    const who = s.current, leg = s.winner == null && s.newLeg;
+    if (s.winner == null) advance(game, s);
     s.bust = who;
+    if (leg) s.legWon = { player: leg.winner ?? who, set: leg.set };
     return true;
   }
   if (s.note === 'NO_OUT') {
@@ -164,9 +166,9 @@ function throwDart(game, s, ev) {
   if (s.newLeg && s.winner == null) {
     // The leg is won but not the match: straight on to whoever starts the
     // next leg. The winning darts stay on show as the last visit.
-    const who = s.current, darts = s.turn, set = s.newLeg.set;
+    const who = s.current, darts = s.turn, leg = s.newLeg;
     advance(game, s);
-    s.legWon = { player: who, set };
+    s.legWon = { player: leg.winner ?? who, set: leg.set };
     s.lastVisit = { player: who, total: darts.reduce((t, d) => t + value(d), 0), darts, auto: true };
     return true;
   }
@@ -198,12 +200,13 @@ export function compute(match) {
   for (const ev of match.log) {
     if (s.winner != null) break;
     const movedOn = s.lastVisit?.auto;
+    const justBusted = s.bust != null;
     s.bust = null;
     s.noOut = null;
     s.lastVisit = null;
     s.legWon = null;
     if (ev.t === 'next') {
-      if (movedOn) continue;  // the third dart already moved play on
+      if (movedOn && !ev.force) continue;  // the third dart already moved play on
       // Moving on early: any darts not entered count as misses, so the visit
       // is still three darts and scores nothing for the ones left out.
       let moved = false;
@@ -212,6 +215,25 @@ export function compute(match) {
       }
       if (!moved && s.winner == null) advance(game, s);
       if (s.lastVisit) s.lastVisit.auto = false;  // asked for: another 'next' skips a player
+      continue;
+    }
+    if (ev.t === 'bust') {
+      if (ev.replay && justBusted) continue;  // replay of a visit whose dart already busted
+      if (!game.bust) continue;
+      const who = s.current;
+      if (s.turn.length) {
+        for (const t of s.throws.slice(-s.turn.length)) t.bust = true;
+      } else {
+        for (let i = 0; i < 3; i++) s.throws.push({
+          player: who, round: s.round, seg: 0, mult: i ? 0 : 1,
+          x: null, y: null, src: 'visit', ts: ev.ts ?? null, bust: true,
+        });
+      }
+      game.bust(s);
+      const leg = s.winner == null && s.newLeg;
+      if (s.winner == null) advance(game, s);
+      s.bust = who;
+      if (leg) s.legWon = { player: leg.winner ?? who, set: leg.set };
       continue;
     }
     if (s.turnOver) advance(game, s);
@@ -229,7 +251,7 @@ export function compute(match) {
       const bust = s.note === 'BUST', leg = s.winner == null && s.newLeg;
       if (s.winner == null) advance(game, s);  // nothing to pull: straight on
       if (bust) s.bust = who; else s.lastVisit = { player: who, total: ev.total };
-      if (leg) s.legWon = { player: who, set: leg.set };
+      if (leg) s.legWon = { player: leg.winner ?? who, set: leg.set };
       continue;
     }
     throwDart(game, s, ev);

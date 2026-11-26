@@ -8,7 +8,7 @@
 import { GAMES } from '../games/index.js';
 import { clock, gameById, timeSpent } from '../engine.js';
 import { buildBoard, label } from '../board.js';
-import { ENOUGH, X01_TILES, boardsSideBySide, dartTable, headToHead, matchSummary, setsSideBySide, visitsOf, visitsWith, x01Brackets, x01Legs, x01Stats, x01Tile, x01Trend } from '../stats.js';
+import { ENOUGH, X01_TILES, boardsSideBySide, dartTable, headToHead, matchSummary, setsSideBySide, statsCsv, visitsOf, visitsWith, x01Brackets, x01Legs, x01Stats, x01Tile, x01Trend } from '../stats.js';
 import { boardName } from '../boards.js';
 import { renderLanding } from './landing.js';
 import { achTab, achievementView, achievementsPane } from './achievements.js';
@@ -56,6 +56,20 @@ const GAME_TILES = {
   c121: [['Checkout rate', 'rate', '%'], ['Checkouts hit', 'made'], ['Highest checkout', 'highest'],
     ['Average darts per checkout', 'avg_darts']],
 };
+export function exportStatsCsv() {
+  if (!statsData) return;
+  const matches = deep(statsData).matches;
+  if (!matches.length) return;
+  const csv = statsCsv(matches);
+  const slug = s => String(s || 'all').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'stats';
+  const name = `darts-sam-${slug(statsData.player?.name)}-${slug(statsView.game ?? 'all')}.csv`;
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 export async function renderPlayers(id = statsView.player) {
   if (account.locked) return renderLanding();
   setScreen('players');
@@ -396,7 +410,8 @@ export function drawPlayers() {
         ...boards.map(b => [b.id, boardName(b, boards)])].map(([id, name]) => `<option value="${esc(id)}" ${id === (statsView.board ?? '') ? 'selected' : ''}>${
         esc(name)}</option>`).join('')}</select></label>` : ''}</div>
     <div class="row tabs">${STAT_TABS.map(([id, name]) =>
-      `<button class="${lit(id) ? 'on' : ''}" data-tab="${id}">${name}</button>`).join('')}</div>
+      `<button class="${lit(id) ? 'on' : ''}" data-tab="${id}">${name}</button>`).join('')}${
+      st && deep(st).matches.length ? '<button class="ghost export-csv" data-act="export-csv" title="Download filtered visit history as CSV">Export CSV</button>' : ''}</div>
     ${old}<div class="fill panes tab-${tab}">${message || panes()}</div>
     ${pageFoot('players')}
   </div>`;

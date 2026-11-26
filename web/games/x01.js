@@ -109,9 +109,21 @@ function wonLeg(s, p) {
   if (set) s.legs.fill(0);
   s.score.fill(s.opts.start);
   s.opened.fill(s.opts.in !== 'double');
+  s.legThrown.fill(0);
   // The throw passes round with each leg, and with each set: the player who
   // threw first in one set throws second in the next, however many legs it took.
-  s.newLeg = { starter: (sum(s.sets) + sum(s.legs)) % s.players.length, set };
+  s.newLeg = { starter: (sum(s.sets) + sum(s.legs)) % s.players.length, set, winner: p };
+}
+
+// If a per-leg dart cap is set and everyone has thrown that many darts in this
+// leg without checking out, the player with the lowest score left wins the leg.
+function checkCap(s) {
+  const cap = s.opts.maxDarts || 0;
+  if (!cap || s.winner != null || s.newLeg) return;
+  if (s.legThrown.every(n => n >= cap)) {
+    const best = Math.min(...s.score);
+    wonLeg(s, s.score.indexOf(best));
+  }
 }
 
 export default {
@@ -137,6 +149,10 @@ export default {
       help: v => v === 'master' ? 'Finish on any double, treble, or bullseye.'
         : v === 'straight' ? 'Finish on any bed that brings your score to exactly zero.'
         : 'The last dart must be a double or the bullseye.' },
+    { key: 'maxDarts', label: 'Max darts per leg', choices: [[0, 'Unlimited'], [30, '30'], [45, '45'], [60, '60']], default: 0,
+      brief: v => v ? `max ${v} darts` : '',
+      help: v => v ? `Each player gets up to ${v} darts per leg. If nobody checks out in time, the lowest score left wins the leg.`
+        : 'No dart limit: legs play until someone checks out on zero.' },
   ],
 
   init(n, opts) {
@@ -146,6 +162,7 @@ export default {
       turnStartScore: opts.start,
       points: Array(n).fill(0),  // for averages, over the whole match
       thrown: Array(n).fill(0),
+      legThrown: Array(n).fill(0),
       legs: Array(n).fill(0),    // legs won in the set being played
       sets: Array(n).fill(0),    // sets won
     };
@@ -156,8 +173,9 @@ export default {
   dart(s, d) {
     const p = s.current, outMode = s.opts.out ?? 'double';
     s.thrown[p]++;
+    s.legThrown[p]++;
     if (!s.opened[p]) {
-      if (d.mult !== 2) return;
+      if (d.mult !== 2) { checkCap(s); return; }
       s.opened[p] = true;
     }
     const left = s.score[p] - value(d);
@@ -165,15 +183,33 @@ export default {
     const badOut = left === 0 && ((outMode === 'double' && d.mult !== 2) || (outMode === 'master' && d.mult < 2));
     if (left < 0 || badLeave || badOut) {
       s.points[p] -= s.turnStartScore - s.score[p];
-      s.thrown[p] += 3 - s.turn.length;  // a bust uses up the whole visit
+      const rem = 3 - s.turn.length;  // a bust uses up the whole visit
+      s.thrown[p] += rem;
+      s.legThrown[p] += rem;
       s.score[p] = s.turnStartScore;
       s.note = 'BUST';
       s.turnOver = true;
+      checkCap(s);
       return;
     }
     s.score[p] = left;
     s.points[p] += value(d);
     if (left === 0) wonLeg(s, p);
+    else checkCap(s);
+  },
+
+  canBust(s) { return s.score[s.current] <= (3 - s.turn.length) * 60; },
+
+  bust(s) {
+    const p = s.current;
+    s.points[p] -= s.turnStartScore - s.score[p];
+    const rem = 3 - s.turn.length;  // a bust uses up the whole visit
+    s.thrown[p] += rem;
+    s.legThrown[p] += rem;
+    s.score[p] = s.turnStartScore;
+    s.note = 'BUST';
+    s.turnOver = true;
+    checkCap(s);
   },
 
   // A whole visit typed in as one number.
@@ -183,13 +219,17 @@ export default {
     const left = s.score[p] - total;
     if (left < 0 || (outMode !== 'straight' && left === 1)) {
       s.thrown[p] += 3;
+      s.legThrown[p] += 3;
       s.note = 'BUST';
+      checkCap(s);
       return;
     }
     s.score[p] = left;
     s.points[p] += total;
     s.thrown[p] += n;
+    s.legThrown[p] += n;
     if (left === 0) wonLeg(s, p);
+    else checkCap(s);
   },
 
   // If `total` would finish the leg: how many darts that could have taken.
@@ -202,10 +242,11 @@ export default {
   summary(s, i) {
     const avg = s.thrown[i] ? (s.points[i] / s.thrown[i] * 3).toFixed(1) : '–';
     // A bust counts as a full visit of three darts, the same as in the average.
-    const n = s.thrown[i];
+    const n = s.thrown[i], cap = s.opts.maxDarts || 0;
     const tally = [setsTo(s) > 1 ? `sets ${s.sets[i]}` : '', legsTo(s) > 1 || setsTo(s) > 1 ? `legs ${s.legs[i]}` : '']
       .filter(Boolean).map(t => t + ' · ').join('');
-    return { big: s.score[i], small: `${tally}${n} dart${n === 1 ? '' : 's'} · avg ${avg}` };
+    const dartsText = cap ? `${s.legThrown[i]}/${cap} darts` : `${n} dart${n === 1 ? '' : 's'}`;
+    return { big: s.score[i], small: `${tally}${dartsText} · avg ${avg}` };
   },
 
   // The TV scoreboard (one line per player along the bottom, as on a broadcast):

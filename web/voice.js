@@ -37,6 +37,17 @@ export function rank(voices) {
   return [...voices].filter(v => score(v) > -100).sort((a, b) => score(b) - score(a));
 }
 
+// How the caller announces the start of a match or a new leg/set.
+export function starterCall(players, starter, { aim = '', leg = false, set = false } = {}) {
+  const who = players.length > 1 ? players[starter] : '';
+  if (leg) {
+    const label = set ? 'Next set' : 'Next leg';
+    return who ? `${label}, ${who} to throw first` : label;
+  }
+  const opener = aim ? (who ? `${who}, aim for ${aim}` : `Aim for ${aim}`) : who && `${who} to throw first`;
+  return opener ? `Game on. ${opener}` : 'Game on';
+}
+
 export function createVoice({
   synth = globalThis.speechSynthesis,
   Utterance = globalThis.SpeechSynthesisUtterance,

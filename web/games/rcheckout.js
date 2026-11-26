@@ -104,6 +104,16 @@ export default {
     }
   },
 
+  canBust(s) { return s.left[s.current] <= (3 - s.turn.length) * 60; },
+
+  bust(s) {
+    const p = s.current;
+    s.used[p] += 3 - s.turn.length;  // a bust uses up the whole visit
+    s.left[p] = s.turnStartLeft;
+    s.note = 'BUST';
+    if (s.used[p] >= s.opts.darts) settle(s, false);
+  },
+
   summary(s, i) {
     const done = s.winner == null && this.out(s, i);
     return { big: done ? s.made[i] : s.left[i], small: `${s.made[i]} of ${s.tried[i]} out`, out: done };

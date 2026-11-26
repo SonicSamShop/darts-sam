@@ -51,6 +51,7 @@ export const said = [];
 export const say = text => { said.push(text); };
 // What the players' cards ask of the app as well (web/screens/playerspanel.js).
 export const MAX_PLAYERS = 8, cleanSetup = () => {}, grams = g => `${g} g`, setDarts = () => {}, setsOf = () => [];
+export const COUNTRIES = [], flagCode = () => '', flagOf = () => '', flagHtml = () => '', setPlayerFlag = () => {};
 // What the menu asks of the app as well (web/screens/home.js): nothing is fetched, and no new version looked for.
 export const connected = false, totals = null, setTotals = () => {}, statsPath = () => '', loadStats = async () => ({});
 export const updater = { check() {} };

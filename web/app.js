@@ -28,11 +28,11 @@ import {
 import { closeSection, listShown, openSection, renderSettings, sectShown, settingsView } from './screens/settings.js';
 import { boardAct } from './screens/boardspanel.js';
 import { loadRelease } from './screens/release.js';
-import { deep, drawPlayers, renderPlayers, renderSheet, sheet, statsData, statsView } from './screens/stats.js';
+import { deep, drawPlayers, exportStatsCsv, renderPlayers, renderSheet, sheet, statsData, statsView } from './screens/stats.js';
 import { avgAsked, followSuggestion, loadAverages, loadRules, loadTotals, menu, quickPresets, renderHome } from './screens/home.js';
 import { slipTapped } from './screens/earned.js';
 import {
-  askQuit, botThrow, botTimer, botUp, closeQuit, endHold, numPad, padCommit, padKey, padQuick, push, renderGame, toggleMatchStats, undo
+  askQuit, botThrow, botTimer, botUp, bustVisit, closeQuit, endHold, noScore, numPad, padCommit, padKey, padQuick, push, renderGame, toggleMatchStats, undo
 } from './screens/game.js';
 import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, playRemapped, renderBull, startMatch
@@ -231,6 +231,28 @@ export function randomOrder(ids) {
 // when the sync is over: a dart thrown in between would save the old number back, and the game could never be sent.)
 export const data = createSync({ store, api, changed: synced, renumbered: () => { match = store.get('match', null); } });
 export function saveSetup() { data.saveSetting('setup', setup); data.sync(); }
+export const COUNTRIES = [
+  ['GB-ENG', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'England'], ['GB-SCT', '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scotland'], ['GB-WLS', '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'Wales'],
+  ['GB-NIR', '🇬🇧', 'Northern Ireland'], ['GB', '🇬🇧', 'United Kingdom'], ['IE', '🇮🇪', 'Ireland'],
+  ['NL', '🇳🇱', 'Netherlands'], ['DE', '🇩🇪', 'Germany'], ['BE', '🇧🇪', 'Belgium'],
+  ['AU', '🇦🇺', 'Australia'], ['NZ', '🇳🇿', 'New Zealand'], ['US', '🇺🇸', 'United States'],
+  ['CA', '🇨🇦', 'Canada'], ['AT', '🇦🇹', 'Austria'], ['PL', '🇵🇱', 'Poland'],
+  ['CZ', '🇨🇿', 'Czechia'], ['SE', '🇸🇪', 'Sweden'], ['DK', '🇩🇰', 'Denmark'],
+  ['NO', '🇳🇴', 'Norway'], ['FI', '🇫🇮', 'Finland'], ['FR', '🇫🇷', 'France'],
+  ['ES', '🇪🇸', 'Spain'], ['PT', '🇵🇹', 'Portugal'], ['IT', '🇮🇹', 'Italy'],
+  ['CH', '🇨🇭', 'Switzerland'], ['HR', '🇭🇷', 'Croatia'], ['LT', '🇱🇹', 'Lithuania'],
+  ['LV', '🇱🇻', 'Latvia'], ['ZA', '🇿🇦', 'South Africa'], ['JP', '🇯🇵', 'Japan'],
+  ['PH', '🇵🇭', 'Philippines'], ['BR', '🇧🇷', 'Brazil'], ['IN', '🇮🇳', 'India'], ['CN', '🇨🇳', 'China'],
+];
+export const flagCode = id => (id != null && settings.flags?.[id]) || '';
+export const flagOf = id => COUNTRIES.find(([c]) => c === flagCode(id))?.[1] ?? '';
+export const flagHtml = id => { const f = flagOf(id); return f ? `<span class="flag" aria-hidden="true">${f}</span>` : ''; };
+export function setPlayerFlag(id, code) {
+  const next = { ...(settings.flags ?? {}) };
+  if (code) next[id] = code; else delete next[id];
+  settings.flags = next;
+  saveSettings();
+}
 export function saveSettings() { data.saveSetting('settings', settings); data.sync(); }
 // Every change to a match is queued as a full copy of the match.
 export function queueSync() {
@@ -256,7 +278,14 @@ function synced({ remapped, pulled, sent, tournaments }) {
   settings = store.get('settings', settings);
   delete settings.board;
   match = store.get('match', null);
-  for (const [old, id] of remapped) if (statsView.player === old) statsView.player = id;
+  for (const [old, id] of remapped) {
+    if (statsView.player === old) statsView.player = id;
+    if (settings.flags?.[old]) {
+      settings.flags = { ...settings.flags, [id]: settings.flags[old] };
+      delete settings.flags[old];
+      saveSettings();
+    }
+  }
   tourRemapped(remapped);
   playRemapped(remapped);
   cleanSetup();
@@ -804,6 +833,7 @@ $app.addEventListener('click', e => {
       saveSettings();
       return renderGame();
     case 'matchstats': return toggleMatchStats();
+    case 'export-csv': return exportStatsCsv();
     case 'sharecard': return shareMatchCard(match);
     case 'tv': settings.view = settings.view === 'tv' ? 'cards' : 'tv'; saveSettings(); return renderGame();
     case 'sfx-toggle':
@@ -812,6 +842,8 @@ $app.addEventListener('click', e => {
       if (settings.sfx) sfx.dart({ seg: 20, mult: 3 });
       return renderGame();
     case 'miss': return botUp() ? undefined : push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
+    case 'noscore': return noScore();
+    case 'bust': return bustVisit();
     case 'holdgo': return endHold();
     case 'botgo': return botUp() ? (clearTimeout(botTimer), botThrow()) : undefined;
     case 'next':
@@ -874,6 +906,10 @@ $app.addEventListener('change', e => {
     saveSettings();
     return;
   }
+  if (e.target.dataset?.flag !== undefined) {
+    setPlayerFlag(+e.target.dataset.flag, e.target.value);
+    return renderSettings();
+  }
   if (e.target.dataset?.tapnumber !== undefined) { camScreen.number = +e.target.value; return renderCameras(); }
   if (e.target.dataset?.place !== undefined) return placeCamera(+e.target.dataset.place, e.target.value);
   if (e.target.dataset?.camset !== undefined) return cameraSettings();
@@ -928,6 +964,14 @@ document.addEventListener('keydown', e => {
   if (k === 'm' && !pad && s.winner == null && !botUp(s)) {
     e.preventDefault();
     return push({ t: 'dart', seg: 0, mult: 0, src: 'miss' });
+  }
+  if (k === 'n' && s.winner == null) {
+    e.preventDefault();
+    return noScore();
+  }
+  if (k === 'b' && s.winner == null) {
+    e.preventDefault();
+    return bustVisit();
   }
   if (e.key === ' ' && !pad && s.winner == null && !botUp(s)) {
     e.preventDefault();

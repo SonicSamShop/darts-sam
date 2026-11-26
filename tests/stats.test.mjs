@@ -7,7 +7,7 @@
 // out from the history the server sends.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, x01Trend, x01Brackets, headToHead, visitsOf, dartTable, visitsWith, setsSideBySide, boardsSideBySide } from '../web/stats.js';
+import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, x01Trend, x01Brackets, headToHead, statsCsv, visitsOf, dartTable, visitsWith, setsSideBySide, boardsSideBySide } from '../web/stats.js';
 import { practiceStreak, recordPracticeDay } from '../web/routine.js';
 
 const T20 = 203, S20 = 201, D20 = 202, D16 = 162, S1 = 11, MISS = 0;
@@ -212,4 +212,29 @@ test('practiceStreak counts consecutive practice days', () => {
   assert.deepEqual(practiceStreak(st, new Date(2026, 10, 26)), { days: 2, doneToday: false });
   recordPracticeDay(st, new Date(2026, 10, 26));
   assert.deepEqual(practiceStreak(st, new Date(2026, 10, 26)), { days: 3, doneToday: true });
+});
+
+test('statsCsv exports X01 and non-X01 visits as RFC 4180 CSV', () => {
+  const m1 = {
+    id: 'm1', game: 'x01', name: 'X01', started: 1700000000000, me: 0, winner: 0,
+    players: ['Sam, Jr.', 'Alex'], opts: { start: 301, out: 'double' },
+    visits: [
+      [0, 1, 1700000001000, 0, [203, 203, 203]],
+      [1, 1, 1700000002000, 0, null, 60, 3],
+      [0, 2, 1700000003000, 0, [203, 193, 22]],
+    ],
+  };
+  const m2 = {
+    id: 'm2', game: 'countup', name: 'Count Up', started: 1700000010000, me: 0, winner: 0,
+    players: ['Sam'], opts: { rounds: 1 },
+    visits: [[0, 1, 1700000011000, 0, [201, 201, 0]]],
+  };
+  const csv = statsCsv([m1, m2]);
+  const lines = csv.trim().split('\r\n');
+  assert.equal(lines.length, 4);
+  assert.match(lines[0], /^Date,Match ID,Game,Players,Result,Leg,Round,Score,Bust,Darts Thrown,Darts,Left Before,Left After,Checkout$/);
+  assert.ok(lines[1].includes('"Sam, Jr. vs Alex"'));
+  assert.ok(lines[1].includes(',Won,1,1,180,No,3,T20 T20 T20,301,121,No'));
+  assert.ok(lines[2].includes(',Won,1,2,121,No,3,T20 T19 D2,121,0,Yes'));
+  assert.ok(lines[3].includes(',m2,Count Up,Sam,Finished,,1,40,No,3,20 20 Miss,,,'));
 });

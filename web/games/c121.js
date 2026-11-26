@@ -112,6 +112,16 @@ export default {
     }
   },
 
+  canBust(s) { return s.left[s.current] <= (3 - s.turn.length) * 60; },
+
+  bust(s) {
+    const p = s.current;
+    s.used[p] += 3 - s.turn.length;  // a bust uses up the whole visit
+    s.left[p] = s.turnStartLeft;
+    s.note = 'BUST';
+    stillOn(s);
+  },
+
   // A whole visit typed in as one number, for playing without a camera.
   // Visits always start on a multiple of three darts, so there are three to throw.
   visit(s, total, n) {

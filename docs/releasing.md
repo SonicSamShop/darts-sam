@@ -11,8 +11,9 @@ push to `main`. GitHub builds the apps (named with the version, such as
 `DartsSAM-windows-1.1`), the server puts them on the download page
 (`tools/fetch_apps.py`), and each desktop app that starts after that offers the
 new version: it downloads it, checks it is genuine and puts it in place of
-itself, to start next time (or straight away between games, if the player
-switched that on under Settings › About). Where it can't replace itself (Linux,
+itself, restarting onto it straight away between games (or next time it opens,
+if the player switched Restart for updates between games off under
+Settings › About). Where it can't replace itself (Linux,
 or an app kept somewhere it may not write to), it offers the new version with
 its notes instead (`server/release.py`). Apps older than the release that brought this in update the
 old way once, to the version that does this.

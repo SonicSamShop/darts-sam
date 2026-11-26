@@ -7,6 +7,7 @@
 
 import { clock, compute, elapsed, gameById, previousVisit } from '../engine.js';
 import { buildBoard, label, spoken, value } from '../board.js';
+import { starterCall } from '../voice.js';
 import { matchSheet } from '../sync.js';
 import { botLevel } from '../bot.js';
 import { renderLanding } from './landing.js';
@@ -19,7 +20,7 @@ import {
   loadBases, photoAsk, photosOn, slipHtml
 } from './earned.js';
 import {
-  $app, account, cameraCount, connected, dartsName, data, esc, fit, goHome, icon, mark, match, phone, queueSync,
+  $app, account, cameraCount, connected, dartsName, data, esc, fit, flagHtml, goHome, icon, mark, match, phone, queueSync,
   refreshStatus, say, screen, setMatch, setScreen, setsOf, settings, sfx, sfxOn, store, tracker
 } from '../app.js';
 
@@ -106,9 +107,9 @@ const flashHtml = s => {
   const n = typeof flash.text === 'number' ? flash.text : 0;
   const cls = flash.bust ? `bust${flash.noOut ? ' noout' : ''}` : n >= 180 ? 'max' : n >= 100 ? 'ton' : '';
   const sub = flash.noOut ? 'Not enough darts left' : flash.bust ? 'Scores nothing'
-    : n >= 180 ? 'Maximum!' : n >= 140 ? 'Ton forty!' : n >= 100 ? 'Ton+!' : 'Scored this visit';
+    : n >= 180 ? 'Maximum!' : n >= 140 ? 'Ton forty!' : n >= 100 ? 'Ton+!' : n === 0 ? 'No score' : 'Scored this visit';
   return `<div class="vflash ${cls}" role="status">
-  ${s.players.length > 1 ? `<div class="name">${esc(s.players[flash.player])}</div>` : ''}
+  ${s.players.length > 1 ? `<div class="name">${playerFlag(flash.player)}${esc(s.players[flash.player])}</div>` : ''}
   <div class="big">${flash.text}</div><div class="small">${sub}</div></div>`;
 };
 
@@ -177,24 +178,26 @@ export function push(ev) {
     rest = ["Can't check out", require];
   } else if (after.lastVisit) {
     // Play has already moved on. Games where the sum means nothing skip the total.
-    rest = [game.showTotal === false ? '' : after.lastVisit.total, require];
+    rest = [game.showTotal === false ? '' : after.lastVisit.total === 0 ? 'No score' : after.lastVisit.total, require];
   } else if (after.turnOver && !before.turnOver) {
-    rest = [game.showTotal === false ? '' : after.turn.reduce((t, d) => t + value(d), 0)];
+    const sum = after.turn.reduce((t, d) => t + value(d), 0);
+    rest = [game.showTotal === false ? '' : sum === 0 ? 'No score' : sum];
   } else rest = [require];
   // What the dart did, in games that have something to say about it (Killer).
   const call = ev.t === 'dart' ? game.call?.(after) ?? '' : '';
   // With two or more playing, whoever is up is called by name as their visit
-  // begins. "You require" above already names them.
+  // begins. "You require" above already names them; a new leg announces who throws first.
+  const legStart = after.legWon ? starterCall(after.players, after.current, { leg: true, set: after.legWon.set }) : '';
   const began = after.winner == null && !after.turn.length && !after.turnOver
     && (after.throws.length !== before.throws.length || after.current !== before.current || after.round !== before.round);
-  const name = began && after.players.length > 1 && !require ? after.players[after.current] : '';
+  const name = began && after.players.length > 1 && !require && !legStart ? after.players[after.current] : '';
   // What to aim at (Random Targets, Around the Clock) is called out last, when
   // it changes and at the start of every visit: "Next, Treble 16", or "Sam,
   // Treble 16" for the next thrower. Alone and still on the same one: "Aim for 5".
   const aimAt = t => (t.winner == null ? game.aim?.(t) ?? '' : '');
   const changed = aimAt(after) !== aimAt(before);
   const aim = began || changed ? aimAt(after) : '';
-  const next = name ? (aim ? `${name}, ${aim}` : name) : aim && `${changed ? 'Next,' : 'Aim for'} ${aim}`;
+  const next = legStart || (name ? (aim ? `${name}, ${aim}` : name) : aim && `${changed ? 'Next,' : 'Aim for'} ${aim}`);
   const said = [dart, call, ...rest, ...earned, next].filter(x => x !== '');
   if (said.length) say(said.join('. '));
   if (sfxOn()) {
@@ -204,7 +207,8 @@ export function push(ev) {
     else if (after.bust != null || after.noOut != null) sfx.bust();
     else if (game.showTotal !== false && scored >= 100) sfx.ton(scored);
     else if (ev.t === 'dart') sfx.dart(ev);
-    else if (ev.t === 'visit') sfx.dart({ seg: 20, mult: ev.total >= 60 ? 3 : 1 });
+    else if (ev.t === 'visit') sfx.dart(ev.total === 0 ? { seg: 0, mult: 0 } : { seg: 20, mult: ev.total >= 60 ? 3 : 1 });
+    else if (ev.t === 'next' && ev.force) sfx.dart({ seg: 0, mult: 0 });
   }
   holdVisit(before, after, ev);
   const f = visitFlash(game, before, after);
@@ -236,7 +240,7 @@ export function undo() {
 // as an unfinished game. Unticked (or with nothing thrown yet), nothing from it is
 // kept, here or on the server.
 let quitAsk = null;  // the question, while it is on screen
-const thrown = m => m.log.some(e => e.t === 'dart' || e.t === 'visit');
+const thrown = m => m.log.some(e => e.t === 'dart' || e.t === 'visit' || e.t === 'bust' || (e.t === 'next' && e.force));
 // A match of a tournament's bracket is given up, not quit: whoever quits is out, and the
 // other goes through (tournament.js, forfeit). Each person in it has a button saying so.
 function forfeitHtml(terms) {
@@ -324,16 +328,39 @@ export function padCommit(total, darts) {
   numPad.value = ''; numPad.ask = null; numPad.error = '';
   push({ t: 'visit', total, darts });
 }
+export function noScore() {
+  if (!match) return;
+  const game = gameById(match.gameId), s = compute(match);
+  if (s.winner != null || botUp(s) || s.turn.length || s.turnOver) return;
+  if (usingPad(game)) {
+    if (numPad.ask) return;
+    return padCommit(0, 3);
+  }
+  push({ t: 'next', force: true });
+}
+export function bustVisit() {
+  if (!match) return;
+  const game = gameById(match.gameId), s = compute(match);
+  if (s.winner != null || botUp(s) || s.turnOver || !game.bust || !game.canBust?.(s)) return;
+  if (usingPad(game) && (s.turn.length || numPad.ask)) return;
+  numPad.value = ''; numPad.ask = null; numPad.error = '';
+  push({ t: 'bust' });
+}
 function padHtml(s) {
+  const game = gameById(match.gameId);
   const midVisit = s.turn.length && !s.turnOver;
   const bot = botUp(s);
   const msg = numPad.error || (bot ? `${esc(s.players[s.current])} is throwing` : midVisit ? 'Finish this visit on the board, or undo those darts'
     : numPad.ask ? `${numPad.ask.total} to finish. How many darts?`
     : s.legWon ? `${esc(s.players[s.legWon.player])} won the ${s.legWon.set ? 'set' : 'leg'}`
+    : s.bust != null ? `${esc(s.players[s.bust])} busted`
     : s.lastVisit ? `${esc(s.players[s.lastVisit.player])} scored ${s.lastVisit.total}` : 'Type the visit total');
   const off = bot || midVisit || s.winner != null ? 'disabled' : '';
+  const bustOff = off || !game.canBust?.(s) ? 'disabled' : '';
   const quick = numPad.ask ? ''
-    : `<div class="pad-quick">${QUICK_SCORES.map(n => `<button data-quick="${n}" ${off}>${n}</button>`).join('')}</div>`;
+    : `<div class="pad-quick">${QUICK_SCORES.map(n => `<button data-quick="${n}" ${off}>${n}</button>`).join('')}</div>
+       <div class="pad-fast${game.bust ? '' : ' solo'}"><button data-act="noscore" ${off}>No score</button>${
+         game.bust ? `<button class="bust-btn" data-act="bust" ${bustOff}>Bust</button>` : ''}</div>`;
   const keys = numPad.ask
     ? numPad.ask.darts.map(n => `<button class="primary" data-fin="${n}">${n} dart${n > 1 ? 's' : ''}</button>`).join('')
       + '<button class="wide" data-key="cancel">Cancel</button>'
@@ -357,7 +384,7 @@ function tvHtml(game, s) {
     ${sets ? '<th>Sets</th>' : ''}<th>Legs</th><th>Score</th><td class="gap"></td>
     <th>100+</th><th>140+</th><th>180s</th><th>Average</th></tr></thead>
     ${rows.map(r => `<tr class="${s.winner === r.i ? 'win' : s.winner == null && r.i === s.current ? 'cur' : ''}">
-      <td class="name">${esc(r.p)}</td>${sets ? `<td>${r.sets}</td>` : ''}<td>${r.legs}</td><td class="score">${bigOf(r.i, r.score)}</td>
+      <td class="name">${playerFlag(r.i)}${esc(r.p)}</td>${sets ? `<td>${r.sets}</td>` : ''}<td>${r.legs}</td><td class="score">${bigOf(r.i, r.score)}</td>
       <td class="gap"></td><td>${r.t100}</td><td>${r.t140}</td><td>${r.t180}</td><td class="avg">${r.average}</td></tr>`).join('')}
   </table>`;
 }
@@ -373,6 +400,8 @@ export function toggleMatchStats() {
   gameBoard.boardBack = gameBoard.boardBack === match.id ? null : match.id;
   renderGame();
 }
+// The country flag for player i, if set on their profile.
+const playerFlag = i => flagHtml(match?.playerIds?.[i]);
 // The darts a player is throwing in this game, said beside their name once they have more than one set.
 function playingWith(i) {
   const set = match.darts?.[i], id = match.playerIds?.[i];
@@ -486,7 +515,7 @@ export function renderGame() {
     ${tv ? '' : flash ? `<div class="players">${flashHtml(s)}</div>` : `<div class="players">${s.players.map((p, i) => {
       const v = game.summary(s, i);
       return `<div class="pcard ${s.winner === i ? 'win' : s.winner == null && i === s.current ? 'cur' : ''}${v.out ? ' out' : ''}${moved(i)}">
-        <div class="name">${esc(p)}${playingWith(i)}</div><div class="big">${v.big}</div><div class="small">${v.small}</div></div>`;
+        <div class="name">${playerFlag(i)}${esc(p)}${playingWith(i)}</div><div class="big">${v.big}</div><div class="small">${v.small}</div></div>`;
     }).join('')}</div>`}
     ${game.panel ? game.panel(s) : ''}
     ${visit}
@@ -508,8 +537,12 @@ export function renderGame() {
         : pad ? '' : `<button data-act="miss" ${botUp(s) ? 'disabled' : ''}>Miss</button>
            <button class="primary end${s.turnOver ? ' ready' : ''}" data-act="next" ${botUp(s) ? 'disabled' : ''}>End turn</button>`}
     </div>
+    ${s.winner == null && !pad ? `<div class="quick-acts${game.bust ? '' : ' solo'}">
+      <button data-act="noscore" ${botUp(s) || s.turn.length || s.turnOver ? 'disabled' : ''}>No score</button>${
+      game.bust ? `<button class="bust-btn" data-act="bust" ${botUp(s) || s.turnOver || !game.canBust?.(s) ? 'disabled' : ''}>Bust</button>` : ''}
+    </div>` : ''}
     ${tools ? `<div class="tools">${tools}</div>` : ''}
-    ${s.winner == null ? `<div class="kbd-hint">${pad ? 'Keys: 0–9 type · Enter submit · Backspace delete · P board · Z undo' : 'Keys: M miss · Space end turn · Z undo · T TV · P keypad'}</div>` : ''}`;
+    ${s.winner == null ? `<div class="kbd-hint">${pad ? `Keys: 0–9 type · Enter submit · N no score${game.bust ? ' · B bust' : ''} · P board · Z undo` : `Keys: M miss · N no score${game.bust ? ' · B bust' : ''} · Space end turn · Z undo · T TV · P keypad`}</div>` : ''}`;
   // A score that has changed counts down (or up) to its new figure.
   const cards = [...document.querySelectorAll('.side .pcard .big')];
   if (cards.length) {

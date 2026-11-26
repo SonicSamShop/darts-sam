@@ -13,7 +13,7 @@
 // Every figure is counted from a list of visits or legs, and that same list is
 // what the stats screen shows when the figure is tapped, so the two can never
 // disagree. Plain data in, plain data out: nothing here touches the page.
-import { value } from './board.js';
+import { value, label } from './board.js';
 
 const sum = (list, f) => list.reduce((t, x) => t + f(x), 0);
 const most = (list, f) => list.reduce((m, x) => Math.max(m, f(x)), -Infinity);
@@ -369,4 +369,39 @@ export function matchSummary(m) {
   row('Bulls (25 and 50)', count(d => d.mult && d.seg === 25));
   row('Misses', count(d => !d.mult), { more: false });
   return { rows, legs };
+}
+
+// ---------- CSV export ----------
+// One row per visit thrown by the player across the given matches (RFC 4180 CSV).
+const csvCell = v => {
+  const s = v == null ? '' : String(v);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+export function statsCsv(matches) {
+  const header = ['Date', 'Match ID', 'Game', 'Players', 'Result', 'Leg', 'Round', 'Score', 'Bust', 'Darts Thrown', 'Darts', 'Left Before', 'Left After', 'Checkout'];
+  const lines = [header.join(',')];
+  for (const m of matches ?? []) {
+    const result = m.winner == null ? 'Unfinished' : m.players.length === 1 ? 'Finished' : m.winner === m.me ? 'Won' : 'Lost';
+    const players = m.players.join(' vs ');
+    if (m.game === 'x01') {
+      for (const leg of x01Legs(m)) {
+        for (const v of leg.mine) {
+          lines.push([
+            new Date(v.ts).toISOString(), m.id, m.name ?? m.game, players, result, leg.n, v.round,
+            v.score, v.bust ? 'Yes' : 'No', v.thrown, v.darts ? v.darts.map(label).join(' ') : 'typed',
+            v.before, v.after, v.checkout ? 'Yes' : 'No',
+          ].map(csvCell).join(','));
+        }
+      }
+    } else {
+      for (const v of visitsOf(m).filter(v => v.p === m.me)) {
+        lines.push([
+          new Date(v.ts).toISOString(), m.id, m.name ?? m.game, players, result, '', v.round,
+          v.bust ? 0 : v.total, v.bust ? 'Yes' : 'No', v.n, v.darts ? v.darts.map(label).join(' ') : 'typed',
+          '', '', '',
+        ].map(csvCell).join(','));
+      }
+    }
+  }
+  return lines.join('\r\n') + '\r\n';
 }

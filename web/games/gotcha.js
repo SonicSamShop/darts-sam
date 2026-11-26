@@ -44,6 +44,15 @@ export default {
     if (sent.length) s.event = `Gotcha! ${sent.map(i => s.players[i]).join(' and ')} back to zero`;
   },
 
+  canBust(s) { return target(s) - s.score[s.current] < (3 - s.turn.length) * 60; },
+
+  bust(s) {
+    s.score = [...s.before];  // the whole visit is void, including anyone it sent back to zero
+    s.event = '';
+    s.note = 'BUST';
+    s.turnOver = true;
+  },
+
   summary(s, i) {
     return { big: s.score[i], small: `${target(s) - s.score[i]} to go` };
   },

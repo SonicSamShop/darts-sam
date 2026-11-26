@@ -41,8 +41,8 @@ const breakfast = v => v.darts?.length === 3 && [20, 5, 1].every(n => v.darts.so
 // writing its rules a second time.
 export function logOf(sheet) {
   return visitsOf(sheet).flatMap(v => v.darts
-    ? v.darts.map(d => ({ t: 'dart', seg: d.mult ? d.seg : 0, mult: d.mult }))
-    : [{ t: 'visit', total: v.total, darts: v.n }]);
+    ? [...v.darts.map(d => ({ t: 'dart', seg: d.mult ? d.seg : 0, mult: d.mult })), ...(v.bust ? [{ t: 'bust', replay: true }] : [])]
+    : [v.bust ? { t: 'bust' } : { t: 'visit', total: v.total, darts: v.n }]);
 }
 export const endOf = sheet => compute({ gameId: sheet.game, players: sheet.players, opts: sheet.opts, log: logOf(sheet) });
 

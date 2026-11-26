@@ -1007,3 +1007,93 @@ test('every page of the site has the same links at its foot, the rules among the
   assert.match(first, /href="rules\.html">How to play</);
   for (const name of ['rules', 'download', 'releases', 'opensource', 'privacy']) assert.equal(await foot(name), first, `${name}.html's foot`);
 });
+
+test('no score (forced next) works even straight after a three-dart visit', () => {
+  const s = play('x01', ['A', 'B'], { start: 501, out: 'double' }, [
+    D(20), D(20), D(20),        // A scores 60 (auto-advances to B)
+    { t: 'next', force: true }, // B taps No score -> 3 misses, advances back to A
+  ]);
+  assert.deepEqual(s.score, [441, 501]);
+  assert.deepEqual(s.thrown, [3, 3]);
+  assert.equal(s.current, 0);
+  assert.equal(s.lastVisit.player, 1);
+  assert.equal(s.lastVisit.total, 0);
+  assert.equal(s.throws.length, 6);
+  assert.ok(s.throws.slice(3).every(t => t.player === 1 && t.seg === 0 && t.mult === 0));
+});
+
+test('bust event: start-of-visit and mid-visit in x01, c121, rcheckout and gotcha', async () => {
+  const { matchSheet } = await import('../web/sync.js');
+  const { endOf } = await import('../web/achievements.js');
+
+  const x01 = gameById('x01');
+  assert.equal(x01.canBust(play('x01', ['A'], { start: 501, out: 'double' }, [])), false);
+  assert.equal(x01.canBust(play('x01', ['A'], { start: 501, out: 'double' }, [{ t: 'visit', total: 180 }, { t: 'visit', total: 141 }])), true); // 180 left
+
+  // Start-of-visit bust (e.g. pad mode or board mode at 0 darts)
+  const m1 = { ...newMatch('x01', ['A', 'B'], { start: 301, out: 'double' }), log: [{ t: 'visit', total: 180 }, { t: 'visit', total: 100 }, { t: 'bust' }] };
+  const s1 = compute(m1);
+  assert.deepEqual(s1.score, [121, 201]);
+  assert.deepEqual(s1.thrown, [6, 3]);
+  assert.equal(s1.bust, 0);
+  assert.equal(s1.current, 1);
+  const re1 = endOf(matchSheet(m1));
+  assert.deepEqual(re1.score, s1.score);
+  assert.deepEqual(re1.thrown, s1.thrown);
+  assert.equal(re1.bust, 0);
+
+  // Mid-visit bust (board mode after 1 dart): reverts score and points
+  const m2 = { ...newMatch('x01', ['A', 'B'], { start: 301, out: 'double' }), log: [{ t: 'visit', total: 180 }, { t: 'visit', total: 100 }, D(20), { t: 'bust' }] };
+  const s2 = compute(m2);
+  assert.deepEqual(s2.score, [121, 201]);
+  assert.deepEqual(s2.points, [180, 100]);
+  assert.deepEqual(s2.thrown, [6, 3]);
+  assert.equal(s2.bust, 0);
+  assert.equal(s2.current, 1);
+  const re2 = endOf(matchSheet(m2));
+  assert.deepEqual(re2.score, s2.score);
+  assert.deepEqual(re2.thrown, s2.thrown);
+  assert.equal(re2.bust, 0);
+
+  // Consecutive busts by two different players both count
+  const sBoth = play('x01', ['A', 'B'], { start: 301, out: 'double' }, [{ t: 'visit', total: 180 }, { t: 'visit', total: 180 }, { t: 'bust' }, { t: 'bust' }]);
+  assert.deepEqual(sBoth.thrown, [6, 6]);
+  assert.equal(sBoth.bust, 1);
+  assert.equal(sBoth.current, 0);
+
+  // 121 Checkout bust uses 3 darts and resets left
+  const sc = play('c121', ['A'], { start: 121, darts: 9, rounds: 5, dec: 1 }, [D(20), { t: 'bust' }]);
+  assert.equal(sc.left[0], 121);
+  assert.equal(sc.used[0], 3);
+  assert.equal(sc.bust, 0);
+
+  // Gotcha mid-visit bust restores everyone's score (including anyone sent back to zero)
+  const sg = play('gotcha', ['A', 'B'], { target: 301 }, [
+    D(20), D(0, 0), D(0, 0),    // A: 20
+    D(20), { t: 'bust' },       // B hits 20 (sends A to 0), then busts -> A restored to 20, B back to 0
+  ]);
+  assert.deepEqual(sg.score, [20, 0]);
+  assert.equal(sg.bust, 1);
+  assert.equal(sg.current, 0);
+});
+
+test('x01: maxDarts per leg awards the leg to the lowest remaining score', () => {
+  // 2-player, 1-leg match with 30-dart cap: player B scores more and wins at 30 darts each
+  const visits = [];
+  for (let i = 0; i < 10; i++) visits.push({ t: 'visit', total: 20 }, { t: 'visit', total: 30 });
+  const s = play('x01', ['A', 'B'], { start: 501, out: 'double', maxDarts: 30 }, visits);
+  assert.equal(s.winner, 1);
+  assert.deepEqual(s.score, [301, 201]);
+  assert.deepEqual(s.legThrown, [30, 30]);
+
+  // Multi-leg match: cap triggers leg 1 win for A (lowest score), resets legThrown and scores for leg 2
+  const multi = [];
+  for (let i = 0; i < 10; i++) multi.push({ t: 'visit', total: 40 }, { t: 'visit', total: 20 });
+  const sm = play('x01', ['A', 'B'], { start: 501, legs: 2, out: 'double', maxDarts: 30 }, multi);
+  assert.equal(sm.winner, null);
+  assert.deepEqual(sm.legs, [1, 0]);
+  assert.equal(sm.legWon.player, 0);
+  assert.equal(sm.current, 1);  // B starts leg 2
+  assert.deepEqual(sm.score, [501, 501]);
+  assert.deepEqual(sm.legThrown, [0, 0]);
+});

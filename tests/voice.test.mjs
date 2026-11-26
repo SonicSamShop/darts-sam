@@ -4,7 +4,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createVoice, rank } from '../web/voice.js';
+import { createVoice, rank, starterCall } from '../web/voice.js';
 
 // Stand-ins for the browser's speech.
 function fakes({ voices = [] } = {}) {
@@ -93,4 +93,15 @@ test('an online voice that cannot be reached hands over to the next best', async
   f.spoken[0].onerror({ error: 'network' });
   assert.equal(f.spoken[1].voice.name, 'Daniel');
   assert.equal(voice.voice(), 'Daniel');
+});
+
+test('caller announces who throws first at match start and on each new leg or set', () => {
+  assert.equal(starterCall(['Sam'], 0), 'Game on');
+  assert.equal(starterCall(['Sam', 'Alex'], 0), 'Game on. Sam to throw first');
+  assert.equal(starterCall(['Sam', 'Alex'], 1, { aim: 'Treble 20' }), 'Game on. Alex, aim for Treble 20');
+  assert.equal(starterCall(['Sam'], 0, { aim: '1' }), 'Game on. Aim for 1');
+  assert.equal(starterCall(['Sam', 'Alex'], 1, { leg: true }), 'Next leg, Alex to throw first');
+  assert.equal(starterCall(['Sam', 'Alex'], 0, { leg: true, set: true }), 'Next set, Sam to throw first');
+  assert.equal(starterCall(['Sam'], 0, { leg: true }), 'Next leg');
+  assert.equal(starterCall(['Sam'], 0, { leg: true, set: true }), 'Next set');
 });

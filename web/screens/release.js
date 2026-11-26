@@ -33,10 +33,10 @@ export async function loadRelease(tries = 0) {
   if (release.available && !releaseDismissed && !(screen === 'game' && match)) showRelease();
 }
 
-// Once the new version is in place: onto it, between games, if the player said so.
+// Once the new version is in place: onto it, between games, unless the player switched that off.
 function restartWhenFree() {
   clearTimeout(restartTimer);
-  if (!settings.restartForUpdate || release?.download?.state !== 'installed') return;
+  if (settings.restartForUpdate === false || release?.download?.state !== 'installed') return;
   if (!idle()) { restartTimer = setTimeout(restartWhenFree, 5000); return; }
   api('/update/restart', 'POST', undefined, 4000).catch(() => {});
 }
@@ -71,8 +71,8 @@ export function aboutPanel() {
     ${v ? `<p>Darts S.A.M version ${esc(v)}${extra ? ` <span class="muted">(${esc(extra)})</span>` : ''}</p>` : ''}
     ${installed ? `<p>Version ${esc(release.available.version)} is installed and starts the next time you open Darts S.A.M.</p>
       <div class="row"><button class="primary" data-release="restart">Restart now</button></div>` : ''}
-    ${release?.checked ? switchRow('Restart for updates between games', !!settings.restartForUpdate,
-      `data-release="${settings.restartForUpdate ? 'restartoff' : 'restarton'}"`,
+    ${release?.checked ? switchRow('Restart for updates between games', settings.restartForUpdate !== false,
+      `data-release="${settings.restartForUpdate !== false ? 'restartoff' : 'restarton'}"`,
       'New versions are always installed by themselves. On, Darts S.A.M also restarts onto one straight away, when no game is going; off, it waits until you next open it.') : ''}
     <p class="muted small">Free software under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>:
       <a href="${SOURCE}" target="_blank" rel="noopener">source code</a>.</p>

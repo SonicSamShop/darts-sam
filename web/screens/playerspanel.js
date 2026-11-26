@@ -6,8 +6,8 @@
 // of darts, removing them), and the box for a new player, which the menu has too.
 
 import {
-  MAX_PLAYERS, cleanSetup, data, esc, grams, loadPlayers, nameOf, players, saveSetup, screen, setDarts, setsOf,
-  setup, store
+  COUNTRIES, MAX_PLAYERS, cleanSetup, data, esc, flagCode, flagHtml, grams, loadPlayers, nameOf, players, saveSetup, screen, setDarts,
+  setPlayerFlag, setsOf, setup, store
 } from '../app.js';
 import { DARTS_DETAILS } from '../sync.js';
 import { stillIn } from '../tournament.js';
@@ -17,6 +17,8 @@ import { renderSettings } from './settings.js';
 export const roster = {
   formError: '',  // shown under the "new player" box
   adding: false,  // home: the "new player" box is out of sight until asked for
+  draftName: '',  // kept if adding is refused (e.g. country not picked yet)
+  draftFlag: '',
   removeArmed: false,  // the id of the player whose Remove has been tapped once
   renameFailed: null,  // the id of the player whose new name was refused (formError says why)
   refused: null,  // the id of the player whose Remove was refused (formError says why)
@@ -41,19 +43,36 @@ export const detailsLine = d => d?.details
   ? [d.details.brand, ...PICKED.map(k => d.details[k] != null && choiceText(k, d.details[k]))].filter(Boolean).join(' · ') : '';
 
 export function newPlayerRow() {
-  return `<div class="player-row"><input type="text" id="newplayer" placeholder="New player name" maxlength="16">
+  return `<div class="player-row newplayer-row"><input type="text" id="newplayer" placeholder="New player name" maxlength="16" value="${esc(roster.draftName)}">
+    <select class="plain" id="newplayer-flag" aria-label="Country">
+      <option value="">Country…</option>
+      ${COUNTRIES.map(([code, flag, name]) => `<option value="${code}" ${code === roster.draftFlag ? 'selected' : ''}>${flag} ${name}</option>`).join('')}
+    </select>
     <button data-act="addplayer">Add</button></div>
     ${roster.formError && roster.renameFailed == null && roster.refused == null ? `<p class="warn">${esc(roster.formError)}</p>` : ''}`;
 }
 export function addPlayer() {
   const input = document.getElementById('newplayer');
+  const flagEl = document.getElementById('newplayer-flag');
   roster.renameFailed = roster.refused = null;
   const name = input.value.trim();
+  const flag = flagEl?.value ?? '';
+  roster.draftName = name;
+  roster.draftFlag = flag;
   if (!name) return input.focus();
+  if (!flag) {
+    roster.formError = 'Pick a country.';
+    if (screen === 'settings') renderSettings(); else renderHome();
+    document.getElementById('newplayer-flag')?.focus();
+    return;
+  }
   try {
     const p = data.addPlayer(name);
     loadPlayers();
+    setPlayerFlag(p.id, flag);
     roster.formError = '';
+    roster.draftName = '';
+    roster.draftFlag = '';
     roster.adding = false;
     // Added on the menu, they are playing; added in the settings, they are only on the list
     // and their card opens, ready for their darts.
@@ -98,6 +117,11 @@ export function playersPanel() {
       <div class="player-row"><input type="text" id="pname" data-rename="${p.id}" value="${esc(p.name)}" maxlength="16" aria-label="Name of ${esc(p.name)}">
         <button data-act="rename" data-id="${p.id}">Save</button></div>
       ${roster.formError && roster.renameFailed === p.id ? `<p class="warn">${esc(roster.formError)}</p>` : ''}
+      <h3>Country flag</h3>
+      <select class="plain" data-flag="${p.id}" aria-label="Country flag for ${esc(p.name)}">
+        <option value="">None</option>
+        ${COUNTRIES.map(([code, flag, name]) => `<option value="${code}" ${code === flagCode(p.id) ? 'selected' : ''}>${flag} ${name}</option>`).join('')}
+      </select>
       <h3>Darts</h3>
       ${sets.length || roster.dartsForm === 'new' ? '' : '<p class="muted small">Add the darts they throw to see stats for each set.</p>'}
       ${sets.map(d => roster.dartsForm === d.id ? form(p, d) : `<button class="pline ${d.retired ? 'away' : ''}" data-act="editdarts" data-id="${esc(d.id)}">
@@ -112,7 +136,7 @@ export function playersPanel() {
       ${players.map(p => {
         const open = p.id === roster.open;
         return `<section class="who ${open ? 'open' : ''}">
-          <button class="who-head" data-act="openplayer" data-id="${p.id}" aria-expanded="${open}"><span><b>${esc(p.name)}</b>
+          <button class="who-head" data-act="openplayer" data-id="${p.id}" aria-expanded="${open}"><span><b>${flagHtml(p.id)}${esc(p.name)}</b>
             <small>${setsOf(p.id).map(said).join(' · ') || 'No darts added'}</small></span><u>${open ? 'Done' : 'Edit'}</u></button>
           ${open ? body(p) : ''}</section>`;
       }).join('')}
