@@ -746,7 +746,7 @@ export function renderGame() {
   if (s.winner != null && micOn) speech.stop();
   const micIcon = icon('<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/>');
   const micBtn = speech.supported() && s.winner == null
-    ? `<button class="ghost micbtn ${micOn ? 'on' : ''}" data-act="mic-toggle" title="${micOn ? 'Stop voice scoring (V)' : 'Voice scoring (V)'}" aria-label="${micOn ? 'Stop voice scoring' : 'Start voice scoring'}" aria-pressed="${micOn}">${micIcon}</button>` : '';
+    ? `<button class="micbtn ${micOn ? 'on' : ''}" data-act="mic-toggle" title="${micOn ? 'Stop voice scoring (V)' : 'Hands-free voice scoring (V)'}" aria-label="${micOn ? 'Stop voice scoring' : 'Start voice scoring'}" aria-pressed="${micOn}">${micOn ? '<i class="micdot"></i>' : ''}${micIcon}<span>${micOn ? (speech.listening() ? 'Listening' : 'Paused') : 'Voice'}</span></button>` : '';
   if (micToast && Date.now() >= micToast.until) micToast = null;
   const micBar = micToast
     ? `<div class="micbar ${micToast.bad ? 'bad' : 'ok'}" role="status">${esc(micToast.text)}</div>`
@@ -796,7 +796,7 @@ export function renderGame() {
       game.bust ? `<button class="bust-btn" data-act="bust" ${botUp(s) || s.turnOver || !game.canBust?.(s) ? 'disabled' : ''}>Bust</button>` : ''}
     </div>` : ''}
     ${tools ? `<div class="tools">${tools}</div>` : ''}
-    ${s.winner == null ? `<div class="kbd-hint">${pad ? `Keys: 0–9 type · Enter submit · N no score${game.bust ? ' · B bust' : ''} · P board · Z undo` : `Keys: M miss · N no score${game.bust ? ' · B bust' : ''} · Space end turn · Z undo · T TV · P keypad`}</div>` : ''}`;
+    ${s.winner == null ? `<div class="kbd-hint">${pad ? `Keys: 0–9 type · Enter submit · N no score${game.bust ? ' · B bust' : ''} · P board · Z undo${speech.supported() ? ' · V voice' : ''}` : `Keys: M miss · N no score${game.bust ? ' · B bust' : ''} · Space end turn · Z undo · T TV · P keypad${speech.supported() ? ' · V voice' : ''}`}</div>` : ''}`;
   // A score that has changed counts down (or up) to its new figure.
   const cards = [...document.querySelectorAll('.side .pcard .big')];
   if (cards.length) {

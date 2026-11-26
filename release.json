@@ -1,5 +1,5 @@
 {
-  "version": "1.9",
+  "version": "1.9.1",
   "unreleased": [],
   "notes": {
     "1.0": [
@@ -112,6 +112,9 @@
       "Player country flags: pick a flag for each player under Settings › Players, darts and boards to display beside their name on the scoreboard, TV view and share cards. The caller now also announces who throws first at the start of every match and new leg or set.",
       "More accurate camera dart detection: improved barrel line fitting and tip scoring for cleaner hits across cameras.",
       "Pick your look right away on the welcome screen, and watch the computer's darts fly in with a new tungsten steel-tip dart animation."
+    ],
+    "1.9.1": [
+      "Voice scoring button is now clearly visible and prominent in the game header, showing its microphone icon and live status (Voice, Listening or Paused)."
     ]
   }
 }

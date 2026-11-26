@@ -117,8 +117,6 @@ button:disabled { opacity: .4; }
 .tabs button[data-tab="achievements"] { flex: 1.75; }  /* the long one */
 .tabs button.export-csv { flex: 0 0 auto; padding-left: 10px; padding-right: 10px; }
 .flag { margin-right: 0.35em; font-style: normal; }
-.micbtn { padding: 6px 8px; }
-.micbtn.on { color: var(--warn); }
 .micbar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--round); background: var(--panel); font-size: 14px; color: var(--muted); }
 .micbar.ok { color: var(--text); }
 .micbar.bad { color: var(--warn); }
@@ -705,6 +703,18 @@ svg.heat .b-num { fill: #d9dce3; }
 .top button { min-height: 42px; padding: 6px 12px; }
 .top .conn { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; }
 .top .title { white-space: nowrap; }
+.top .micbtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 38px; padding: 6px 12px; white-space: nowrap; font-size: 14px; font-weight: 700;
+  border: 2px solid var(--accent); color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel));
+}
+.top .micbtn svg { width: 18px; height: 18px; display: block; flex: 0 0 auto; }
+.top .micbtn.on {
+  border-color: var(--warn); color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 18%, var(--panel));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--warn) 35%, transparent);
+}
 .top .soundbtn {
   display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; min-height: 38px;
   padding: 0; border-color: transparent; color: var(--muted);
