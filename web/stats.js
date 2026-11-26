@@ -193,7 +193,12 @@ export const X01_TILES = [
     { key: 't180', label: '180s', kind: 'visits', rows: scored(180, 180) },
     { key: 't140', label: '140+', kind: 'visits', rows: scored(140, 179) },
     { key: 't100', label: '100+', kind: 'visits', rows: scored(100, 139) },
-    { key: 't60', label: '60+', kind: 'visits', rows: scored(60, 99) },
+    // Below 100 in steps of ten, counted the same way: 90 to 99 is a 90+.
+    { key: 't90', label: '90+', kind: 'visits', rows: scored(90, 99) },
+    { key: 't80', label: '80+', kind: 'visits', rows: scored(80, 89) },
+    { key: 't70', label: '70+', kind: 'visits', rows: scored(70, 79) },
+    { key: 't60', label: '60+', kind: 'visits', rows: scored(60, 69) },
+    { key: 't50', label: '50+', kind: 'visits', rows: scored(50, 59) },
     { key: 'busts', label: 'Busts', kind: 'visits', rows: s => s.visits.filter(v => v.bust) },
   ] },
   { group: 'checkouts', tiles: [

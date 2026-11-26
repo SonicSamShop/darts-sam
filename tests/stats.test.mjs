@@ -63,6 +63,8 @@ test('x01 figures, and each tile counted from the list it opens', () => {
   assert.equal(shows('average'), (561 / 18 * 3).toFixed(1));
   assert.equal(shows('first9'), (521 / 15 * 3).toFixed(1));
   assert.deepEqual(['highest', 't180', 't140', 't100', 't60', 'busts'].map(shows), [180, 1, 2, 0, 1, 1]);
+  // Below 100 in steps of ten: Sam's typed 60 is the only one
+  assert.deepEqual(['t90', 't80', 't70', 't60', 't50'].map(shows), [0, 0, 0, 1, 0]);
   assert.equal(shows('checkout'), '25.0%');
   assert.deepEqual(s.doubles, [{ aim: 20, hit: 1, darts: 3 }, { aim: 16, hit: 0, darts: 1 }]);
   assert.deepEqual(['bestCheckout', 'tonCheckouts', 'played', 'won'].map(shows), [40, 0, 2, 1]);
