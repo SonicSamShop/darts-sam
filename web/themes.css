@@ -47,6 +47,7 @@
 .t-stage :is(input[type=text], input[type=number], input[type=date]), .t-stage .tile, .t-stage .banner, .t-stage table.cricket { border-radius: 0; }
 .t-stage .chip i { border-radius: 0; }
 .t-stage .camstate, .t-stage .camoff { border-radius: 0; }
+.t-stage .chart-tip { border-color: var(--accent); }
 .t-stage .game-card b { font-family: var(--display); font-weight: 400; font-size: 26px; }
 .t-stage .tile b, .t-stage .b-num { font-weight: 400; }
 .t-stage .boardwrap { background: radial-gradient(circle at 50% 50%, #34343c 0%, #17171b 45%, #0a0a0c 68%); }
@@ -214,6 +215,12 @@
 .t-chalk .opt > span { color: var(--text); }
 .t-chalk .tile { border-bottom-color: var(--hair); }
 .t-chalk .chart-card { background: var(--sunk); border: 0; border-radius: var(--wobble); }
+.t-chalk .chart-tip {
+  background: var(--raised); border: 0; border-radius: var(--wobble);
+  font-family: var(--plain); font-weight: 400; font-size: var(--sz-fine);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .5);
+}
+.t-chalk .chart-tip .tip-val { font-weight: var(--bold); }
 .t-chalk .h2h-row { background: var(--sunk); border: 0; border-radius: var(--wobble); }
 .t-chalk .wthemes { border-top-color: var(--hair); }
 .t-chalk .camstate, .t-chalk .camoff { background: var(--sunk); border: 0; border-radius: var(--wobble); }  /* cut in: their buttons stand proud */
@@ -334,6 +341,7 @@
 .t-arcade .actions button:nth-child(3) { color: #fff; background: radial-gradient(ellipse at 36% 22%, #ff8a80 0%, #e3271f 45%, #7d0f0a 100%); }
 .t-arcade .actions button:active { transform: translateY(5px); box-shadow: 0 0 0 3px #44444c, 0 2px 0 3px #000; }
 .t-arcade table.cricket { border: 4px solid var(--line); }
+.t-arcade .chart-tip { background: var(--panel); border: 2px solid var(--accent); border-radius: 8px; box-shadow: var(--led), 0 4px 12px rgba(0, 0, 0, .55); }
 .t-arcade .b-dark, .t-arcade .b-light, .t-arcade .b-red, .t-arcade .b-green { stroke-width: 1.6; }
 .t-arcade .b-num { font-family: var(--font); font-weight: 400; font-size: 17px; }
 .t-arcade .b-mark { stroke: #08080a; }
@@ -394,6 +402,11 @@
 }
 .t-sheet .banner.win { border-color: var(--warn); }
 .t-sheet table.cricket { border: 2px solid var(--text); border-radius: 0; }
+.t-sheet .chart-tip {
+  background: var(--bg); border: 2px solid var(--text); border-radius: 0;
+  font-family: var(--type); font-weight: 400; font-size: 13px; box-shadow: 2px 2px 0 var(--text);
+}
+.t-sheet .chart-tip .tip-val { font-family: var(--font); font-weight: 800; }
 .t-sheet .b-num { font-weight: 800; font-size: 24px; }
 .t-sheet .b-mark { stroke: var(--bg); }
 .t-sheet .b-mark.last { fill: #fff; stroke: var(--text); }

@@ -147,7 +147,10 @@ function x01ChartsHtml(x) {
           <line class="trend-ref" x1="${padX}" y1="${refY}" x2="${W - padX}" y2="${refY}"/>
           <line class="trend-guide" y1="${padY}" y2="${H - padY}" style="display:none"/>
           ${pts.length >= 2 ? `<polygon class="trend-area" points="${area}"/><polyline class="trend-line" points="${line}"/>` : ''}
-          ${pts.map(([cx, cy, p]) => `<circle class="trend-dot ${p.won ? 'won' : ''}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.2" data-tip="${esc(p.title)}"><title>${esc(p.title)}</title></circle>`).join('')}
+          ${pts.map(([cx, cy, p]) => {
+            const meta = trend.by === 'legs' ? `${p.darts} darts` : `${p.count} ${p.count === 1 ? 'leg' : 'legs'}, ${p.darts} darts`;
+            return `<circle class="trend-dot ${p.won ? 'won' : ''}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.2" data-tip="${esc(p.title)}" data-label="${esc(p.label)}" data-val="${p.avg.toFixed(1)}" data-meta="${esc(meta)}"><title>${esc(p.title)}</title></circle>`;
+          }).join('')}
         </svg>
         <div class="chart-tip" hidden></div>
       </div>
@@ -191,8 +194,9 @@ function dayChart(x) {
         <line class="trend-guide" y1="${T}" y2="${H - B}" style="display:none"/>
         <polyline class="trend-line" points="${line}"/>
         ${days.map((d, i) => {
-          const tip = `${short(d.day)}: ${d.avg.toFixed(1)} (${d.darts} darts)`;
-          return `<circle class="trend-dot" cx="${px(i).toFixed(1)}" cy="${py(d.avg).toFixed(1)}" r="3.2" data-tip="${esc(tip)}"><title>${esc(tip)}</title></circle>`;
+          const lbl = short(d.day);
+          const tip = `${lbl}: ${d.avg.toFixed(1)} (${d.darts} darts)`;
+          return `<circle class="trend-dot" cx="${px(i).toFixed(1)}" cy="${py(d.avg).toFixed(1)}" r="3.2" data-tip="${esc(tip)}" data-label="${esc(lbl)}" data-val="${d.avg.toFixed(1)}" data-meta="${d.darts} darts"><title>${esc(tip)}</title></circle>`;
         }).join('')}
       </svg>
       <div class="chart-tip" hidden></div>
@@ -475,7 +479,13 @@ export function drawPlayers() {
 }
 
 // Show the hovered/tapped point's value immediately above the trend chart.
+let outsideTipHandler = null;
 function wireChartTips() {
+  if (outsideTipHandler) {
+    document.removeEventListener('pointerdown', outsideTipHandler);
+    outsideTipHandler = null;
+  }
+  const hiders = [];
   for (const wrap of document.querySelectorAll('.trend-wrap')) {
     const svg = wrap.querySelector('.trend-svg');
     const tip = wrap.querySelector('.chart-tip');
@@ -483,7 +493,14 @@ function wireChartTips() {
     const dots = [...wrap.querySelectorAll('.trend-dot')];
     if (!svg || !tip || !dots.length) continue;
     const vbW = svg.viewBox?.baseVal?.width || 320;
+    const hide = () => {
+      for (const d of dots) d.classList.remove('active');
+      if (guide) guide.style.display = 'none';
+      tip.hidden = true;
+    };
+    hiders.push([wrap, hide]);
     const show = e => {
+      for (const [other, hideOther] of hiders) if (other !== wrap) hideOther();
       const rect = svg.getBoundingClientRect();
       if (!rect.width) return;
       const x = ((e.clientX - rect.left) / rect.width) * vbW;
@@ -492,23 +509,34 @@ function wireChartTips() {
         const dist = Math.abs(parseFloat(d.getAttribute('cx')) - x);
         if (dist < bestDist) { best = d; bestDist = dist; }
       }
+      if (e.type === 'pointerdown' && e.pointerType !== 'mouse' && best.classList.contains('active') && !tip.hidden) {
+        hide();
+        return;
+      }
       for (const d of dots) d.classList.toggle('active', d === best);
       const cx = best.getAttribute('cx');
       if (guide) { guide.setAttribute('x1', cx); guide.setAttribute('x2', cx); guide.style.display = ''; }
-      tip.textContent = best.dataset.tip || '';
+      if (best.dataset.val) {
+        tip.innerHTML = `<span class="tip-lbl">${esc(best.dataset.label || '')}</span>`
+          + ` <b class="tip-val${best.classList.contains('won') ? ' won' : ''}">${esc(best.dataset.val)}</b>`
+          + (best.dataset.meta ? ` <span class="tip-meta">${esc(best.dataset.meta)}</span>` : '');
+      } else {
+        tip.textContent = best.dataset.tip || '';
+      }
       tip.hidden = false;
       const px = (parseFloat(cx) / vbW) * rect.width;
       const left = Math.max(0, Math.min(wrap.clientWidth - tip.offsetWidth, px - tip.offsetWidth / 2));
       tip.style.left = `${left.toFixed(1)}px`;
     };
-    const hide = () => {
-      for (const d of dots) d.classList.remove('active');
-      if (guide) guide.style.display = 'none';
-      tip.hidden = true;
-    };
     wrap.addEventListener('pointermove', show);
     wrap.addEventListener('pointerdown', show);
     wrap.addEventListener('pointerleave', hide);
+  }
+  if (hiders.length) {
+    outsideTipHandler = e => {
+      for (const [wrap, hide] of hiders) if (!wrap.contains(e.target)) hide();
+    };
+    document.addEventListener('pointerdown', outsideTipHandler);
   }
 }
 // Putting the sets side by side needs the games of every set, on the board picked; putting the
