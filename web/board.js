@@ -159,13 +159,11 @@ function heatPicture(points) {
 // Builds the board into an <svg>. onHit({seg, mult, x, y}) fires on tap.
 export function buildBoard(svg, onHit) {  // leave onHit out for a display-only board
   svg.setAttribute('viewBox', '-226 -226 452 452');
-  const stage = el('g', { class: 'b-stage' });
-  svg.append(stage);
-  stage.append(el('circle', { r: 224, class: 'b-surround' }));  // 224 + half its 2 mm ring = 225
+  svg.append(el('circle', { r: 224, class: 'b-surround' }));  // 224 + half its 2 mm ring = 225
   SEGMENTS.forEach((n, i) => {
     const a0 = i * 18 - 9, a1 = a0 + 18, dark = i % 2 === 0;
     const single = dark ? 'b-dark' : 'b-light', ring = dark ? 'b-red' : 'b-green';
-    stage.append(
+    svg.append(
       el('path', { d: wedge(R.outer, R.tIn, a0, a1), class: single }),
       el('path', { d: wedge(R.tIn, R.tOut, a0, a1), class: ring }),
       el('path', { d: wedge(R.tOut, R.dIn, a0, a1), class: single }),
@@ -174,11 +172,11 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
     const [tx, ty] = pt(197, i * 18).split(' ');
     t.setAttribute('x', tx); t.setAttribute('y', ty);
     t.textContent = n;
-    stage.append(t);
+    svg.append(t);
   });
-  stage.append(el('circle', { r: R.outer, class: 'b-green' }), el('circle', { r: R.bull, class: 'b-red' }));
+  svg.append(el('circle', { r: R.outer, class: 'b-green' }), el('circle', { r: R.bull, class: 'b-red' }));
   const aimAt = el('g', {}), hits = el('g', {}), marks = el('g', {});  // the bed to aim at (showTarget), under the darts
-  stage.append(aimAt, hits, marks);
+  svg.append(aimAt, hits, marks);
   // A bed {seg, mult, part?} as the outline(s) of it: a ring for each half of a single.
   const disc = r => `M0 ${-r}A${r} ${r} 0 1 1 0 ${r}A${r} ${r} 0 1 1 0 ${-r}Z`;
   const rings = t => t.mult === 3 ? [[R.tIn, R.tOut]] : t.mult === 2 ? [[R.dIn, R.dOut]]
@@ -208,21 +206,35 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
   };
   // What the board shows when nothing is being held: all of it, or the part
   // round a target. [left, top, width] of the target viewBox, animated via a
-  // GPU-composited CSS transform on `stage` (silky smooth on mobile, unlike viewBox).
+  // GPU-composited CSS transform on `<svg>` itself (immune to SVG child reflows on mobile).
   const FULL = [-226, -226, 452];
   let home = FULL, shown = FULL, aimed = '';
   const look = (v, ms = 0) => {
     shown = v;
-    const s = 452 / v[2], cx = v[0] + v[2] / 2, cy = v[1] + v[2] / 2;
+    const side = Math.min(svg.clientWidth || 0, svg.clientHeight || 0);
+    if (!side) {
+      svg.style.transition = 'none';
+      svg.style.transform = '';
+      svg.setAttribute('viewBox', `${v[0].toFixed(1)} ${v[1].toFixed(1)} ${v[2].toFixed(1)} ${v[2].toFixed(1)}`);
+      return;
+    }
+    svg.setAttribute('viewBox', '-226 -226 452 452');
+    const px = side / 452, s = 452 / v[2];
+    const cx = v[0] + v[2] / 2, cy = v[1] + v[2] / 2;
     const still = !ms || matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    stage.style.transition = still ? 'none' : `transform ${ms}ms cubic-bezier(.22, 1, .36, 1)`;
-    stage.style.transform = `scale(${s.toFixed(4)}) translate(${(-cx).toFixed(2)}px, ${(-cy).toFixed(2)}px)`;
+    svg.style.transition = still ? 'none' : `transform ${ms}ms cubic-bezier(.22, 1, .36, 1)`;
+    svg.style.transform = s === 1 && !cx && !cy ? '' : `scale(${s.toFixed(4)}) translate(${(-cx * px).toFixed(1)}px, ${(-cy * px).toFixed(1)}px)`;
   };
   const glide = (to, ms = 320) => {
     home = to;
-    if (shown.every((v, i) => Math.abs(v - to[i]) < 0.5)) return look(to, 0);
+    if (shown.every((v, i) => Math.abs(v - to[i]) < 0.5)) return;
     look(to, ms);
   };
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => {
+      if (!svg.classList.contains('zoomed') && !shown.every((v, i) => Math.abs(v - FULL[i]) < 0.5)) look(shown, 0);
+    }).observe(svg);
+  }
 
   if (onHit) {
     // A quick tap scores where it lands. Holding for HOLD ms zooms in around the
@@ -231,9 +243,9 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
     const ring = el('circle', { r: 3 }), tag = el('text', { 'text-anchor': 'middle' });
     const aim = el('g', { class: 'b-aim', hidden: '' });
     aim.append(el('path', { d: 'M-9 0H-3M3 0H9M0 -9V-3M0 3V9' }), ring, tag);
-    stage.append(aim);
+    svg.append(aim);
     const at = e => {
-      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(stage.getScreenCTM().inverse());
+      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse());
       return { x: p.x, y: -p.y };
     };
     let press = null, top = home[1];  // top: upper edge of what is in view
@@ -257,9 +269,10 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
     };
     const release = () => {
       if (!press) return;
+      const wasZoomed = press.zoomed;
       clearTimeout(press.timer);
       press = null; top = home[1];
-      look(home, 0);
+      if (wasZoomed) look(home, 0);
       svg.classList.remove('zoomed');
       aim.setAttribute('hidden', '');
     };
