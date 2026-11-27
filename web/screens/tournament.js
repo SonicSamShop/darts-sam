@@ -18,6 +18,7 @@ import {
 } from '../tournament.js';
 import { animate, drawBracket, showSlot, sizeBracket } from './bracket.js';
 import { renderLanding } from './landing.js';
+import { confirmNewGame } from './game.js';
 import { askFirst } from './start.js';
 import {
   $app, account, bots, botPlayer, data, esc, fit, mark, match, pageFoot, pageHead, players, redraw, refreshStatus,
@@ -638,11 +639,11 @@ export function tourAct(act, d) {
       const i = +d.i, s = t.data.slots[i];
       // (it changed under the button: no longer ready, or a match of the bracket is being played here, which this would replace)
       if (!tourPlayable(t).includes(i) || slotInPlay(t) != null) return renderTournament();
-      return askFirst('start', {
+      return confirmNewGame(() => askFirst('start', {
         gameId: 'x01', ids: [s.a, s.b],
         opts: { start: t.data.opts.start, out: t.data.opts.out, legs: t.data.rounds[s.round].legs, sets: 1 },
         tournament: { id: t.id, slot: i },
-      });
+      }));
     }
     case 'tour-abandon': tourView.abandoning = true; return renderTournament();
     case 'tour-abandon-no': tourView.abandoning = false; return renderTournament();

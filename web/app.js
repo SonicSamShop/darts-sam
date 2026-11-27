@@ -33,7 +33,7 @@ import { deep, drawPlayers, exportStatsCsv, renderPlayers, renderSheet, sheet, s
 import { avgAsked, careerEnabled, followSuggestion, loadAverages, loadRules, loadTotals, menu, quickPresets, renderHome } from './screens/home.js';
 import { slipTapped } from './screens/earned.js';
 import {
-  askQuit, botThrow, botTimer, botUp, bustVisit, closeQuit, endHold, finishWarmup, handleVoice, micState, noScore, numPad, padCommit, padKey, padQuick, push, renderGame, toggleMatchStats, undo
+  askQuit, botThrow, botTimer, botUp, bustVisit, closeQuit, confirmNewGame, endHold, finishWarmup, handleVoice, micState, noScore, numPad, padCommit, padKey, padQuick, push, renderGame, toggleMatchStats, undo
 } from './screens/game.js';
 import {
   askFirst, bull, bullDart, bullRandom, bullStart, closeBull, closeFirst, dropBull, homePlay, playRemapped, renderBull, startMatch
@@ -702,6 +702,7 @@ $app.addEventListener('click', e => {
   if (d.sheet) { renderSheet(d.sheet); return mark(true); }
   if (d.tab) { statsView.tab = d.tab; drawPlayers(); return mark(); }
   if (d.heatmode) { settings.heatMode = d.heatmode; saveSettings(); return drawPlayers(); }
+  if (d.trend) { statsView.trendBy = d.trend; drawPlayers(); return; }
   if (d.slip !== undefined) return slipTapped();
   if (d.drill) { statsView.drill.push(JSON.parse(d.drill)); drawPlayers(); return mark(true); }
   if (d.sort) {
@@ -724,14 +725,16 @@ $app.addEventListener('click', e => {
   if (d.quickstart !== undefined) {
     const preset = quickPresets()[+d.quickstart];
     if (!preset) return;
-    setup.gameId = preset.gameId;
-    setup.opts = { ...preset.opts };
-    setup.players = [...preset.players];
-    if (preset.bot != null) setup.bot = preset.bot;
-    cleanSetup();
-    saveSetup();
-    if (seats().length > 1) return askFirst('start', homePlay());
-    return startMatch('start', homePlay());
+    return confirmNewGame(() => {
+      setup.gameId = preset.gameId;
+      setup.opts = { ...preset.opts };
+      setup.players = [...preset.players];
+      if (preset.bot != null) setup.bot = preset.bot;
+      cleanSetup();
+      saveSetup();
+      if (seats().length > 1) return askFirst('start', homePlay());
+      return startMatch('start', homePlay());
+    });
   }
   if (d.fin) return padCommit(numPad.ask.total, +d.fin);
   if (d.theme) { settings.theme = d.theme; saveSettings(); applyTheme(); renderSettings(); return mark(); }
@@ -816,14 +819,13 @@ $app.addEventListener('click', e => {
     case 'start':
     case 'rematch':
       cleanSetup();
-      if (seats().length > 1) return askFirst(d.act, homePlay());
-      return startMatch(d.act, homePlay());
+      return confirmNewGame(() => (seats().length > 1 ? askFirst(d.act, homePlay()) : startMatch(d.act, homePlay())));
     case 'warmup': {
       cleanSetup();
       const pid = seats().find(id => id !== BOT) ?? players[0]?.id;
       if (pid == null) return;
       const step = WARMUP_STEPS[0];
-      return startMatch('start', { gameId: step.gameId, ids: [pid], opts: { ...step.opts, routine: { step: 0, playerId: pid } } });
+      return confirmNewGame(() => startMatch('start', { gameId: step.gameId, ids: [pid], opts: { ...step.opts, routine: { step: 0, playerId: pid } } }));
     }
     case 'warmup-next': {
       const r = match?.opts?.routine;

@@ -283,16 +283,77 @@ export const X01_TILES = [
 ];
 export const x01Tile = key => X01_TILES.flatMap(g => g.tiles).find(t => t.key === key);
 
-// Recent X01 legs for the 3-dart average trend chart (oldest first, up to `limit` legs).
-export function x01Trend(s, limit = 20) {
-  const legs = (s?.legs ?? []).filter(l => l.avg != null).slice(-limit);
-  if (legs.length < 2) return null;
-  const avgs = legs.map(l => l.avg);
-  const mid = Math.floor(legs.length / 2);
+const pad2 = n => String(n).padStart(2, '0');
+function trendBucket(ts, by) {
+  const d = new Date(ts);
+  if (by === 'years') {
+    const key = String(d.getFullYear());
+    return { key, label: key };
+  }
+  if (by === 'months') {
+    const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+    const label = d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+    return { key, label };
+  }
+  if (by === 'weeks') {
+    const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+    const key = `${mon.getFullYear()}-${pad2(mon.getMonth() + 1)}-${pad2(mon.getDate())}`;
+    const label = `Wk ${mon.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+    return { key, label };
+  }
+  const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const label = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return { key, label };
+}
+
+// Recent X01 3-dart average trend (oldest first, up to `limit` points).
+// `by` can be 'legs' (default), 'days', 'weeks', 'months', or 'years'.
+export function x01Trend(s, opts = 20) {
+  const { limit = 20, by = 'legs' } = typeof opts === 'number' ? { limit: opts } : (opts ?? {});
+  let legs = null;
+  let points;
+  if (by === 'legs') {
+    legs = (s?.legs ?? []).filter(l => l.avg != null).slice(-limit);
+    if (legs.length < 2) return null;
+    points = legs.map(l => ({
+      ...l,
+      label: `Leg ${l.n}`,
+      title: `Leg ${l.n}: ${l.avg.toFixed(1)} (${l.darts} darts)`,
+    }));
+  } else {
+    const buckets = new Map();
+    for (const l of s?.legs ?? []) {
+      if (l.avg == null || l.when == null) continue;
+      const { key, label } = trendBucket(l.when, by);
+      const b = buckets.get(key) ?? { key, label, points: 0, darts: 0, count: 0, wins: 0 };
+      b.points += l.points;
+      b.darts += l.darts;
+      b.count++;
+      if (l.won) b.wins++;
+      buckets.set(key, b);
+    }
+    points = [...buckets.values()]
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .slice(-limit)
+      .map(b => {
+        const avg = avg3(b.points, b.darts);
+        return {
+          ...b,
+          avg,
+          won: b.wins > 0 && b.wins === b.count,
+          title: `${b.label}: ${avg.toFixed(1)} (${b.count} ${b.count === 1 ? 'leg' : 'legs'}, ${b.darts} darts)`,
+        };
+      });
+    if (!points.length) return null;
+  }
+  const avgs = points.map(p => p.avg);
+  const mid = Math.floor(points.length / 2);
   const mean = list => list.reduce((t, v) => t + v, 0) / list.length;
-  const delta = mean(avgs.slice(mid)) - mean(avgs.slice(0, mid));
+  const delta = points.length >= 2 ? mean(avgs.slice(mid)) - mean(avgs.slice(0, mid)) : 0;
   return {
-    legs,
+    by,
+    points,
+    ...(legs ? { legs } : {}),
     min: Math.min(...avgs),
     max: Math.max(...avgs),
     latest: avgs.at(-1),

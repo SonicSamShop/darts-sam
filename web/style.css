@@ -101,6 +101,7 @@ button:disabled { opacity: .4; }
 .startbar { display: none; }
 @media (orientation: portrait), (max-width: 800px), (pointer: coarse) {
   .home-body { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-bottom: 16px; }
+  .inprogress-bar { position: sticky; top: 0; z-index: 4; background: var(--bg); padding: 2px 0 12px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
   .setup .start, .setup .startnote, .setup > .spacer { display: none; }
   .startbar { display: block; padding-top: 10px; border-top: 1px solid var(--line); }
 }
@@ -352,7 +353,26 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .trophy-card.locked { opacity: .45; filter: grayscale(1); }
 .trophy-icon { font-size: 28px; }
 .career-rank td.num, .career-rank th.num { text-align: right; }
+.inprogress-bar > h2 { margin-top: 4px; color: var(--gold); text-transform: uppercase; letter-spacing: .05em; font-size: 13px; }
 .inprogress { display: grid; gap: 10px; }
+button.resume {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left;
+  padding: 14px 16px; min-height: 64px;
+  border: 2px solid var(--gold);
+  background: var(--gold); color: #111;
+  box-shadow: 0 2px 14px color-mix(in srgb, var(--gold) 28%, transparent);
+}
+.resume-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.resume-top { display: flex; align-items: center; gap: 8px; }
+.resume-top b { font-size: 19px; font-weight: 700; line-height: 1.2; color: inherit; }
+.resume-main small { font-size: 14px; font-weight: 500; color: inherit; opacity: .78; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.resume-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto;
+  background: currentColor;
+  animation: mic-pulse 1.8s ease-in-out infinite;
+}
+.resume-go { font-size: 28px; font-weight: 700; line-height: 1; color: inherit; flex: 0 0 auto; }
+@media (prefers-reduced-motion: reduce) { .resume-dot { animation: none; } }
 /* the Tournament screen: the form to set one up, then the bracket filling the screen (going: .tour-main, its
    heading, the bracket and its buttons), and under either the list of past ones. Under a bracket that list is
    scrolled to: its heading shows at the foot of the screen (.peek), and the bracket keeps the rest. */
@@ -509,12 +529,15 @@ select.plain { min-height: 48px; padding: 10px 36px 10px 14px; }  /* no label in
 .chart-delta { font-family: var(--display); font-size: 16px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .chart-delta.up { color: var(--b-green); }
 .chart-delta.down { color: var(--warn); }
+.trend-scales { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+.trend-scales button { flex: 1 1 0; min-width: 0; padding: 3px 6px; font-size: 12px; line-height: 1.3; }
 .trend-svg { display: block; width: 100%; height: 104px; overflow: visible; }
 .trend-ref { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
 .trend-area { fill: color-mix(in srgb, var(--accent) 16%, transparent); }
 .trend-line { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .trend-dot { fill: var(--accent); stroke: var(--bg); stroke-width: 1.2; }
 .trend-dot.won { fill: var(--gold); }
+.trend-range { display: flex; justify-content: space-between; margin-top: 2px; font-size: 11px; color: var(--muted); }
 .chart-foot { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .bars { display: flex; flex-direction: column; gap: 7px; }
 .barrow { display: grid; grid-template-columns: 74px minmax(0, 1fr) 68px; align-items: center; gap: 8px; font-size: 14px; }
@@ -661,6 +684,7 @@ svg.heat .b-num { fill: #d9dce3; }
   .opt > span { font-size: 14px; line-height: 1.15; }
   .choices button { padding-left: 4px; padding-right: 4px; }
   .start { min-height: 52px; }
+  button.resume { padding: 14px 16px; min-height: 64px; }
   .tile { padding-top: 7px; padding-bottom: 7px; }
   .tile b { font-size: 20px; }
 }

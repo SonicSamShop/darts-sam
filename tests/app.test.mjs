@@ -206,3 +206,14 @@ test('app: "Tournament" on the menu opens it as a step on from the menu, and a w
   assert.deepEqual(asked('tourAct').at(-1).slice(0, 1), ['tour-open']);
   assert.equal(asked('tourAct').at(-1)[1].id, 'A');
 });
+
+test('app: starting a new game checks confirmNewGame before starting', async () => {
+  await fresh([sam, phil]);
+  app.setup.players = [1];
+  tap({ act: 'start' });
+  assert.equal(asked('confirmNewGame').length, 1);
+  assert.equal(asked('startMatch').length, 0, 'waits for confirmNewGame callback');
+  // Invoking the callback proceeds to startMatch
+  asked('confirmNewGame')[0][0]();
+  assert.equal(asked('startMatch').length, 1);
+});

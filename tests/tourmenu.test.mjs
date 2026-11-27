@@ -122,3 +122,12 @@ test('menu: with TOURNAMENT_ON_MENU on, Tournament has its line, one for a compu
   assert.equal(lines().length, 2);
   assert.deepEqual(ways().filter(([cls]) => cls === 'start'), [['start', 'button']]);
 });
+
+test('menu: a game in progress shows a distinct Resume button with game and players', () => {
+  fresh();
+  const m = { ...newMatch('x01', ['Sam', 'Phil'], { start: 501, out: 'double', legs: 1, sets: 1 }), id: 'm3', playerIds: [1, 2], bots: [null, null], seq: 0 };
+  app.setMatch(m);
+  On.renderHome();
+  assert.match(app.$app.innerHTML, /class="start resume" data-act="resume"/);
+  assert.match(text(), /Resume game in progress 501 · Sam v Phil/);
+});

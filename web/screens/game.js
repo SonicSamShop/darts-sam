@@ -13,7 +13,7 @@ import { parseSpeech } from '../speech.js';
 import { matchSheet } from '../sync.js';
 import { botLevel } from '../bot.js';
 import { renderLanding } from './landing.js';
-import { menu } from './home.js';
+import { menu, renderHome } from './home.js';
 import { summaryHtml } from './stats.js';
 import { onMatchQuit, onMatchUndone, onMatchWon, openTournament, quitTerms } from './tournament.js';
 import { onCareerUndone, onCareerWon, openCareer } from './career.js';
@@ -399,26 +399,35 @@ export function undo() {
 // as an unfinished game. Unticked (or with nothing thrown yet), nothing from it is
 // kept, here or on the server.
 let quitAsk = null;  // the question, while it is on screen
+let quitNext = null;  // what to do after quitting (e.g. starting a new game)
 const thrown = m => m.log.some(e => e.t === 'dart' || e.t === 'visit' || e.t === 'bust' || (e.t === 'next' && e.force));
 // A match of a tournament's bracket is given up, not quit: whoever quits is out, and the
 // other goes through (tournament.js, forfeit). Each person in it has a button saying so.
-function forfeitHtml(terms) {
+function forfeitHtml(terms, replacing = false) {
   const [a, b] = terms.seats, other = p => (p === a ? b : a);
   const quitters = terms.seats.filter(p => !p.bot);
   const line = p => `${esc(other(p).name)} goes through ${terms.full}–${Math.min(p.legs, terms.full - 1)}`;
-  return `<h1>Give up the match?</h1>
+  return `<h1>${replacing ? 'You have a game open' : 'Give up the match?'}</h1>
     <p class="muted">${quitters.length > 1 ? 'Whoever gives up is' : `${esc(quitters[0].name)} is`} out of ${esc(terms.name)}${quitters.length > 1 ? ', and the other goes through' : `, and ${line(quitters[0])}`}.</p>
-    ${thrown(match) ? `<label class="tick"><input type="checkbox" checked> Save your results?</label>
+    ${thrown(match) ? `<label class="tick"><input type="checkbox" checked> ${replacing ? 'Save your stats' : 'Save your results?'}</label>
       <p class="muted small">Saved, the darts thrown in this game count in your stats. Unticked, they are thrown away.</p>` : ''}
     <div class="row">${quitters.map(p => `<button class="danger" data-quit="yes" data-loser="${p.id}" title="${line(p)}">${esc(p.name)} gives up</button>`).join('')}
-      <button class="primary" data-quit="no">Keep playing</button></div>`;
+      <button class="primary" data-quit="no">${replacing ? 'Cancel' : 'Keep playing'}</button></div>`;
 }
-export function askQuit() {
+export function askQuit(onDone = null) {
   closeQuit();
+  quitNext = onDone;
+  const replacing = !!onDone;
   const terms = match.opts?.tournament ? quitTerms(match) : null;
   quitAsk = document.body.appendChild(document.createElement('div'));
   quitAsk.className = 'report shareask quitask';
-  quitAsk.innerHTML = `<div class="report-in">${terms ? forfeitHtml(terms) : `
+  quitAsk.innerHTML = `<div class="report-in">${terms ? forfeitHtml(terms, replacing) : replacing ? `
+    <h1>You have a game open</h1>
+    <p class="muted">${thrown(match) ? 'Do you want to quit and save your stats?' : 'Do you want to quit it and start a new game?'}</p>
+    ${thrown(match) ? `<label class="tick"><input type="checkbox" checked> Save your stats</label>
+      <p class="muted small">Saved, the darts thrown in this game count in your stats. Unticked, the game is thrown away, darts and all.</p>` : ''}
+    <div class="row"><button class="danger" data-quit="yes">Quit &amp; start new game</button>
+      <button class="primary" data-quit="no">Cancel</button></div>` : `
     <h1>Are you sure?</h1>
     <p class="muted">This game ends here and can't be picked up again.</p>
     ${thrown(match) ? `<label class="tick"><input type="checkbox" checked> Save your results?</label>
@@ -427,16 +436,22 @@ export function askQuit() {
       <button class="primary" data-quit="no">Keep playing</button></div>`}</div>`;
   quitAsk.querySelector('.primary').focus();
 }
-export function closeQuit() { quitAsk?.remove(); quitAsk = null; }
+// Before starting a new game: if one is still open, ask whether to quit it (and save its stats) first.
+export function confirmNewGame(proceed) {
+  if (!match || compute(match).winner != null) return proceed();
+  askQuit(proceed);
+}
+export function closeQuit() { quitAsk?.remove(); quitAsk = null; quitNext = null; }
 document.addEventListener('click', e => {
   const button = e.target.closest('.quitask [data-quit]'), answer = button?.dataset.quit;
   if (!answer) return;
   const save = !!quitAsk.querySelector('input')?.checked;
+  const next = quitNext;
   closeQuit();
-  if (answer === 'yes' && match) quitGame(save, button.dataset.loser ?? null);
+  if (answer === 'yes' && match) quitGame(save, button.dataset.loser ?? null, next);
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQuit(); });
-function quitGame(save, loser = null) {
+function quitGame(save, loser = null, onDone = null) {
   if (save) data.saveMatch(match);  // as it stands: every dart of it is already queued
   else data.quitMatch(match);
   const ofTournament = match.opts?.tournament?.id;
@@ -452,6 +467,10 @@ function quitGame(save, loser = null) {
   speech.stop();
   numPad.value = ''; numPad.ask = null; numPad.error = '';
   data.sync();
+  if (onDone) {
+    if (screen === 'home') renderHome();
+    return onDone();
+  }
   if (ofCareer != null) { openCareer(ofCareer); return mark(); }
   if (!ofTournament) return goHome();
   openTournament(ofTournament);

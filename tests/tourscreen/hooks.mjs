@@ -14,7 +14,7 @@
 // that way (load, below), so both menus are tried whichever way the file has it.
 const here = new URL('./', import.meta.url).href;
 const swap = {
-  'tournament.js': { '../app.js': 'app.mjs', './start.js': 'start.mjs', './landing.js': 'landing.mjs' },
+  'tournament.js': { '../app.js': 'app.mjs', './start.js': 'start.mjs', './landing.js': 'landing.mjs', './game.js': 'game.mjs' },
   'start.js': { '../app.js': 'app.mjs', './home.js': 'home.mjs', './game.js': 'game.mjs', '../board.js': 'board.mjs' },
   'playerspanel.js': { '../app.js': 'app.mjs', './home.js': 'home.mjs', './settings.js': 'settings.mjs' },
   'home.js': { '../app.js': 'app.mjs', './landing.js': 'landing.mjs', './stats.js': 'stats.mjs' },

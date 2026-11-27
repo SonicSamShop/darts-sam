@@ -4,4 +4,4 @@
 
 // Stand-in for web/screens/game.js: the game is only said to be on screen.
 import { setScreen } from './app.mjs';
-export const BOT_WAIT = 2200, gameBoard = {}, renderGame = () => setScreen('game');
+export const BOT_WAIT = 2200, gameBoard = {}, renderGame = () => setScreen('game'), confirmNewGame = fn => fn();

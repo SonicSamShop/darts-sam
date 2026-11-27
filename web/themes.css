@@ -39,7 +39,7 @@
 .t-stage body { font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .t-stage h1 { font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: .02em; }
 .t-stage h2 { font-size: 17px; font-weight: 700; }
-.t-stage p, .t-stage .game-card span, .t-stage input { text-transform: none; letter-spacing: 0; }
+.t-stage p, .t-stage .game-card span, .t-stage input, .t-stage .resume-main small { text-transform: none; letter-spacing: 0; }
 .t-stage .rules-box, .t-stage .opt-help { font-size: 17px; line-height: 1.3; }  /* a narrow face: a size up to read as easily */
 .t-stage button, .t-stage select { border-width: 2px; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .t-stage button.primary { background: var(--text); border-color: var(--text); }
@@ -203,6 +203,9 @@
 .t-chalk table.plain th, .t-chalk table.plain td { border-bottom-color: var(--hair); }
 .t-chalk select option { background: var(--board); }
 .t-chalk button.primary { background: var(--text); }
+.t-chalk .inprogress-bar { background: var(--board); }
+.t-chalk button.resume { border: 2px solid var(--gold); background: var(--gold); color: var(--on-accent); }
+.t-chalk .resume-main small { font-family: var(--plain); font-size: var(--sz-small); }
 .t-chalk button.ghost { background: none; text-decoration: underline; text-underline-offset: 4px; }
 .t-chalk .tabs button { white-space: nowrap; }
 /* somewhere to write: a ruled line on the board, gold while it is being written on */
@@ -276,7 +279,7 @@
   --led: inset 0 0 18px #000; --round: 8px;
 }
 .t-arcade body { font-size: 16px; text-transform: uppercase; letter-spacing: .04em; }
-.t-arcade p, .t-arcade .game-card span, .t-arcade .rules-box, .t-arcade .pick .tourline span { text-transform: none; letter-spacing: 0; font-family: system-ui, sans-serif; }
+.t-arcade p, .t-arcade .game-card span, .t-arcade .rules-box, .t-arcade .pick .tourline span, .t-arcade .resume-main small { text-transform: none; letter-spacing: 0; font-family: system-ui, sans-serif; }
 .t-arcade h1 {
   font-family: 'Bungee', var(--font); font-weight: 400; font-size: 26px; letter-spacing: .02em; color: #f6c61a;
   background: #d8261f; border: 3px solid #f6c61a; border-radius: 10px; padding: 4px 14px;
@@ -286,6 +289,7 @@
 .t-arcade button:active { transform: translateY(3px); box-shadow: 0 1px 0 #000; }
 .t-arcade button.primary { background: #e3271f; border-color: #7d0f0a; color: #fff; font-weight: 400; }
 .t-arcade button.on { border-color: var(--accent); box-shadow: 0 4px 0 #000, 0 0 12px rgba(56, 242, 107, .4); }
+.t-arcade button.resume { border-color: #7a5200; background: var(--gold); color: #0a0a0b; box-shadow: 0 4px 0 #000, 0 0 16px rgba(255, 178, 26, .45); }
 .t-arcade button.ghost { background: var(--panel2); }
 .t-arcade :is(input[type=text], input[type=number], input[type=date]) {
   background: #050505; border: 3px solid var(--line); border-radius: 8px; box-shadow: var(--led);
@@ -359,6 +363,8 @@
 .t-sheet button, .t-sheet select { border: 2px solid var(--text); border-radius: 0; text-transform: uppercase; letter-spacing: .04em; padding-top: 15px; }
 .t-sheet select { padding-top: 20px; }
 .t-sheet button.primary, .t-sheet button.on { background: var(--text); border-color: var(--text); color: var(--bg); }
+.t-sheet button.resume { border-color: var(--gold); background: var(--gold); color: #fff; padding-top: 14px; }
+.t-sheet .resume-main small { font-family: var(--type); font-size: 15px; text-transform: none; letter-spacing: 0; opacity: .9; }
 .t-sheet button.ghost { border-color: transparent; }
 .t-sheet .game-card.on b { color: var(--bg); }
 .t-sheet .game-card.on span { color: #d8ccb0; }

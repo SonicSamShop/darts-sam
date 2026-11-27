@@ -93,14 +93,14 @@ export function renderHome() {
   // A tournament going: the way back to it, with the match being played, or else its next one.
   const cup = currentTournament(), cupNext = cup && tourMarked(cup);
   const going = [
-    match ? '<button class="start" data-act="resume">Resume game in progress</button>' : '',
+    match ? `<button class="start resume" data-act="resume"><span class="resume-main"><span class="resume-top"><span class="resume-dot" aria-hidden="true"></span><b>Resume game in progress</b></span><small>${esc(resumeSummary(match))}</small></span><span class="resume-go" aria-hidden="true">›</span></button>` : '',
     cup ? `<button class="start" data-act="tournament">Back to the tournament: ${esc(cup.name)}${cupNext != null ? `, ${esc(slotTitle(cup, cupNext))}` : ''}</button>` : '',
   ].join('');
   $app.innerHTML = `<div class="page">
     ${pageHead('home')}
     <div class="home-body">
     <div class="pick ${menu.rulesOpen ? 'rules-on' : ''}">
-    ${going ? `<h2>In progress</h2><div class="inprogress">${going}</div>` : ''}
+    ${going ? `<div class="inprogress-bar"><h2>In progress</h2><div class="inprogress">${going}</div></div>` : ''}
     ${step('game', `${[['match', 'Matches'], ['training', 'Training']].map(([kind, title]) => `<h3 class="group">${title}</h3>${kind === 'match' ? (careerEnabled() ? `<div class="group-links">${careerLine('link')}${tourLine('link')}</div>` : tourLine('link')) : warmupLine()}
     <div class="games">${GAMES.filter(g => g.kind === kind).map(g => `<button class="game-card ${g.id === game.id ? 'on' : ''}" data-game="${g.id}">
       <b>${g.name}</b><span>${g.blurb}</span></button>`).join('')}</div>`).join('')}
@@ -348,6 +348,12 @@ function stepper(o) {
 }
 // Only the chosen game's own options go into a match, not ones left over from another game.
 export const startOpts = () => Object.fromEntries(gameById(setup.gameId).options.map(o => [o.key, setup.opts[o.key]]));
+function resumeSummary(m) {
+  const g = gameById(m.gameId);
+  const title = m.gameId === 'x01' ? `${m.opts?.start ?? 501}` : (g?.name ?? m.gameId);
+  const sep = m.players.length === 2 ? ' v ' : ', ';
+  return `${title} · ${m.players.join(sep)}`;
+}
 // The corner of the menu, the way an app shows its version number: every dart on record, and how many
 // problem reports have been saved (with what share of the darts that is).
 function showTotals() {

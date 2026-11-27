@@ -200,6 +200,43 @@ test('x01Trend and x01Brackets summarise recent form and visit score distributio
   assert.deepEqual(byLabel, { '180': 0, '140+': 0, '100+': 1, '90+': 0, '80+': 0, '70+': 0, '60+': 1, '50+': 0, 'Under 50': 1 });
 });
 
+test('x01Trend groups 3-dart average by days, weeks, months, and years', () => {
+  const ts = (y, m, d) => new Date(y, m - 1, d, 12, 0, 0).getTime();
+  const leg = (y, m, d, score, darts = 3) => ({
+    game: 'x01', opts: { start: 101, legs: 1 }, players: ['Sam'], me: 0, started: ts(y, m, d),
+    visits: [[0, 1, ts(y, m, d), 0, null, score, darts]],
+  });
+  const s = x01Stats([
+    leg(2025, 11, 10, 60, 3),  // 60.0 avg, Mon 10 Nov 2025
+    leg(2026, 11, 2, 45, 3),   // Mon 2 Nov 2026
+    leg(2026, 11, 2, 75, 6),   // Same day -> weighted avg (45+75)/(3+6)*3 = 40.0
+    leg(2026, 11, 4, 90, 3),   // Same week (2-8 Nov), diff day -> 90.0
+    leg(2026, 11, 18, 60, 3),  // Diff week in Nov 2026 -> 60.0
+  ]);
+
+  const days = x01Trend(s, { by: 'days' });
+  assert.equal(days.by, 'days');
+  assert.equal(days.points.length, 4);
+  assert.deepEqual(days.points.map(p => Math.round(p.avg * 10) / 10), [60, 40, 90, 60]);
+
+  const weeks = x01Trend(s, { by: 'weeks' });
+  assert.equal(weeks.points.length, 3);
+  assert.deepEqual(weeks.points.map(p => Math.round(p.avg * 10) / 10), [60, 52.5, 60]);
+
+  const months = x01Trend(s, { by: 'months' });
+  assert.equal(months.points.length, 2);
+  assert.deepEqual(months.points.map(p => Math.round(p.avg * 10) / 10), [60, 54]);
+
+  const years = x01Trend(s, { by: 'years' });
+  assert.equal(years.points.length, 2);
+  assert.deepEqual(years.points.map(p => p.key), ['2025', '2026']);
+
+  // Single bucket still returns a point so the scale switcher stays visible
+  const oneYear = x01Trend(x01Stats([leg(2026, 11, 2, 60, 3)]), { by: 'years' });
+  assert.equal(oneYear.points.length, 1);
+  assert.equal(oneYear.delta, 0);
+});
+
 test('headToHead aggregates 2-player rivalry records and X01 averages', () => {
   const m1 = { game: 'x01', opts: { start: 101 }, players: ['Sam', 'Jo'], me: 0, winner: 0, started: 1,
     visits: [[0, 1, 1, 0, null, 101, 3]] };

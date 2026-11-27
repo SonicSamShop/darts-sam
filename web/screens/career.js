@@ -13,7 +13,7 @@ import {
 import { accentFor, banterClipUrl, careerIntensity, pickBanter, tierAtmosphere } from '../banter.js';
 import { starterCall } from '../voice.js';
 import { renderLanding } from './landing.js';
-import { renderGame } from './game.js';
+import { confirmNewGame, renderGame } from './game.js';
 import { switchRow } from './settings.js';
 import {
   $app, account, atmosphereOn, botPlayer, careerOpt, dartsFor, data, esc, flagHtml, flagOf, mark, match, nameOf,
@@ -146,7 +146,7 @@ export function careerAct(act, d) {
       careerView.tab = 'tour';
       return renderCareer();
     case 'career-play':
-      return playCareerMatch();
+      return confirmNewGame(() => playCareerMatch());
     case 'career-promote': {
       const cur = careerOf(pid);
       if (!cur) return;

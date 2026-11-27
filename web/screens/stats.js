@@ -34,6 +34,7 @@ export const statsView = {
   darts: null,  // one of the player's sets of darts, or null for all of them
   board: null,  // one of the boards, or null for all of them
   tab: 'stats',
+  trendBy: 'legs',
   drill: [],
 };
 export let statsData = null;
@@ -113,33 +114,40 @@ const gameTiles = (id, d, to) => (GAME_TILES[id] ?? []).map(([name, key, unit = 
   tile(name, d[key] == null ? null : d[key] + unit, to)).join('');
 // The X01 tiles: all of them under their headings, or just the ones named.
 const X01_HEADLINES = ['average', 'first9', 'checkout', 'bestCheckout', 't180', 't140', 'won', 'bestLeg'];
+const TREND_SCALES = [['legs', 'Legs'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'], ['years', 'Years']];
 // Visual X01 dashboard cards: 3-dart average trend line + score bracket bars.
 function x01ChartsHtml(x) {
   if (!x) return '';
-  const trend = x01Trend(x, 20);
+  const by = statsView.trendBy || 'legs';
+  const trend = x01Trend(x, { by, limit: by === 'legs' ? 20 : 24 }) ?? (by !== 'legs' ? x01Trend(x, 20) : null);
   const brackets = x01Brackets(x);
   let trendCard = '';
   if (trend) {
     const W = 320, H = 104, padX = 10, padY = 12;
+    const ptsList = trend.points;
     const lo = Math.max(0, Math.floor((trend.min - 5) / 5) * 5);
     const hi = Math.max(lo + 10, Math.ceil((trend.max + 5) / 5) * 5);
-    const px = i => padX + (i / (trend.legs.length - 1)) * (W - padX * 2);
+    const px = i => ptsList.length === 1 ? W / 2 : padX + (i / (ptsList.length - 1)) * (W - padX * 2);
     const py = v => H - padY - ((v - lo) / (hi - lo)) * (H - padY * 2);
-    const pts = trend.legs.map((l, i) => [px(i), py(l.avg), l]);
+    const pts = ptsList.map((p, i) => [px(i), py(p.avg), p]);
     const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
     const area = `${pts[0][0].toFixed(1)},${H - padY} ${line} ${pts.at(-1)[0].toFixed(1)},${H - padY}`;
     const refY = py(trend.overall).toFixed(1);
     const sign = trend.delta >= 0.05 ? '+' : '';
     const dCls = trend.delta >= 0.5 ? 'up' : trend.delta <= -0.5 ? 'down' : '';
+    const scope = trend.by === 'legs' ? `last ${ptsList.length} legs`
+      : ptsList.length === 1 ? ptsList[0].label : `last ${ptsList.length} ${trend.by}`;
     trendCard = `<div class="chart-card">
-      <div class="chart-head"><span>3-dart average · last ${trend.legs.length} legs</span>
-        <b class="chart-delta ${dCls}">${sign}${trend.delta.toFixed(1)}</b></div>
+      <div class="chart-head"><span>3-dart average · ${scope}</span>
+        <b class="chart-delta ${dCls}">${ptsList.length >= 2 ? `${sign}${trend.delta.toFixed(1)}` : '–'}</b></div>
+      <div class="trend-scales" role="group" aria-label="3-dart average grouping">${TREND_SCALES.map(([id, name]) =>
+        `<button type="button" class="${trend.by === id ? 'on' : ''}" data-trend="${id}">${name}</button>`).join('')}</div>
       <svg class="trend-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="3-dart average trend">
         <line class="trend-ref" x1="${padX}" y1="${refY}" x2="${W - padX}" y2="${refY}"/>
-        <polygon class="trend-area" points="${area}"/>
-        <polyline class="trend-line" points="${line}"/>
-        ${pts.map(([cx, cy, l]) => `<circle class="trend-dot ${l.won ? 'won' : ''}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.2"><title>Leg ${l.n}: ${l.avg.toFixed(1)} (${l.darts} darts)</title></circle>`).join('')}
+        ${pts.length >= 2 ? `<polygon class="trend-area" points="${area}"/><polyline class="trend-line" points="${line}"/>` : ''}
+        ${pts.map(([cx, cy, p]) => `<circle class="trend-dot ${p.won ? 'won' : ''}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.2"><title>${esc(p.title)}</title></circle>`).join('')}
       </svg>
+      ${trend.by !== 'legs' && ptsList.length >= 2 ? `<div class="trend-range"><span>${esc(ptsList[0].label)}</span><span>${esc(ptsList.at(-1).label)}</span></div>` : ''}
       <div class="chart-foot"><span>Low ${trend.min.toFixed(1)}</span><span>Avg ${trend.overall.toFixed(1)}</span><span>High ${trend.max.toFixed(1)}</span></div>
     </div>`;
   }
