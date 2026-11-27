@@ -209,13 +209,15 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
   const FULL = [-226, -226, 452];
   let home = FULL, shown = FULL, moving = 0, aimed = '';
   const look = v => { shown = v; svg.setAttribute('viewBox', `${v[0].toFixed(1)} ${v[1].toFixed(1)} ${v[2].toFixed(1)} ${v[2].toFixed(1)}`); };
-  const glide = to => {
+  const glide = (to, ms = 360) => {
     cancelAnimationFrame(moving);
     home = to;
-    const from = shown, t0 = performance.now(), MS = 450;
+    const from = shown, t0 = performance.now();
+    if (from.every((v, i) => Math.abs(v - to[i]) < 0.5)) return look(to);
     if (matchMedia?.('(prefers-reduced-motion: reduce)').matches) return look(to);
     const step = now => {
-      const k = Math.min(1, (now - t0) / MS), e = 1 - (1 - k) ** 3;  // ease out
+      const k = Math.min(1, (now - t0) / ms);
+      const e = k < 0.5 ? 4 * k * k * k : 1 - ((-2 * k + 2) ** 3) / 2;  // smooth ease-in-out
       look(from.map((v, i) => v + (to[i] - v) * e));
       if (k < 1) moving = requestAnimationFrame(step);
     };
@@ -336,16 +338,19 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
     },
     // Light up one bed {seg, mult} to aim at. With zoom (default, for Random Targets),
     // zooms in and dims the rest of the board; with zoom: false (X01 checkout hint),
-    // pulses the recommended bed in place without moving the board.
-    showTarget(t, { zoom = true } = {}) {
-      const key = t ? `${t.seg}x${t.mult}${t.part ?? ''}:${zoom ? 1 : 0}` : '';
+    // pulses the recommended bed in place. When viewBox ([x, y, w]) is given (TV view
+    // broadcast camera), glides to that framing instead of FULL.
+    showTarget(t, { zoom = true, viewBox = null, glideMs = 360 } = {}) {
+      const vb = viewBox ? viewBox.slice(0, 3) : null;
+      const vbKey = vb ? vb.map(n => Math.round(n)).join(',') : '';
+      const key = `${t ? `${t.seg}x${t.mult}${t.part ?? ''}` : ''}:${zoom ? 1 : 0}:${vbKey}`;
       if (key === aimed) return;
       aimed = key;
       svg.classList.toggle('aiming', !!t && zoom);
-      if (!t) { aimAt.replaceChildren(); return glide(FULL); }
+      if (!t) { aimAt.replaceChildren(); return glide(vb ?? FULL, glideMs); }
       const lit = d => el('path', { d, class: zoom ? 'b-target' : 'b-target b-hint', 'fill-rule': 'evenodd' });
       aimAt.replaceChildren(...bed(t).map(lit));
-      if (!zoom) return glide(FULL);
+      if (!zoom) return glide(vb ?? FULL, glideMs);
       let at = [0, 0];  // the middle of the bed
       if (t.seg !== 25) {
         const i = SEGMENTS.indexOf(t.seg), [r0, r1] = rings(t).at(-1);

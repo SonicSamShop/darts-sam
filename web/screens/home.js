@@ -337,10 +337,14 @@ function dartsRows() {
     <p class="muted small"><button class="link" data-act="manageplayers">Edit players and darts</button></p>`;
 }
 // An option that is a number rather than one of a few choices: − and + either side of it.
+// When `zero` is set (e.g. 'Unlimited'), the middle is an editable number field so any figure can be typed.
 function stepper(o) {
-  const v = setup.opts[o.key];
-  return `<div class="choices stepper"><button data-opt="${o.key}" data-step="-1" aria-label="Fewer" ${v <= o.min ? 'disabled' : ''}>−</button>
-    <b>${v}</b><button data-opt="${o.key}" data-step="1" aria-label="More" ${v >= o.max ? 'disabled' : ''}>+</button></div>`;
+  const v = setup.opts[o.key], by = o.step ?? 1;
+  const mid = o.zero
+    ? `<input class="opt-num" type="number" inputmode="numeric" min="${o.min}" max="${o.max}" placeholder="${esc(o.zero)}" value="${v || ''}" data-optnum="${o.key}" aria-label="${esc(o.label)}">`
+    : `<b>${v}</b>`;
+  return `<div class="choices stepper"><button data-opt="${o.key}" data-step="${-by}" aria-label="Fewer" ${v <= o.min ? 'disabled' : ''}>−</button>
+    ${mid}<button data-opt="${o.key}" data-step="${by}" aria-label="More" ${v >= o.max ? 'disabled' : ''}>+</button></div>`;
 }
 // Only the chosen game's own options go into a match, not ones left over from another game.
 export const startOpts = () => Object.fromEntries(gameById(setup.gameId).options.map(o => [o.key, setup.opts[o.key]]));

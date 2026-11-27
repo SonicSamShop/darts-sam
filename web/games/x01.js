@@ -4,6 +4,7 @@
 
 import { value, label } from '../board.js';
 import { throwAt } from '../bot.js';
+import { tvCameraFor } from '../tv-camera.js';
 
 // Every dart worth throwing, best setup darts first.
 const SETUP = [];
@@ -101,18 +102,19 @@ const sum = list => list.reduce((t, n) => t + n, 0);
 
 // Player p has just finished a leg. That may win a set, and the match. If the
 // match goes on, everyone starts again and the engine is told who throws first.
-function wonLeg(s, p) {
+// cap: true when the leg ended because the maxDarts per-leg limit was reached.
+function wonLeg(s, p, cap = false) {
   s.legs[p]++;
   const set = s.legs[p] >= legsTo(s);
   if (set) s.sets[p]++;
-  if (set && s.sets[p] >= setsTo(s)) { s.winner = p; return; }
+  if (set && s.sets[p] >= setsTo(s)) { s.winner = p; if (cap) s.capWin = true; return; }
   if (set) s.legs.fill(0);
   s.score.fill(s.opts.start);
   s.opened.fill(s.opts.in !== 'double');
   s.legThrown.fill(0);
   // The throw passes round with each leg, and with each set: the player who
   // threw first in one set throws second in the next, however many legs it took.
-  s.newLeg = { starter: (sum(s.sets) + sum(s.legs)) % s.players.length, set, winner: p };
+  s.newLeg = { starter: (sum(s.sets) + sum(s.legs)) % s.players.length, set, winner: p, ...(cap ? { cap: true } : {}) };
 }
 
 // If a per-leg dart cap is set and everyone has thrown that many darts in this
@@ -122,7 +124,7 @@ function checkCap(s) {
   if (!cap || s.winner != null || s.newLeg) return;
   if (s.legThrown.every(n => n >= cap)) {
     const best = Math.min(...s.score);
-    wonLeg(s, s.score.indexOf(best));
+    wonLeg(s, s.score.indexOf(best), true);
   }
 }
 
@@ -149,7 +151,7 @@ export default {
       help: v => v === 'master' ? 'Finish on any double, treble, or bullseye.'
         : v === 'straight' ? 'Finish on any bed that brings your score to exactly zero.'
         : 'The last dart must be a double or the bullseye.' },
-    { key: 'maxDarts', label: 'Max darts per leg', choices: [[0, 'Unlimited'], [30, '30'], [45, '45'], [60, '60']], default: 0,
+    { key: 'maxDarts', label: 'Max darts per leg', min: 0, max: 300, step: 5, zero: 'Unlimited', default: 0,
       brief: v => v ? `max ${v} darts` : '',
       help: v => v ? `Each player gets up to ${v} darts per leg. If nobody checks out in time, the lowest score left wins the leg.`
         : 'No dart limit: legs play until someone checks out on zero.' },
@@ -307,5 +309,14 @@ export default {
     if (s.turnOver || !checkouts || s.winner != null) return null;
     if (!s.opened[s.current]) return { seg: 20, mult: 2 };
     return checkout(s.score[s.current], 3 - s.turn.length, s.opts.out ?? 'double')?.[0] ?? null;
+  },
+
+  // Dynamic TV broadcast camera framing for TV view (top 20s scoring, switch beds, double & bull zooms).
+  tvCamera(s) {
+    if (s.winner != null) return tvCameraFor(0);
+    const p = s.current, n = s.score[p], outMode = s.opts.out ?? 'double';
+    const dartsLeft = Math.max(1, 3 - s.turn.length);
+    const route = n <= 170 ? (checkout(n, dartsLeft, outMode) ?? (dartsLeft < 3 ? checkout(n, 3, outMode) : null)) : null;
+    return tvCameraFor(n, route, { opened: s.opened[p] });
   },
 };

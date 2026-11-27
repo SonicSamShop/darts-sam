@@ -869,6 +869,7 @@ $app.addEventListener('click', e => {
     case 'export-csv': return exportStatsCsv();
     case 'sharecard': return shareMatchCard(match);
     case 'tv': settings.view = settings.view === 'tv' ? 'cards' : 'tv'; saveSettings(); return renderGame();
+    case 'tvcam': settings.tvCam = settings.tvCam === false; saveSettings(); return renderGame();
     case 'sfx-toggle':
       settings.sfx = !sfxOn();
       saveSettings();
@@ -928,6 +929,18 @@ $app.addEventListener('click', e => {
 });
 // The stats screen's drop-downs: whose stats, for which game, and with which darts.
 $app.addEventListener('change', e => {
+  if (e.target.dataset?.optnum) {
+    const key = e.target.dataset.optnum;
+    const o = gameById(setup.gameId).options.find(x => x.key === key);
+    if (o) {
+      const raw = e.target.value.trim();
+      const n = raw === '' ? 0 : Math.round(Number(raw));
+      setup.opts[key] = Number.isFinite(n) ? Math.min(o.max, Math.max(o.min, n)) : o.default;
+      saveSetup();
+      renderHome();
+    }
+    return;
+  }
   if (e.target.dataset?.voicename !== undefined) {
     store.set('voiceName', e.target.value);
     voice.choose(e.target.value);

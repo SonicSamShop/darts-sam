@@ -1083,6 +1083,7 @@ test('x01: maxDarts per leg awards the leg to the lowest remaining score', () =>
   for (let i = 0; i < 10; i++) visits.push({ t: 'visit', total: 20 }, { t: 'visit', total: 30 });
   const s = play('x01', ['A', 'B'], { start: 501, out: 'double', maxDarts: 30 }, visits);
   assert.equal(s.winner, 1);
+  assert.equal(s.capWin, true);
   assert.deepEqual(s.score, [301, 201]);
   assert.deepEqual(s.legThrown, [30, 30]);
 
@@ -1093,6 +1094,7 @@ test('x01: maxDarts per leg awards the leg to the lowest remaining score', () =>
   assert.equal(sm.winner, null);
   assert.deepEqual(sm.legs, [1, 0]);
   assert.equal(sm.legWon.player, 0);
+  assert.equal(sm.legWon.cap, true);
   assert.equal(sm.current, 1);  // B starts leg 2
   assert.deepEqual(sm.score, [501, 501]);
   assert.deepEqual(sm.legThrown, [0, 0]);

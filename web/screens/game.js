@@ -7,6 +7,7 @@
 
 import { clock, compute, elapsed, gameById, previousVisit } from '../engine.js';
 import { buildBoard, label, spoken, value } from '../board.js';
+import { cameraForDart, dartInView } from '../tv-camera.js';
 import { starterCall } from '../voice.js';
 import { parseSpeech } from '../speech.js';
 import { matchSheet } from '../sync.js';
@@ -286,10 +287,13 @@ export function push(ev) {
   let rest = [];
   if (after.winner != null) {
     const result = game.result?.(after);  // practice games have a result, not a winner
-    rest = [result ? `Game over. ${result}` : `Game shot. ${after.players[after.winner]} wins`];
+    rest = [after.capWin
+      ? `Max darts hit. ${after.players[after.winner]} wins`
+      : result ? `Game over. ${result}` : `Game shot. ${after.players[after.winner]} wins`];
   } else if (after.legWon) {
     // Play has already moved on to whoever throws first in the next leg.
-    rest = [`Game shot, and the ${after.legWon.set ? 'set' : 'leg'}, ${after.players[after.legWon.player]}`, require];
+    const lead = after.legWon.cap ? 'Max darts hit,' : 'Game shot, and';
+    rest = [`${lead} the ${after.legWon.set ? 'set' : 'leg'}, ${after.players[after.legWon.player]}`, require];
   } else if (after.bust != null) {
     rest = ['Bust', require];  // play has already moved on
   } else if (after.noOut != null) {
@@ -604,6 +608,10 @@ function padHtml(s) {
 // the bottom, a line per player, the way a match is shown on television.
 const canTv = (game, s) => !!game.tv && s.players.length <= 2;
 const usingTv = (game, s) => canTv(game, s) && settings.view === 'tv';
+const tvCamOn = () => settings.tvCam !== false;
+const TV_PEEK_MS = 900;
+let tvPeek = null;  // {at: match.log.length, cam, until} briefly follows a dart outside the current frame
+let tvPeekTimer = 0;
 function tvHtml(game, s) {
   const rows = s.players.map((p, i) => ({ p, i, ...game.tv(s, i) }));
   const sets = rows[0].sets != null;
@@ -648,7 +656,7 @@ export function renderGame() {
   if (screen !== 'game' || !document.querySelector('.game')) {
     setScreen('game');
     $app.innerHTML = `<div class="game"><div class="side"></div>
-      <div class="boardwrap"><svg id="board"></svg><div class="pad"></div><div class="matchstats" hidden></div></div><div class="tvbar"></div></div>`;
+      <div class="boardwrap"><div class="tvcam-tag" hidden></div><svg id="board"></svg><div class="pad"></div><div class="matchstats" hidden></div></div><div class="tvbar"></div></div>`;
     gameBoard.ui = buildBoard(document.getElementById('board'), d => { if (!botUp()) push({ t: 'dart', ...d, src: 'tap' }); });
   }
   const game = gameById(match.gameId);
@@ -710,8 +718,8 @@ export function renderGame() {
   const routineTag = routine ? ` <span class="rtag">Warm-up ${routine.step + 1}/${WARMUP_STEPS.length}</span>` : '';
   let banner = '';
   if (warming) banner = `<div class="banner">Warm-up · ${esc(s.players[w.current])} · ${w.darts - w.thrown[w.current]} dart${w.darts - w.thrown[w.current] === 1 ? '' : 's'} left</div>`;
-  else if (s.winner != null) banner = `<div class="banner win">${routine && !nextWarmup ? 'Warm-up complete! ' : ''}${esc(game.result?.(s) ?? `${s.players[s.winner]} wins!`)}</div>`;
-  else if (s.legWon) banner = `<div class="banner win">${s.legWon.set ? 'Set' : 'Leg'} to ${esc(s.players[s.legWon.player])}!${
+  else if (s.winner != null) banner = `<div class="banner win">${routine && !nextWarmup ? 'Warm-up complete! ' : ''}${esc(s.capWin ? `Max darts hit — ${s.players[s.winner]} wins!` : game.result?.(s) ?? `${s.players[s.winner]} wins!`)}</div>`;
+  else if (s.legWon) banner = `<div class="banner win">${s.legWon.cap ? 'Max darts hit — ' : ''}${s.legWon.set ? 'Set' : 'Leg'} to ${esc(s.players[s.legWon.player])}!${
     s.players.length > 1 ? ` ${esc(s.players[s.current])} throws first` : ''}</div>`;
   else if (s.bust != null) banner = `<div class="banner bust">Bust!${s.players.length > 1
     ? ` ${esc(s.players[s.current])} to throw` : ''}</div>`;
@@ -729,6 +737,7 @@ export function renderGame() {
     s.winner != null && `<button class="ghost" data-act="matchstats">${statsUp(s) ? 'Show the board' : 'Match stats'}</button>`,
     s.winner != null && '<button class="ghost" data-act="sharecard">Share card</button>',
     canTv(game, s) && `<button class="ghost" data-act="tv">${tv ? 'Card view' : 'TV view'}</button>`,
+    tv && !pad && !summary && game.tvCamera && `<button class="ghost" data-act="tvcam">${tvCamOn() ? 'Full board' : 'TV camera'}</button>`,
     game.visit && `<button class="ghost" data-act="entry">${pad ? 'Use board' : 'Type scores'}</button>`,
     ((connected && cameraCount > 0) || phone.scoring()) && '<button class="ghost" data-act="report" title="A dart was scored wrongly: save what the cameras saw">Report a dart</button>',
     s.winner == null && '<button class="ghost" data-act="quit">Quit game</button>',
@@ -822,7 +831,29 @@ export function renderGame() {
   const target = game.target?.(s) ?? null;
   const coOn = settings.checkouts !== false && settings.checkoutHighlight !== false;
   const coTarget = !target && !botUp(s) ? game.checkoutTarget?.(s, { checkouts: coOn }) ?? null : null;
-  gameBoard.ui.showTarget(target ?? coTarget, { zoom: !!target });
+  let tvCam = tv && !pad && !summary && tvCamOn() && !target ? game.tvCamera?.(s) ?? null : null;
+  if (tvPeek && (tvPeek.at !== match.log.length || Date.now() >= tvPeek.until || !tvCam)) {
+    tvPeek = null;
+    clearTimeout(tvPeekTimer);
+  }
+  if (fresh && tvCam && s.winner == null) {
+    const lastDart = match.log.at(-1);
+    if (lastDart && !dartInView(lastDart, tvCam.viewBox)) {
+      tvPeek = { at: match.log.length, cam: cameraForDart(lastDart), until: Date.now() + TV_PEEK_MS };
+      clearTimeout(tvPeekTimer);
+      tvPeekTimer = setTimeout(() => {
+        tvPeek = null;
+        if (screen === 'game' && match) renderGame();
+      }, TV_PEEK_MS);
+    }
+  }
+  if (tvPeek && tvCam) tvCam = tvPeek.cam;
+  const camTag = document.querySelector('.tvcam-tag');
+  if (camTag) {
+    camTag.toggleAttribute('hidden', !tvCam);
+    camTag.innerHTML = tvCam ? `<span class="dot"></span><b>${esc(tvCam.camTag)}</b>${tvCam.subtitle ? `<span class="muted"> · ${esc(tvCam.subtitle)}</span>` : ''}` : '';
+  }
+  gameBoard.ui.showTarget(target ?? coTarget, { zoom: !!target, viewBox: tvCam?.viewBox ?? null, glideMs: tvPeek ? 260 : 340 });
   refreshStatus();
   fit();
   botSoon();
