@@ -159,11 +159,13 @@ function heatPicture(points) {
 // Builds the board into an <svg>. onHit({seg, mult, x, y}) fires on tap.
 export function buildBoard(svg, onHit) {  // leave onHit out for a display-only board
   svg.setAttribute('viewBox', '-226 -226 452 452');
-  svg.append(el('circle', { r: 224, class: 'b-surround' }));  // 224 + half its 2 mm ring = 225
+  const stage = el('g', { class: 'b-stage' });
+  svg.append(stage);
+  stage.append(el('circle', { r: 224, class: 'b-surround' }));  // 224 + half its 2 mm ring = 225
   SEGMENTS.forEach((n, i) => {
     const a0 = i * 18 - 9, a1 = a0 + 18, dark = i % 2 === 0;
     const single = dark ? 'b-dark' : 'b-light', ring = dark ? 'b-red' : 'b-green';
-    svg.append(
+    stage.append(
       el('path', { d: wedge(R.outer, R.tIn, a0, a1), class: single }),
       el('path', { d: wedge(R.tIn, R.tOut, a0, a1), class: ring }),
       el('path', { d: wedge(R.tOut, R.dIn, a0, a1), class: single }),
@@ -172,11 +174,11 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
     const [tx, ty] = pt(197, i * 18).split(' ');
     t.setAttribute('x', tx); t.setAttribute('y', ty);
     t.textContent = n;
-    svg.append(t);
+    stage.append(t);
   });
-  svg.append(el('circle', { r: R.outer, class: 'b-green' }), el('circle', { r: R.bull, class: 'b-red' }));
+  stage.append(el('circle', { r: R.outer, class: 'b-green' }), el('circle', { r: R.bull, class: 'b-red' }));
   const aimAt = el('g', {}), hits = el('g', {}), marks = el('g', {});  // the bed to aim at (showTarget), under the darts
-  svg.append(aimAt, hits, marks);
+  stage.append(aimAt, hits, marks);
   // A bed {seg, mult, part?} as the outline(s) of it: a ring for each half of a single.
   const disc = r => `M0 ${-r}A${r} ${r} 0 1 1 0 ${r}A${r} ${r} 0 1 1 0 ${-r}Z`;
   const rings = t => t.mult === 3 ? [[R.tIn, R.tOut]] : t.mult === 2 ? [[R.dIn, R.dOut]]
@@ -205,23 +207,21 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
       .onfinish = () => puff.remove();
   };
   // What the board shows when nothing is being held: all of it, or the part
-  // round a target. [left, top, width] of the viewBox.
+  // round a target. [left, top, width] of the target viewBox, animated via a
+  // GPU-composited CSS transform on `stage` (silky smooth on mobile, unlike viewBox).
   const FULL = [-226, -226, 452];
-  let home = FULL, shown = FULL, moving = 0, aimed = '';
-  const look = v => { shown = v; svg.setAttribute('viewBox', `${v[0].toFixed(1)} ${v[1].toFixed(1)} ${v[2].toFixed(1)} ${v[2].toFixed(1)}`); };
-  const glide = (to, ms = 360) => {
-    cancelAnimationFrame(moving);
+  let home = FULL, shown = FULL, aimed = '';
+  const look = (v, ms = 0) => {
+    shown = v;
+    const s = 452 / v[2], cx = v[0] + v[2] / 2, cy = v[1] + v[2] / 2;
+    const still = !ms || matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    stage.style.transition = still ? 'none' : `transform ${ms}ms cubic-bezier(.22, 1, .36, 1)`;
+    stage.style.transform = `scale(${s.toFixed(4)}) translate(${(-cx).toFixed(2)}px, ${(-cy).toFixed(2)}px)`;
+  };
+  const glide = (to, ms = 320) => {
     home = to;
-    const from = shown, t0 = performance.now();
-    if (from.every((v, i) => Math.abs(v - to[i]) < 0.5)) return look(to);
-    if (matchMedia?.('(prefers-reduced-motion: reduce)').matches) return look(to);
-    const step = now => {
-      const k = Math.min(1, (now - t0) / ms);
-      const e = k < 0.5 ? 4 * k * k * k : 1 - ((-2 * k + 2) ** 3) / 2;  // smooth ease-in-out
-      look(from.map((v, i) => v + (to[i] - v) * e));
-      if (k < 1) moving = requestAnimationFrame(step);
-    };
-    moving = requestAnimationFrame(step);
+    if (shown.every((v, i) => Math.abs(v - to[i]) < 0.5)) return look(to, 0);
+    look(to, ms);
   };
 
   if (onHit) {
@@ -231,9 +231,9 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
     const ring = el('circle', { r: 3 }), tag = el('text', { 'text-anchor': 'middle' });
     const aim = el('g', { class: 'b-aim', hidden: '' });
     aim.append(el('path', { d: 'M-9 0H-3M3 0H9M0 -9V-3M0 3V9' }), ring, tag);
-    svg.append(aim);
+    stage.append(aim);
     const at = e => {
-      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse());
+      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(stage.getScreenCTM().inverse());
       return { x: p.x, y: -p.y };
     };
     let press = null, top = home[1];  // top: upper edge of what is in view
@@ -245,12 +245,11 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
       tag.textContent = label(scoreAt(p.x, p.y));
     };
     const zoomIn = e => {
-      cancelAnimationFrame(moving);
-      look(home);
+      look(home, 0);
       const p = at(e), w = home[2] / ZOOM;
       // the spot under the finger stays under the finger
       const x0 = p.x - (p.x - home[0]) / ZOOM, y0 = -p.y - (-p.y - home[1]) / ZOOM;
-      svg.setAttribute('viewBox', `${x0} ${y0} ${w} ${w}`);
+      look([x0, y0, w], 0);
       svg.classList.add('zoomed');
       press.zoomed = true; top = y0;
       aim.removeAttribute('hidden');
@@ -260,7 +259,7 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
       if (!press) return;
       clearTimeout(press.timer);
       press = null; top = home[1];
-      look(home);
+      look(home, 0);
       svg.classList.remove('zoomed');
       aim.setAttribute('hidden', '');
     };

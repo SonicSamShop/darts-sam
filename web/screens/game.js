@@ -612,7 +612,7 @@ const tvCamOn = () => settings.tvCam !== false;
 const TV_PEEK_MS = 900;
 let tvPeek = null;  // {at: match.log.length, cam, until} briefly follows a dart outside the current frame
 let tvPeekTimer = 0;
-let lastTvViewBox = null;  // the TV viewBox on screen before the latest dart landed
+let lastTvCam = null;  // the TV camera shot on screen before the latest dart landed
 function tvHtml(game, s) {
   const rows = s.players.map((p, i) => ({ p, i, ...game.tv(s, i) }));
   const sets = rows[0].sets != null;
@@ -696,8 +696,9 @@ export function renderGame() {
   // new visit; the board keeps the old darts marked until the next one lands,
   // and the old visit is listed in small print under the slots.
   // While a visit is kept up (above), its darts stay in the slots instead.
+  const prev = previousVisit(s);
   const inSlots = warming ? w.turn : held ? held.darts : s.turn;
-  const shown = warming ? w.turn : held ? held.darts : s.turn.length ? s.turn : s.lastVisit?.darts ?? s.turn;
+  const shown = warming ? w.turn : held ? held.darts : s.turn.length ? s.turn : s.lastVisit?.darts ?? (s.bust != null ? prev?.darts : null) ?? s.turn;
   const total = inSlots.reduce((t, d) => t + value(d), 0);
   const same = seen.id === match.id, grew = same && match.log.length > seen.len, shrank = same && match.log.length < seen.len;
   // a dart that has just come into its slot drops in; one an Undo has given back fades back in
@@ -705,7 +706,6 @@ export function renderGame() {
   const slots = [0, 1, 2].map(i => inSlots[i]
     ? `<div class="slot${held ? '' : came(i)}"><b>${label(inSlots[i])}</b><small>Dart ${i + 1}</small></div>`
     : `<div class="slot empty${!held && i === s.turn.length && s.winner == null && !s.turnOver ? ' next' : ''}"><b>–</b><small>Dart ${i + 1}</small></div>`).join('');
-  const prev = previousVisit(s);
   // A typed visit has no single darts to list (the number pad says what it scored).
   // The last visit: who threw it and its darts, small, on the left; what it scored, large, on the right.
   // A bust says so in place of the score; a game that keeps no totals has no score.
@@ -839,10 +839,15 @@ export function renderGame() {
   }
   if (fresh && tvCam && s.winner == null) {
     const lastDart = match.log.at(-1);
-    const seenBox = lastTvViewBox ?? tvCam.viewBox;
+    const seenBox = lastTvCam?.viewBox ?? tvCam.viewBox;
     const bullHit = lastDart?.seg === 25 && tvCam.mode !== 'bull';
-    if (lastDart && (bullHit || !dartInView(lastDart, seenBox))) {
-      tvPeek = { at: match.log.length, cam: cameraForDart(lastDart), until: Date.now() + TV_PEEK_MS };
+    const outOfSeen = lastDart && !dartInView(lastDart, seenBox);
+    // If a visit just ended (Dart 3 or Bust) and the camera is about to pan away
+    // from where the missed dart went (e.g. missed D16 or Bull), hold briefly to show it.
+    const leavingDart = !s.turn.length && lastDart && !dartInView(lastDart, tvCam.viewBox);
+    if (lastDart && (bullHit || outOfSeen || leavingDart)) {
+      const cam = (bullHit || outOfSeen) ? cameraForDart(lastDart) : (lastTvCam ?? cameraForDart(lastDart));
+      tvPeek = { at: match.log.length, cam, until: Date.now() + TV_PEEK_MS };
       clearTimeout(tvPeekTimer);
       tvPeekTimer = setTimeout(() => {
         tvPeek = null;
@@ -851,7 +856,7 @@ export function renderGame() {
     }
   }
   if (tvPeek && tvCam) tvCam = tvPeek.cam;
-  lastTvViewBox = tvCam?.viewBox ?? null;
+  lastTvCam = tvCam;
   const camTag = document.querySelector('.tvcam-tag');
   if (camTag) {
     camTag.toggleAttribute('hidden', !tvCam);
