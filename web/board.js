@@ -206,35 +206,26 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
   };
   // What the board shows when nothing is being held: all of it, or the part
   // round a target. [left, top, width] of the target viewBox, animated via a
-  // GPU-composited CSS transform on `<svg>` itself (immune to SVG child reflows on mobile).
+  // GPU-composited percentage CSS transform on `<svg>` (which is a 100cqmin square
+  // inside `.boardwrap`, so percentages match board mm at every size with zero JS resize).
   const FULL = [-226, -226, 452];
   let home = FULL, shown = FULL, aimed = '';
   const look = (v, ms = 0) => {
     shown = v;
-    const side = Math.min(svg.clientWidth || 0, svg.clientHeight || 0);
-    if (!side) {
-      svg.style.transition = 'none';
-      svg.style.transform = '';
-      svg.setAttribute('viewBox', `${v[0].toFixed(1)} ${v[1].toFixed(1)} ${v[2].toFixed(1)} ${v[2].toFixed(1)}`);
-      return;
-    }
-    svg.setAttribute('viewBox', '-226 -226 452 452');
-    const px = side / 452, s = 452 / v[2];
-    const cx = v[0] + v[2] / 2, cy = v[1] + v[2] / 2;
+    const s = 452 / v[2];
+    const tx = -(v[0] + v[2] / 2) / 452 * 100;
+    const ty = -(v[1] + v[2] / 2) / 452 * 100;
     const still = !ms || matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     svg.style.transition = still ? 'none' : `transform ${ms}ms cubic-bezier(.22, 1, .36, 1)`;
-    svg.style.transform = s === 1 && !cx && !cy ? '' : `scale(${s.toFixed(4)}) translate(${(-cx * px).toFixed(1)}px, ${(-cy * px).toFixed(1)}px)`;
+    svg.style.transform = Math.abs(s - 1) < 0.001 && Math.abs(tx) < 0.01 && Math.abs(ty) < 0.01
+      ? ''
+      : `scale(${s.toFixed(4)}) translate(${tx.toFixed(2)}%, ${ty.toFixed(2)}%)`;
   };
   const glide = (to, ms = 320) => {
     home = to;
     if (shown.every((v, i) => Math.abs(v - to[i]) < 0.5)) return;
     look(to, ms);
   };
-  if (typeof ResizeObserver !== 'undefined') {
-    new ResizeObserver(() => {
-      if (!svg.classList.contains('zoomed') && !shown.every((v, i) => Math.abs(v - FULL[i]) < 0.5)) look(shown, 0);
-    }).observe(svg);
-  }
 
   if (onHit) {
     // A quick tap scores where it lands. Holding for HOLD ms zooms in around the
