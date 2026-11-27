@@ -157,7 +157,7 @@ function heatPicture(points) {
 }
 
 // Builds the board into an <svg>. onHit({seg, mult, x, y}) fires on tap.
-export function buildBoard(svg, onHit) {  // leave onHit out for a display-only board
+export function buildBoard(svg, onHit, { onPan } = {}) {  // leave onHit out for a display-only board
   svg.setAttribute('viewBox', '-226 -226 452 452');
   svg.append(el('circle', { r: 224, class: 'b-surround' }));  // 224 + half its 2 mm ring = 225
   SEGMENTS.forEach((n, i) => {
@@ -210,12 +210,18 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
   // inside `.boardwrap`, so percentages match board mm at every size with zero JS resize).
   const FULL = [-226, -226, 452];
   let home = FULL, shown = FULL, aimed = '';
+  const clampView = (x, y, w) => [
+    Math.min(226 - w, Math.max(-226, x)),
+    Math.min(226 - w, Math.max(-226, y)),
+    w,
+  ];
   const look = (v, ms = 0) => {
     shown = v;
     const s = 452 / v[2];
     const tx = -(v[0] + v[2] / 2) / 452 * 100;
     const ty = -(v[1] + v[2] / 2) / 452 * 100;
     const still = !ms || matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    svg.classList.toggle('pannable', !!onHit && v[2] < 451);
     svg.style.transition = still ? 'none' : `transform ${ms}ms cubic-bezier(.22, 1, .36, 1)`;
     svg.style.transform = Math.abs(s - 1) < 0.001 && Math.abs(tx) < 0.01 && Math.abs(ty) < 0.01
       ? ''
@@ -228,9 +234,10 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
   };
 
   if (onHit) {
-    // A quick tap scores where it lands. Holding for HOLD ms zooms in around the
-    // finger; the dart is then scored where the finger is lifted.
-    const HOLD = 500, ZOOM = 3;
+    // A quick tap scores where it lands. When zoomed in (e.g. TV camera), dragging
+    // pans the board so any number can be reached and tapped. Holding still for
+    // HOLD ms zooms in around the finger; the dart is scored where it is lifted.
+    const HOLD = 500, ZOOM = 3, DRAG = 10;
     const ring = el('circle', { r: 3 }), tag = el('text', { 'text-anchor': 'middle' });
     const aim = el('g', { class: 'b-aim', hidden: '' });
     aim.append(el('path', { d: 'M-9 0H-3M3 0H9M0 -9V-3M0 3V9' }), ring, tag);
@@ -248,37 +255,63 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
       tag.textContent = label(scoreAt(p.x, p.y));
     };
     const zoomIn = e => {
-      look(home, 0);
-      const p = at(e), w = home[2] / ZOOM;
+      const base = shown.slice();
+      look(base, 0);
+      const p = at(e), w = base[2] / ZOOM;
       // the spot under the finger stays under the finger
-      const x0 = p.x - (p.x - home[0]) / ZOOM, y0 = -p.y - (-p.y - home[1]) / ZOOM;
+      const x0 = p.x - (p.x - base[0]) / ZOOM, y0 = -p.y - (-p.y - base[1]) / ZOOM;
       look([x0, y0, w], 0);
       svg.classList.add('zoomed');
-      press.zoomed = true; top = y0;
+      press.zoomed = true; press.base = base; top = y0;
       aim.removeAttribute('hidden');
       moveAim(e);
     };
     const release = () => {
       if (!press) return;
-      const wasZoomed = press.zoomed;
+      const wasZoomed = press.zoomed, back = press.base ?? home;
       clearTimeout(press.timer);
-      press = null; top = home[1];
-      if (wasZoomed) look(home, 0);
-      svg.classList.remove('zoomed');
+      press = null; top = back[1];
+      if (wasZoomed) look(back, 0);
+      svg.classList.remove('zoomed', 'panning');
       aim.setAttribute('hidden', '');
     };
     svg.addEventListener('pointerdown', e => {
       if (press || e.button) return;
-      press = { id: e.pointerId, last: e, zoomed: false, timer: setTimeout(() => zoomIn(press.last), HOLD) };
+      const rect = svg.getBoundingClientRect();
+      press = {
+        id: e.pointerId, last: e, zoomed: false, panned: false,
+        startX: e.clientX, startY: e.clientY, startView: shown.slice(),
+        mmPerPx: rect.width ? 452 / rect.width : 1,
+        timer: setTimeout(() => zoomIn(press.last), HOLD),
+      };
       svg.setPointerCapture(e.pointerId);
     });
     svg.addEventListener('pointermove', e => {
       if (e.pointerId !== press?.id) return;
       press.last = e;
-      if (press.zoomed) moveAim(e);
+      if (press.zoomed) return moveAim(e);
+      if (press.startView[2] < 451) {
+        const dx = e.clientX - press.startX, dy = e.clientY - press.startY;
+        if (!press.panned && Math.hypot(dx, dy) >= DRAG) {
+          clearTimeout(press.timer);
+          press.panned = true;
+          svg.classList.add('panning');
+        }
+        if (press.panned) {
+          const next = clampView(
+            press.startView[0] - dx * press.mmPerPx,
+            press.startView[1] - dy * press.mmPerPx,
+            press.startView[2],
+          );
+          aimed = '';
+          look(next, 0);
+          onPan?.(next);
+        }
+      }
     });
     svg.addEventListener('pointerup', e => {
       if (e.pointerId !== press?.id) return;
+      if (press.panned) return release();
       const { x, y } = at(e);  // read before the zoom is undone
       release();
       onHit({ ...scoreAt(x, y), x: +x.toFixed(1), y: +y.toFixed(1) });
@@ -371,5 +404,6 @@ export function buildBoard(svg, onHit) {  // leave onHit out for a display-only 
       marks.before(
         el('image', { href: heatPicture(points), x: -226, y: -226, width: 452, height: 452, class: 'b-heat' }));
     },
+    viewBox: () => shown.slice(),
   };
 }

@@ -613,6 +613,8 @@ const TV_PEEK_MS = 900;
 let tvPeek = null;  // {at: match.log.length, cam, until} briefly follows a dart outside the current frame
 let tvPeekTimer = 0;
 let lastTvCam = null;  // the TV camera shot on screen before the latest dart landed
+let tvPanned = false;  // true while the player has manually dragged the zoomed-in board
+let lastAutoCamKey = '';
 function tvHtml(game, s) {
   const rows = s.players.map((p, i) => ({ p, i, ...game.tv(s, i) }));
   const sets = rows[0].sets != null;
@@ -658,7 +660,22 @@ export function renderGame() {
     setScreen('game');
     $app.innerHTML = `<div class="game"><div class="side"></div>
       <div class="boardwrap"><div class="tvcam-tag" hidden></div><svg id="board"></svg><div class="pad"></div><div class="matchstats" hidden></div></div><div class="tvbar"></div></div>`;
-    gameBoard.ui = buildBoard(document.getElementById('board'), d => { if (!botUp()) push({ t: 'dart', ...d, src: 'tap' }); });
+    const onPan = () => {
+      tvPanned = true;
+      tvPeek = null;
+      clearTimeout(tvPeekTimer);
+      const tag = document.querySelector('.tvcam-tag');
+      if (tag && !tag.hidden) {
+        tag.classList.add('panned');
+        tag.innerHTML = '<span class="dot"></span><b>Manual view</b><span class="muted"> · Reset</span>';
+      }
+    };
+    document.querySelector('.tvcam-tag')?.addEventListener('click', () => {
+      if (!tvPanned) return;
+      tvPanned = false;
+      renderGame();
+    });
+    gameBoard.ui = buildBoard(document.getElementById('board'), d => { if (!botUp()) push({ t: 'dart', ...d, src: 'tap' }); }, { onPan });
   }
   const game = gameById(match.gameId);
   const s = compute(match);
@@ -833,19 +850,22 @@ export function renderGame() {
   const coOn = settings.checkouts !== false && settings.checkoutHighlight !== false;
   const coTarget = !target && !botUp(s) ? game.checkoutTarget?.(s, { checkouts: coOn }) ?? null : null;
   let tvCam = tv && !pad && !summary && tvCamOn() && !target ? game.tvCamera?.(s) ?? null : null;
+  const autoCamKey = tvCam ? tvCam.viewBox.map(n => Math.round(n)).join(',') : '';
+  if (!tvCam || s.winner != null || arrive || ((grew || shrank) && !s.turn.length) || autoCamKey !== lastAutoCamKey) tvPanned = false;
+  lastAutoCamKey = autoCamKey;
   if (tvPeek && (tvPeek.at !== match.log.length || Date.now() >= tvPeek.until || !tvCam)) {
     tvPeek = null;
     clearTimeout(tvPeekTimer);
   }
   if (fresh && tvCam && s.winner == null) {
     const lastDart = match.log.at(-1);
-    const seenBox = lastTvCam?.viewBox ?? tvCam.viewBox;
+    const seenBox = tvPanned ? (gameBoard.ui.viewBox?.() ?? tvCam.viewBox) : (lastTvCam?.viewBox ?? tvCam.viewBox);
     const bullHit = lastDart?.seg === 25 && tvCam.mode !== 'bull';
     const outOfSeen = lastDart && !dartInView(lastDart, seenBox);
     // If a visit just ended (Dart 3 or Bust) and the camera is about to pan away
     // from where the missed dart went (e.g. missed D16 or Bull), hold briefly to show it.
     const leavingDart = !s.turn.length && lastDart && !dartInView(lastDart, tvCam.viewBox);
-    if (lastDart && (bullHit || outOfSeen || leavingDart)) {
+    if (lastDart && ((!tvPanned && bullHit) || outOfSeen || leavingDart)) {
       const cam = (bullHit || outOfSeen) ? cameraForDart(lastDart) : (lastTvCam ?? cameraForDart(lastDart));
       tvPeek = { at: match.log.length, cam, until: Date.now() + TV_PEEK_MS };
       clearTimeout(tvPeekTimer);
@@ -860,9 +880,13 @@ export function renderGame() {
   const camTag = document.querySelector('.tvcam-tag');
   if (camTag) {
     camTag.toggleAttribute('hidden', !tvCam);
-    camTag.innerHTML = tvCam ? `<span class="dot"></span><b>${esc(tvCam.camTag)}</b>${tvCam.subtitle ? `<span class="muted"> · ${esc(tvCam.subtitle)}</span>` : ''}` : '';
+    camTag.classList.toggle('panned', !!tvCam && tvPanned);
+    camTag.innerHTML = !tvCam ? ''
+      : tvPanned ? '<span class="dot"></span><b>Manual view</b><span class="muted"> · Reset</span>'
+      : `<span class="dot"></span><b>${esc(tvCam.camTag)}</b>${tvCam.subtitle ? `<span class="muted"> · ${esc(tvCam.subtitle)}</span>` : ''}`;
   }
-  gameBoard.ui.showTarget(target ?? coTarget, { zoom: !!target, viewBox: tvCam?.viewBox ?? null, glideMs: tvPeek ? 260 : 340 });
+  const activeView = tvPanned && tvCam ? (gameBoard.ui.viewBox?.() ?? tvCam.viewBox) : (tvCam?.viewBox ?? null);
+  gameBoard.ui.showTarget(target ?? coTarget, { zoom: !!target, viewBox: activeView, glideMs: tvPeek ? 260 : 340 });
   refreshStatus();
   fit();
   botSoon();
