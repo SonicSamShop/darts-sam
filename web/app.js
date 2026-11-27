@@ -955,6 +955,11 @@ $app.addEventListener('change', e => {
     saveSettings();
     return;
   }
+  if (e.target.dataset?.turnhold !== undefined) {
+    settings.turnHold = +e.target.value;
+    saveSettings();
+    return;
+  }
   if (e.target.dataset?.bothold !== undefined) {
     settings.botHold = +e.target.value;
     saveSettings();

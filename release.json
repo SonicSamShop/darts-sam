@@ -1,5 +1,5 @@
 {
-  "version": "1.10",
+  "version": "1.10.1",
   "unreleased": [],
   "notes": {
     "1.0": [
@@ -123,6 +123,11 @@
       "The board on the Stats screen can now show each dart as a dot where it landed, the heat map, or both, and the heat map is sharper, so separate groups of darts stay apart.",
       "TV camera in X01: dynamic framing and zooming on the board as you play and finish.",
       "Stats: switch the 3-dart average trend chart between time scales and hover or tap points for detailed tooltips."
+    ],
+    "1.10.1": [
+      "121 Checkout: Highest checkout now records the 3-dart finishing checkout you hit, rather than the starting target score.",
+      "121 Checkout with two or more players: head to head on the same target — first to check it out wins the leg, and the most legs wins.",
+      "Delay between turns (2+ players): after a visit ends, throws for the next player wait 4 seconds before counting to prevent accidental double-counting (change or switch off under Settings › In a game)."
     ]
   }
 }

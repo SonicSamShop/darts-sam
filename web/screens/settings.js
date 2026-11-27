@@ -14,7 +14,7 @@ import {
   $app, THEMES, account, applyTheme, depth, esc, fit, icon, mark, pageFoot, pageHead, players, refreshStatus,
   screen, setScreen, settings, sfxOn, store, voice
 } from '../app.js';
-import { BOT_HOLD_MAX, BOT_HOLD_USUAL, VISIT_HOLD_MAX, botHoldSecs, flashOn, visitHoldSecs } from './game.js';
+import { BOT_HOLD_MAX, BOT_HOLD_USUAL, TURN_HOLD_MAX, TURN_HOLD_USUAL, VISIT_HOLD_MAX, botHoldSecs, flashOn, turnHoldSecs, visitHoldSecs } from './game.js';
 import { achievementsOn, photosOn } from './earned.js';
 import { aboutPanel, appRelease } from './release.js';
 import { boardsPanel, wallName } from './boardspanel.js';
@@ -33,6 +33,14 @@ function visitHoldPicker() {
   return `<div class="picks"><label class="pick"><span>Keep my darts up after a visit</span><select data-visithold>
       ${Array.from({ length: VISIT_HOLD_MAX + 1 }, (_, n) =>
     `<option value="${n}" ${n === now ? 'selected' : ''}>${n ? `${n} second${n > 1 ? 's' : ''}` : 'No, move on at once'}</option>`).join('')}</select></label></div>`;
+}
+// How long to wait between visits with two or more players, to stop double counting: a drop-down of seconds.
+function turnHoldPicker() {
+  const now = turnHoldSecs();
+  return `<div class="picks"><label class="pick"><span>Delay between turns (2+ players)</span><select data-turnhold>
+      ${Array.from({ length: TURN_HOLD_MAX + 1 }, (_, n) =>
+    `<option value="${n}" ${n === now ? 'selected' : ''}>${n ? `${n} second${n > 1 ? 's' : ''}` : 'No wait'}${n === TURN_HOLD_USUAL ? ' Default' : ''}</option>`).join('')}</select></label></div>
+    <p class="muted small">With two or more players, how long after a visit before the next player's throws count, to stop double counting.</p>`;
 }
 // How long the computer waits after a person's visit before it throws: a drop-down of seconds.
 function botHoldPicker() {
@@ -99,6 +107,7 @@ export function renderSettings(jump) {
     ${voicePicker()}` : ''}
     ${switchRow('Show each visit\'s score large', flashOn(), `data-visitflash="${flashOn() ? 'off' : 'on'}"`, 'For a couple of seconds after a visit, what it scored takes over the scores, for when the voice can\'t be heard.')}
     ${visitHoldPicker()}
+    ${turnHoldPicker()}
     ${switchRow('Checkout hints', hints, `data-checkouts="${hints ? 'off' : 'on'}"`, 'Switch off to practise working out your finishes yourself.')}
     ${hints ? switchRow('Highlight checkout bed on the board', settings.checkoutHighlight !== false, `data-checkouthighlight="${settings.checkoutHighlight !== false ? 'off' : 'on'}"`, 'Pulses the next recommended bed on the dartboard when you are on a finish.') : ''}
     ${switchRow('Show achievements as they are earned', achievementsOn(), `data-achievements="${achievementsOn() ? 'off' : 'on'}"`, 'A first 180, a big finish and the like are shown, and called, as they happen. Off, they are still kept on the Stats page.')}

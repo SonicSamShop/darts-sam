@@ -308,6 +308,14 @@ def main():
         assert db.save_match("o1", m)
         assert db.stats(alex["id"], "c121")["detail"] == {"rate": 50.0, "made": 1, "highest": 81, "avg_darts": 2.0}
 
+        # Multi-visit checkout on 121: 60 then 61 -> 3-dart checkout is 61, not 121
+        co2 = [throw(0, 1, 20, 1), throw(0, 1, 20, 1), throw(0, 1, 20, 1),
+               throw(0, 2, 20, 1), throw(0, 2, 1, 1), throw(0, 2, 20, 2)]
+        m2 = match(1, [sam["id"]], co2, game="c121")
+        m2["opts"] = {"start": 121, "darts": 9, "inc": 1, "dec": 1, "rounds": 10}
+        assert db.save_match("o2", m2)
+        assert db.stats(sam["id"], "c121")["detail"] == {"rate": 100.0, "made": 1, "highest": 61, "avg_darts": 6.0}
+
         # darts: each player's sets, which one was thrown in each game, and stats set by set
         assert db.stats(sam["id"])["gear"][-1]["id"] is None  # games from before: no set named
         red = db.save_darts("red", {"player": sam["id"], "name": " Red  23g ", "grams": 23, "created": 5})

@@ -344,6 +344,8 @@ test('121 checkout: target climbs on a finish and falls back to the start', () =
   assert.equal(s.target[0], 121);
   s = play('c121', ['A'], { ...o, inc: 5, dec: 2 }, [...c121, ...miss9]);
   assert.equal(s.target[0], 124);
+  s = play('c121', ['A'], o, [D(20, 3), D(20), D(1), D(20, 2)]);  // 121 target checked out in 2 visits: 3-dart checkout is 40, not 121
+  assert.equal(s.target[0], 122); assert.equal(s.highest[0], 40);
 });
 
 test('121 checkout: typed visits', () => {
@@ -351,6 +353,7 @@ test('121 checkout: typed visits', () => {
   const game = gameById('c121');
   let s = play('c121', ['A'], o, [V(60), V(61, 2)]);             // checked out with the fifth dart
   assert.deepEqual(s.results[0], [{ target: 121, ok: true, darts: 5 }]);
+  assert.equal(s.highest[0], 61);
   assert.equal(s.target[0], 122); assert.equal(s.left[0], 122); assert.equal(s.used[0], 0); assert.equal(s.turnOver, false);
   s = play('c121', ['A'], o, [V(100), V(40)]);                   // 21 - 40 is a bust, as is leaving 1
   assert.equal(s.left[0], 21); assert.equal(s.bust, 0); assert.equal(s.used[0], 6);
@@ -360,8 +363,8 @@ test('121 checkout: typed visits', () => {
   assert.deepEqual(s.results[0], [{ target: 121, ok: false, darts: 9 }]); assert.equal(s.left[0], 121);
   s = play('c121', ['A'], o, [V(60), V(60), V(140)]);            // a bust on the last visit also ends it
   assert.deepEqual(s.results[0], [{ target: 121, ok: false, darts: 9 }]); assert.equal(s.bust, 0);
-  s = play('c121', ['A', 'B'], o, [V(81), V(60), V(40, 1)]);     // each has their own score: A takes out their 40
-  assert.deepEqual(s.left, [122, 61]); assert.deepEqual(s.checks, [1, 0]); assert.equal(s.current, 1);
+  s = play('c121', ['A', 'B'], o, [V(81), V(60), V(40, 1)]);     // head-to-head: A takes out 121 to lead 1-0, both move to 122, B throws first
+  assert.deepEqual(s.legs, [1, 0]); assert.deepEqual(s.left, [122, 122]); assert.deepEqual(s.target, [122, 122]); assert.equal(s.current, 1);
   s = play('c121', ['A'], o, [D(20, 3), NEXT, V(61, 2)]);        // mixed with darts tapped on the board
   assert.deepEqual(s.results[0], [{ target: 121, ok: true, darts: 5 }]);
   s = play('c121', ['A'], o, [V(81)]);
@@ -382,15 +385,16 @@ test('121 checkout: busts, dart limit, separate scores and the end of the game',
   assert.equal(s.used[0], 3);
   s = play('c121', ['A'], { ...o, darts: 3 }, [D(20, 3), D(11), D(1)]);
   assert.deepEqual(s.results[0], [{ target: 121, ok: false, darts: 3 }]); assert.equal(s.left[0], 121);
-  // Two players each have their own target: B's darts do nothing to A's score.
-  s = play('c121', ['A', 'B'], o, [D(20, 3), D(11, 3), M, D(20), M, M, D(14, 2)]);
-  assert.deepEqual(s.target, [122, 121]); assert.deepEqual(s.left, [122, 101]); assert.equal(s.winner, null);
-  // A fails the second target; B misses both. A is passed over once done, and wins on the highest checkout.
-  s = play('c121', ['A', 'B'], { ...o, darts: 3 }, [D(20, 3), D(11, 3), D(14, 2), NEXT, NEXT, NEXT]);
-  assert.equal(s.winner, null); assert.equal(s.current, 1); assert.equal(s.results[0].length, 2);
-  s = play('c121', ['A', 'B'], { ...o, darts: 3 }, [D(20, 3), D(11, 3), D(14, 2), NEXT, NEXT, NEXT, NEXT]);
-  assert.equal(s.winner, 0); assert.deepEqual(s.highest, [121, 0]);
-  assert.match(gameById('c121').result(s), /A wins.*121.*1 of 2/);
+  // Head-to-head: A fails to check out in 1st visit; B checks out 121 before A -> 1-0 to B, target rises to 122.
+  s = play('c121', ['A', 'B'], o, [D(20, 3), D(11, 3), M, D(20, 3), D(11), D(25, 2)]);
+  assert.deepEqual(s.legs, [0, 1]); assert.deepEqual(s.target, [122, 122]); assert.deepEqual(s.left, [122, 122]);
+  assert.deepEqual(s.legWon, { player: 1, set: false }); assert.equal(s.current, 1); assert.equal(s.winner, null);
+  // Both miss in a 2-round match (darts: 3): leg 1 is a draw (0-0, no legWon), leg 2 B checks out -> B wins 1-0.
+  s = play('c121', ['A', 'B'], { ...o, darts: 3 }, [NEXT, NEXT]);
+  assert.deepEqual(s.legs, [0, 0]); assert.equal(s.legWon, null); assert.equal(s.current, 1); assert.equal(s.winner, null);
+  s = play('c121', ['A', 'B'], { ...o, darts: 3 }, [NEXT, NEXT, D(20, 3), D(11), D(25, 2)]);
+  assert.equal(s.winner, 1); assert.deepEqual(s.legs, [0, 1]); assert.deepEqual(s.highest, [0, 121]);
+  assert.match(gameById('c121').result(s), /B wins 1–0.*121/);
 });
 
 test('121 checkout: an attempt ends as soon as it cannot be finished', () => {
@@ -411,8 +415,8 @@ test('121 checkout: an attempt ends as soon as it cannot be finished', () => {
   assert.equal(s.results[0].length, 0); assert.equal(s.left[0], 41);
   s = play('c121', ['A'], { ...o, darts: 6 }, [M, M, M, D(20, 3), D(20)]);  // the last visit of two
   assert.deepEqual(s.results[0], [{ target: 121, ok: false, darts: 6 }]);
-  s = play('c121', ['A', 'B'], o, [D(20, 3), D(20)]);            // straight on to the next player
-  assert.equal(s.current, 1); assert.equal(s.noOut, 0);
+  s = play('c121', ['A', 'B'], o, [D(20, 3), D(20)]);            // A has no out, so B gets their turn at the same target
+  assert.equal(s.current, 1); assert.equal(s.noOut, 0); assert.equal(s.legDone[0], true); assert.equal(s.legsPlayed, 0);
   s = play('c121', ['A'], o, [D(20, 3), D(20, 3)]);              // going over is still a bust
   assert.equal(s.bust, 0); assert.equal(s.noOut, null);
 });

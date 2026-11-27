@@ -152,7 +152,7 @@ function throwDart(game, s, ev) {
     const who = s.current, leg = s.winner == null && s.newLeg;
     if (s.winner == null) advance(game, s);
     s.bust = who;
-    if (leg) s.legWon = { player: leg.winner ?? who, set: leg.set, ...(leg.cap ? { cap: true } : {}) };
+    if (leg && !leg.draw) s.legWon = { player: leg.winner ?? who, set: leg.set, ...(leg.cap ? { cap: true } : {}) };
     return true;
   }
   if (s.note === 'NO_OUT') {
@@ -168,7 +168,7 @@ function throwDart(game, s, ev) {
     // next leg. The winning darts stay on show as the last visit.
     const who = s.current, darts = s.turn, leg = s.newLeg;
     advance(game, s);
-    s.legWon = { player: leg.winner ?? who, set: leg.set, ...(leg.cap ? { cap: true } : {}) };
+    if (!leg.draw) s.legWon = { player: leg.winner ?? who, set: leg.set, ...(leg.cap ? { cap: true } : {}) };
     s.lastVisit = { player: who, total: darts.reduce((t, d) => t + value(d), 0), darts, auto: true };
     return true;
   }
@@ -233,7 +233,7 @@ export function compute(match) {
       const leg = s.winner == null && s.newLeg;
       if (s.winner == null) advance(game, s);
       s.bust = who;
-      if (leg) s.legWon = { player: leg.winner ?? who, set: leg.set, ...(leg.cap ? { cap: true } : {}) };
+      if (leg && !leg.draw) s.legWon = { player: leg.winner ?? who, set: leg.set, ...(leg.cap ? { cap: true } : {}) };
       continue;
     }
     if (s.turnOver) advance(game, s);
@@ -251,7 +251,7 @@ export function compute(match) {
       const bust = s.note === 'BUST', leg = s.winner == null && s.newLeg;
       if (s.winner == null) advance(game, s);  // nothing to pull: straight on
       if (bust) s.bust = who; else s.lastVisit = { player: who, total: ev.total };
-      if (leg) s.legWon = { player: leg.winner ?? who, set: leg.set, ...(leg.cap ? { cap: true } : {}) };
+      if (leg && !leg.draw) s.legWon = { player: leg.winner ?? who, set: leg.set, ...(leg.cap ? { cap: true } : {}) };
       continue;
     }
     throwDart(game, s, ev);

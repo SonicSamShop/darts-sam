@@ -10,23 +10,60 @@ const esc = t => String(t).replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
 // 121 Checkout, the practice game as DartCounter plays it. Check out the
 // target (double out) within the dart limit: succeed and the target goes up,
 // fail and it comes down by the chosen amount, never below the starting score
-// (or, if so chosen, drops straight back to it). With several players each has
-// their own target, darts and results, and the highest checkout wins.
+// (or, if so chosen, drops straight back to it). Alone, you play through your
+// own targets and the highest checkout wins. With two or more players it is
+// head to head on the same target: the first to check it out wins the leg
+// (1–0, 2–0, …) and the target moves up; if nobody makes it within the dart
+// limit, the target drops down and play moves on to the next leg.
 
 // Can `left` still be checked out with `darts` more darts at it? Only the last
 // visit at a target is looked at: with more than three to come there is always
 // time to set something up.
 const canFinish = (left, darts) => darts > 3 || (darts > 0 && !!checkout(left, darts, true));
 
+function bestPlayer(s) {
+  const rank = i => (s.players.length > 1 ? s.legs[i] * 1000000 : 0) + s.highest[i] * 1000 + s.checks[i];
+  return s.players.reduce((best, _, i) => (rank(i) > rank(best) ? i : best), 0);
+}
+
 // The current player's attempt at their target has just ended, checked out or not.
-function settle(s, ok) {
+function settle(s, ok, co = 0) {
   const p = s.current, t = s.target[p];
+  if (s.players.length > 1) {
+    if (ok) {
+      s.legs[p]++;
+      s.checks[p]++;
+      s.streak[p]++;
+      s.bestStreak[p] = Math.max(s.bestStreak[p], s.streak[p]);
+      s.highest[p] = Math.max(s.highest[p], co);
+    }
+    for (let j = 0; j < s.players.length; j++) {
+      if (!ok || j !== p) s.streak[j] = 0;
+      s.results[j].push({ target: t, ok: ok && j === p, darts: s.used[j] });
+    }
+    s.legsPlayed++;
+    s.lastLeg = { target: t, winner: ok ? p : null, darts: ok ? s.used[p] : 0 };
+    const nextTarget = ok
+      ? t + s.opts.inc
+      : (s.opts.dec ? Math.max(s.opts.start, t - s.opts.dec) : s.opts.start);
+    if (s.legsPlayed >= s.opts.rounds) {
+      s.winner = bestPlayer(s);
+    } else {
+      s.target.fill(nextTarget);
+      s.left.fill(nextTarget);
+      s.used.fill(0);
+      s.legDone.fill(false);
+      s.newLeg = { starter: s.legsPlayed % s.players.length, set: false, ...(ok ? { winner: p } : { draw: true }) };
+    }
+    return;
+  }
+
   s.results[p].push({ target: t, ok, darts: s.used[p] });
   if (ok) {
     s.checks[p]++;
     s.streak[p]++;
     s.bestStreak[p] = Math.max(s.bestStreak[p], s.streak[p]);
-    s.highest[p] = Math.max(s.highest[p], t);
+    s.highest[p] = Math.max(s.highest[p], co);
     s.target[p] = t + s.opts.inc;
   } else {
     s.streak[p] = 0;
@@ -37,10 +74,7 @@ function settle(s, ok) {
   s.used[p] = 0;
   // Over once everyone has had all their rounds. The highest finish wins, then
   // the most finishes, then whoever threw first.
-  if (s.results.every(r => r.length >= s.opts.rounds)) {
-    const rank = i => s.highest[i] * 1000 + s.checks[i];
-    s.winner = s.players.reduce((best, _, i) => (rank(i) > rank(best) ? i : best), 0);
-  }
+  if (s.results.every(r => r.length >= s.opts.rounds)) s.winner = bestPlayer(s);
 }
 
 // After a dart or visit that did not check out: is the attempt over? It is
@@ -50,6 +84,11 @@ function stillOn(s) {
   const p = s.current;
   if (canFinish(s.left[p], s.opts.darts - s.used[p])) return true;
   s.used[p] = Math.ceil(s.used[p] / 3) * 3;  // like a bust, it uses up the whole visit
+  if (s.players.length > 1) {
+    s.legDone[p] = true;
+    if (s.legDone.every(Boolean)) settle(s, false);
+    return false;
+  }
   settle(s, false);
   return false;
 }
@@ -69,7 +108,7 @@ export default {
     { key: 'dec', label: 'Decrease on failure', choices: [[1, '−1'], [2, '−2'], [5, '−5'], [10, '−10'], [0, 'Back to start']], default: 1, brief: v => v ? `−${v}` : 'back to start',
       help: v => v ? `Miss a target and the next one is ${v} lower, but never below the start.` : 'Miss a target and the next one goes straight back to the start.' },
     { key: 'rounds', label: 'Rounds', choices: [[10, '10'], [20, '20'], [30, '30']], default: 10, brief: v => `${v} rounds`,
-      help: v => `${v} targets each. The highest checkout wins.` },
+      help: v => `${v} targets. Alone, the highest checkout wins; with two or more players, first to the double wins each leg and the most legs wins.` },
   ],
 
   // Everything is kept per player.
@@ -80,11 +119,15 @@ export default {
       used: each(0),          // darts gone on this target
       results: each([]),      // one per finished target: {target, ok, darts}
       checks: each(0), streak: each(0), bestStreak: each(0), highest: each(0),
+      legs: each(0), legDone: each(false), legsPlayed: 0, lastLeg: null,
     };
   },
 
-  // A player who has had all their rounds is passed over while the others finish.
-  out(s, i) { return s.results[i].length >= s.opts.rounds; },
+  // A player who has used their darts for the current leg (or finished all rounds) is passed over.
+  out(s, i) {
+    if (s.players.length > 1) return s.winner == null && s.legDone[i];
+    return s.results[i].length >= s.opts.rounds;
+  },
 
   turnStart(s) {
     if (s.winner != null) return;
@@ -105,8 +148,8 @@ export default {
     }
     s.left[p] = left;
     if (left === 0) {
-      settle(s, true);
-      if (s.winner == null) s.turnOver = true;  // pull the darts before the next target
+      settle(s, true, s.turnStartLeft);
+      if (s.winner == null && s.players.length === 1) s.turnOver = true;  // pull the darts before the next target
     } else if (!stillOn(s) && s.turn.length < 3) {
       s.note = 'NO_OUT';  // no way out with the darts in hand: the visit ends here (not a bust: they scored)
     }
@@ -134,7 +177,7 @@ export default {
     }
     s.left[p] = left;
     s.used[p] += n;
-    if (left === 0) settle(s, true);
+    if (left === 0) settle(s, true, total);
     else stillOn(s);
   },
 
@@ -146,26 +189,34 @@ export default {
   },
 
   summary(s, i) {
-    return { big: s.left[i], small: `target ${s.target[i]}`, out: s.winner == null && this.out(s, i) };
+    const h2h = s.players.length > 1;
+    return {
+      big: s.left[i],
+      small: h2h ? `legs ${s.legs[i]} · target ${s.target[i]}` : `target ${s.target[i]}`,
+      out: s.winner == null && this.out(s, i),
+    };
   },
 
   panel(s) {
+    const h2h = s.players.length > 1;
     const col = i => {
       const tries = s.results[i].length;
       // Every dart counted so far, over all targets including the current one.
       const darts = s.results[i].reduce((n, r) => n + r.darts, 0) + s.used[i];
-      return [
-        `${Math.min(tries + 1, s.opts.rounds)} / ${s.opts.rounds}`,
+      const rows = [
+        `${Math.min((h2h ? s.legsPlayed : tries) + 1, s.opts.rounds)} / ${s.opts.rounds}`,
         `${s.used[i]} / ${s.opts.darts}`,
         s.highest[i] || '–',
-        tries ? `${s.checks[i]} / ${tries} (${Math.round(s.checks[i] / tries * 100)}%)${s.players.length > 1 ? '' : ` · ${darts} darts`}` : '–',
+        tries ? `${s.checks[i]} / ${tries} (${Math.round(s.checks[i] / tries * 100)}%)${h2h ? '' : ` · ${darts} darts`}` : '–',
         `${s.streak[i]} (best ${s.bestStreak[i]})`,
       ];
+      return h2h ? [s.legs[i], ...rows] : rows;
     };
     const cols = s.players.map((_, i) => col(i));
-    const head = s.players.length > 1
+    const head = h2h
       ? `<tr><th></th>${s.players.map((p, i) => `<th class="${i === s.current && s.winner == null ? 'cur' : ''}">${esc(p)}</th>`).join('')}</tr>` : '';
-    return `<table class="cricket">${head}${['Round', 'Darts used', 'Highest checkout', 'Checked out', 'Streak'].map((k, r) =>
+    const labels = [...(h2h ? ['Legs'] : []), 'Round', 'Darts used', 'Highest checkout', 'Checked out', 'Streak'];
+    return `<table class="cricket">${head}${labels.map((k, r) =>
       `<tr><td>${k}</td>${cols.map(c => `<td>${c[r]}</td>`).join('')}</tr>`).join('')}</table>`;
   },
 
@@ -177,14 +228,27 @@ export default {
     const w = s.winner ?? 0;
     const line = `Highest checkout: ${s.highest[w] || 'none'}. Checked out ${s.checks[w]} of ${s.results[w].length}`;
     if (s.players.length < 2) return line;
-    return s.highest[w] ? `${s.players[w]} wins. ${line}` : 'Nobody checked out';
+    if (!s.legs.some(Boolean)) return 'Nobody checked out';
+    const score = s.players.length === 2 ? `${s.legs[w]}–${s.legs[1 - w]}` : `${s.legs[w]} legs`;
+    return `${s.players[w]} wins ${score}. Highest checkout: ${s.highest[w] || 'none'}`;
   },
 
   hint(s, { checkouts = true } = {}) {
-    const p = s.current, last = s.results[p].at(-1);
-    // Until the first dart at a new target, say how the last one went.
-    const fresh = last && s.used[p] === 0 && (s.turnOver || !s.turn.length);
-    const news = fresh ? (last.ok ? `Checked out ${last.target} in ${last.darts}` : `Missed ${last.target}`) + `, now ${s.target[p]}` : '';
+    const p = s.current;
+    let news = '';
+    if (s.players.length > 1) {
+      const fresh = s.lastLeg && s.used.every(u => u === 0) && !s.turn.length;
+      if (fresh) {
+        news = (s.lastLeg.winner != null
+          ? `${s.players[s.lastLeg.winner]} checked out ${s.lastLeg.target} in ${s.lastLeg.darts}`
+          : `Missed ${s.lastLeg.target}`) + `, now ${s.target[p]}`;
+      }
+    } else {
+      const last = s.results[p].at(-1);
+      // Until the first dart at a new target, say how the last one went.
+      const fresh = last && s.used[p] === 0 && (s.turnOver || !s.turn.length);
+      news = fresh ? (last.ok ? `Checked out ${last.target} in ${last.darts}` : `Missed ${last.target}`) + `, now ${s.target[p]}` : '';
+    }
     if (s.turnOver || !checkouts) return news;
     const route = checkout(s.left[p], Math.min(3 - s.turn.length, s.opts.darts - s.used[p]), true);
     return [news, route ? 'Checkout: ' + route.map(label).join('  ') : ''].filter(Boolean).join(' · ');

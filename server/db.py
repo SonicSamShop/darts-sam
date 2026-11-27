@@ -1094,13 +1094,13 @@ def _c121(db, player_id: int, dart_set: str | None = None, board: str | None = N
         target = left = start
         used = 0
 
-        def settle(ok):
+        def settle(ok, co=0):
             nonlocal target, left, used, tries, made, highest
             tries += 1
             if ok:
                 made += 1
                 took.append(used)
-                highest = max(highest, target)
+                highest = max(highest, co)
                 target += inc
             else:
                 target = max(start, target - dec) if dec else start
@@ -1127,7 +1127,7 @@ def _c121(db, player_id: int, dart_set: str | None = None, board: str | None = N
                     if left == 0:
                         break
             if left == 0:
-                settle(True)
+                settle(True, begin)
                 continue
             # The visit is over, whether it was three darts, a bust, or cut short
             # because no finish was left: the darts not thrown are gone. The

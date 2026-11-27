@@ -145,6 +145,48 @@ function holdVisit(before, after, ev) {
     bust: after.bust != null || after.noOut != null, until: Date.now() + secs * 1000 };
 }
 
+// ---------- delay between turns (2+ players) ----------
+// With two or more players, hold off for a few seconds after a visit ends before
+// accepting the next player's throws, so an accidental double-tap or camera
+// bounce doesn't double-count onto the next player's turn.
+// A setting (Settings > In game): 0 to 30 seconds, 4 unless changed.
+export const TURN_HOLD_MAX = 30;  // seconds
+export const TURN_HOLD_USUAL = 4;
+export function turnHoldSecs() {
+  const n = Math.round(Number(settings.turnHold ?? TURN_HOLD_USUAL));
+  return Number.isFinite(n) ? Math.min(TURN_HOLD_MAX, Math.max(0, n)) : TURN_HOLD_USUAL;
+}
+let turnWait = null;  // {id, until} while waiting between players' turns
+let turnWaitTimer = 0;
+let turnWaitTick = 0;
+const turnWaiting = () => !!turnWait && turnWait.id === match?.id && Date.now() < turnWait.until;
+const turnWaitLeft = () => turnWait ? Math.max(1, Math.ceil((turnWait.until - Date.now()) / 1000)) : 0;
+function clearTurnWait() {
+  turnWait = null;
+  clearTimeout(turnWaitTimer);
+  clearInterval(turnWaitTick);
+}
+function startTurnWait() {
+  clearTurnWait();
+  const secs = turnHoldSecs();
+  if (!secs || !match || match.players.length < 2) return;
+  const ms = secs * 1000;
+  turnWait = { id: match.id, until: Date.now() + ms };
+  turnWaitTimer = setTimeout(() => {
+    clearTurnWait();
+    if (screen === 'game' && match) renderGame();
+  }, ms);
+  turnWaitTick = setInterval(() => {
+    if (screen !== 'game' || !match || !turnWaiting()) {
+      clearTurnWait();
+      if (screen === 'game' && match) renderGame();
+      return;
+    }
+    const el = document.querySelector('.turnwait b');
+    if (el) el.textContent = turnWaitLeft();
+  }, 250);
+}
+
 // ---------- Career Mode atmosphere, banter & coughing ----------
 let banter = null;      // { matchId, text, kind, intensity, seq }
 let banterSpeakTimer = 0;
@@ -240,12 +282,14 @@ export function finishWarmup() {
   renderGame();
 }
 export function push(ev) {
+  if (ev.src !== 'bot' && turnWaiting()) return;
   if (warmupActive(match)) {
     const w = match.warmup;
     if (ev.t === 'dart') {
       if (sfxOn()) sfx.dart(ev);
       const res = warmupDart(w, ev);
-      if (res.done) return finishWarmup();
+      if (res.done) { clearTurnWait(); return finishWarmup(); }
+      if (res.changed && match.players.length >= 2) startTurnWait();
       const parts = [settings.eachDart ? spoken(ev) : '', res.changed && match.players.length > 1 ? match.players[w.current] : ''].filter(Boolean);
       if (parts.length) say(parts.join('. '));
       store.set('match', match);
@@ -253,7 +297,8 @@ export function push(ev) {
     }
     if (ev.t === 'next') {
       const res = warmupNext(w);
-      if (res.done) return finishWarmup();
+      if (res.done) { clearTurnWait(); return finishWarmup(); }
+      if (res.changed && match.players.length >= 2) startTurnWait();
       if (res.changed && match.players.length > 1) say(match.players[w.current]);
       store.set('match', match);
       return renderGame();
@@ -365,12 +410,15 @@ export function push(ev) {
     }
   }
   holdVisit(before, after, ev);
+  if (after.winner != null) clearTurnWait();
+  else if (match.players.length >= 2 && began && !botUp(after)) startTurnWait();
   const f = visitFlash(game, before, after);
   if (f) flash = { ...f, until: Date.now() + Math.max(FLASH_MS, held ? held.until - Date.now() : 0) };
   else if (ev.t === 'dart' || ev.t === 'visit') flash = null;  // the next visit has begun
   renderGame();
 }
 export function undo() {
+  clearTurnWait();
   if (warmupActive(match)) {
     if (warmupUndo(match.warmup)) { store.set('match', match); renderGame(); }
     return;
@@ -504,20 +552,21 @@ function padEnter() {
   renderGame();
 }
 export function padQuick(total) {
-  if (botUp()) return;
+  if (botUp() || turnWaiting()) return;
   numPad.error = '';
   numPad.value = String(total);
   padEnter();
 }
 const QUICK_SCORES = [26, 41, 45, 60, 81, 85, 100];
 export function padCommit(total, darts) {
+  if (turnWaiting()) return;
   numPad.value = ''; numPad.ask = null; numPad.error = '';
   push({ t: 'visit', total, darts });
 }
 export function noScore() {
   if (!match) return;
   const game = gameById(match.gameId), s = compute(match);
-  if (s.winner != null || botUp(s) || s.turn.length || s.turnOver) return;
+  if (s.winner != null || botUp(s) || turnWaiting() || s.turn.length || s.turnOver) return;
   if (usingPad(game)) {
     if (numPad.ask) return;
     return padCommit(0, 3);
@@ -527,7 +576,7 @@ export function noScore() {
 export function bustVisit() {
   if (!match) return;
   const game = gameById(match.gameId), s = compute(match);
-  if (s.winner != null || botUp(s) || s.turnOver || !game.bust || !game.canBust?.(s)) return;
+  if (s.winner != null || botUp(s) || turnWaiting() || s.turnOver || !game.bust || !game.canBust?.(s)) return;
   if (usingPad(game) && (s.turn.length || numPad.ask)) return;
   numPad.value = ''; numPad.ask = null; numPad.error = '';
   push({ t: 'bust' });
@@ -569,7 +618,7 @@ export function handleVoice(alts) {
     undo();
     return showMicToast(`"${heard}" → Undo`);
   }
-  if (s.winner != null || botUp(s)) return;
+  if (s.winner != null || botUp(s) || turnWaiting()) return;
   if (parsed.kind === 'cmd') {
     if (parsed.cmd === 'bust') { bustVisit(); return showMicToast(`"${heard}" → Bust`); }
     if (parsed.cmd === 'noscore') { noScore(); return showMicToast(`"${heard}" → No score`); }
@@ -820,6 +869,7 @@ export function renderGame() {
     ${banner}${s.winner != null ? earnedLine() : ''}
     ${held ? `<div class="botwait visithold"><span>${s.players.length > 1 ? `${esc(s.players[held.player])}'s darts` : 'Your darts'} stay up for <b>${heldLeft()}</b>s. Score wrong? Undo it now.</span>
       <button data-act="holdgo">Carry on</button></div>` : ''}
+    ${turnWaiting() ? `<div class="botwait turnwait"><span>${esc(s.players[s.current])} throws in <b>${turnWaitLeft()}</b>s.</span></div>` : ''}
     ${botHolds(s) ? `<div class="botwait"><span>${esc(s.players[s.current])} throws in <b>${botHold?.at === match.log.length ? botHoldLeft() : botHoldSecs()}</b>s. Score wrong? Undo it now.</span>
       <button data-act="botgo">Throw now</button></div>` : ''}
     <div class="actions ${pad && s.winner == null ? 'solo' : ''}">
