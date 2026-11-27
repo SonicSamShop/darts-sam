@@ -35,7 +35,7 @@ function squareBox(cx, cy, w, clamp = true) {
 }
 
 // Compute the TV camera viewBox and label for a target bed { seg, mult }.
-export function cameraForBed(bed, { tightness = 'broadcast' } = {}) {
+export function cameraForBed(bed, { tightness = 'broadcast', finishing = false } = {}) {
   const tight = tightness === 'tight';
   if (!bed) {
     return {
@@ -45,11 +45,13 @@ export function cameraForBed(bed, { tightness = 'broadcast' } = {}) {
       subtitle: '12 · 5 · 20 · 1 · 18',
       target: { seg: 20, mult: 3 },
       neighbors: [12, 5, 20, 1, 18],
+      finishing: false,
     };
   }
 
   if (bed.seg === 25) {
-    const w = tight ? 92 : 108;
+    const isFinish = finishing && bed.mult === 2;
+    const w = isFinish ? (tight ? 76 : 88) : (tight ? 92 : 108);
     return {
       viewBox: squareBox(0, 0, w, false),
       mode: 'bull',
@@ -57,20 +59,22 @@ export function cameraForBed(bed, { tightness = 'broadcast' } = {}) {
       subtitle: '',
       target: bed,
       neighbors: [],
+      finishing: isFinish,
     };
   }
 
   const idx = SEGMENTS.indexOf(bed.seg);
   if (idx < 0) {
-    return { viewBox: FULL_VIEW, mode: 'full', camTag: 'Full board', subtitle: '', target: null, neighbors: [] };
+    return { viewBox: FULL_VIEW, mode: 'full', camTag: 'Full board', subtitle: '', target: null, neighbors: [], finishing: false };
   }
 
   const deg = idx * 18;
   const nbrs = neighborsOf(bed.seg);
 
   if (bed.mult === 2) {
-    const w = tight ? 148 : 172;
-    const [cx, cy] = polarToSvg(154, deg);
+    // Push in tighter on a 1-dart double finish for broadcast match-dart tension.
+    const w = finishing ? (tight ? 102 : 118) : (tight ? 148 : 172);
+    const [cx, cy] = polarToSvg(finishing ? 168 : 154, deg);
     return {
       viewBox: squareBox(cx, cy, w),
       mode: 'double',
@@ -78,6 +82,7 @@ export function cameraForBed(bed, { tightness = 'broadcast' } = {}) {
       subtitle: nbrs.join(' · '),
       target: bed,
       neighbors: nbrs,
+      finishing,
     };
   }
 
@@ -90,6 +95,7 @@ export function cameraForBed(bed, { tightness = 'broadcast' } = {}) {
       subtitle: '12 · 5 · 20 · 1 · 18',
       target: bed,
       neighbors: [12, 5, 20, 1, 18],
+      finishing: false,
     };
   }
 
@@ -102,15 +108,17 @@ export function cameraForBed(bed, { tightness = 'broadcast' } = {}) {
     subtitle: nbrs.join(' · '),
     target: bed,
     neighbors: nbrs,
+    finishing: false,
   };
 }
 
 // Decide the TV camera shot for a remaining score and optional checkout route.
 export function tvCameraFor(score, route = null, { opened = true, tightness = 'broadcast' } = {}) {
   if (!opened) return cameraForBed({ seg: 20, mult: 2 }, { tightness });
-  if (score <= 0) return { viewBox: FULL_VIEW, mode: 'full', camTag: 'Full board', subtitle: '', target: null, neighbors: [] };
+  if (score <= 0) return { viewBox: FULL_VIEW, mode: 'full', camTag: 'Full board', subtitle: '', target: null, neighbors: [], finishing: false };
   const nextBed = route?.[0] ?? { seg: 20, mult: 3 };
-  return cameraForBed(nextBed, { tightness });
+  const finishing = route?.length === 1 && nextBed.mult === 2;
+  return cameraForBed(nextBed, { tightness, finishing });
 }
 
 // Whether a landed dart at board coordinates (x, y, +y up) sits inside viewBox

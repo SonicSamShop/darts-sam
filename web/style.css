@@ -819,6 +819,8 @@ svg.heat .b-num { fill: #d9dce3; }
   font-size: 13px; line-height: 1.25; backdrop-filter: blur(6px);
 }
 .tvcam-tag .dot { width: 8px; height: 8px; margin-right: 0; background: var(--warn); }
+.tvcam-tag.finish { border-color: var(--gold); }
+.tvcam-tag.finish .dot { background: var(--gold); }
 .tvcam-tag.panned { pointer-events: auto; cursor: pointer; border-color: var(--accent); }
 /* A won game's match stats, in the board's place */
 .matchstats { position: absolute; inset: 0; overflow-y: auto; padding: 4px 6px 12px; }

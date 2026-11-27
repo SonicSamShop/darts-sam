@@ -37,13 +37,17 @@ describe('TV broadcast camera (X01)', () => {
   it('zooms tightly to D16 (7 · 16 · 8) on 32, and pans to D8 (16 · 8 · 11) after S16', () => {
     const cam32 = x01.tvCamera(play(32));
     assert.equal(cam32.mode, 'double');
+    assert.equal(cam32.finishing, true);
     assert.equal(cam32.camTag, 'Double 16');
+    assert.ok(cam32.viewBox[2] <= 120);
     assert.deepEqual(cam32.neighbors, [7, 16, 8]);
     assert.deepEqual(neighborsOf(16), [7, 16, 8]);
 
     const cam16 = x01.tvCamera(play(32, [{ seg: 16, mult: 1 }]));
     assert.equal(cam16.mode, 'double');
+    assert.equal(cam16.finishing, true);
     assert.equal(cam16.camTag, 'Double 8');
+    assert.ok(cam16.viewBox[2] <= 120);
     assert.deepEqual(cam16.neighbors, [16, 8, 11]);
   });
 

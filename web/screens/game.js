@@ -881,12 +881,13 @@ export function renderGame() {
   if (camTag) {
     camTag.toggleAttribute('hidden', !tvCam);
     camTag.classList.toggle('panned', !!tvCam && tvPanned);
+    camTag.classList.toggle('finish', !!tvCam && !tvPanned && !!tvCam.finishing);
     camTag.innerHTML = !tvCam ? ''
       : tvPanned ? '<span class="dot"></span><b>Manual view</b><span class="muted"> · Reset</span>'
       : `<span class="dot"></span><b>${esc(tvCam.camTag)}</b>${tvCam.subtitle ? `<span class="muted"> · ${esc(tvCam.subtitle)}</span>` : ''}`;
   }
   const activeView = tvPanned && tvCam ? (gameBoard.ui.viewBox?.() ?? tvCam.viewBox) : (tvCam?.viewBox ?? null);
-  gameBoard.ui.showTarget(target ?? coTarget, { zoom: !!target, viewBox: activeView, glideMs: tvPeek ? 260 : 340 });
+  gameBoard.ui.showTarget(target ?? coTarget, { zoom: !!target, viewBox: activeView, glideMs: tvPeek ? 260 : tvCam?.finishing ? 520 : 340 });
   refreshStatus();
   fit();
   botSoon();
