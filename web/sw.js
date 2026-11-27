@@ -7,7 +7,7 @@
 // It still tries the server first, so editing files on the server updates the app; if
 // the server doesn't answer quickly the saved copy is used instead.
 // Browsers only run this over https or on localhost (see docs/setup.md).
-const CACHE = 'dartssam-v28';
+const CACHE = 'dartssam-v28-k2';
 // Python for the browser, for the phone's camera (Beta): 27 MB that never
 // change for a given version (tools/fetch_pyodide.py's VERSION), so they are
 // kept apart, not thrown away with each new version of the app, and only
@@ -25,7 +25,7 @@ const FILES = [
   'screens/home.js', 'screens/start.js', 'screens/game.js', 'screens/earned.js', 'screens/report.js', 'screens/stats.js',
   'screens/settings.js', 'screens/playerspanel.js', 'screens/boardspanel.js', 'screens/release.js', 'screens/welcome.js', 'screens/compare.js',
   'screens/tournament.js', 'screens/bracket.js', 'screens/career.js', 'screens/accuracy.js',
-  'games/index.js', 'games/x01.js', 'games/cricket.js', 'games/clock.js', 'games/bobs27.js', 'games/shanghai.js', 'games/bermuda.js', 'games/segment.js', 'games/rcheckout.js', 'games/countup.js', 'games/c121.js', 'games/random.js', 'games/killer.js', 'games/gotcha.js', 'games/free.js',
+  'games/index.js', 'games/x01.js', 'games/cricket.js', 'games/clock.js', 'games/bobs27.js', 'games/shanghai.js', 'games/bermuda.js', 'games/segment.js', 'games/darts99.js', 'games/rcheckout.js', 'games/countup.js', 'games/c121.js', 'games/random.js', 'games/killer.js', 'games/gotcha.js', 'games/free.js',
   'style.css', 'themes.css', 'manifest.json', 'privacy.html', 'faq.html', 'rules.html', 'download.html', 'opensource.html', 'releases.html', 'compare.html',
   'icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',
   'fonts/anton-400.woff2', 'fonts/barlow-condensed-600.woff2', 'fonts/barlow-condensed-700.woff2',

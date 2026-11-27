@@ -701,6 +701,7 @@ $app.addEventListener('click', e => {
   // screen shows only updates the entry it has.
   if (d.sheet) { renderSheet(d.sheet); return mark(true); }
   if (d.tab) { statsView.tab = d.tab; drawPlayers(); return mark(); }
+  if (d.heatmode) { settings.heatMode = d.heatmode; saveSettings(); return drawPlayers(); }
   if (d.slip !== undefined) return slipTapped();
   if (d.drill) { statsView.drill.push(JSON.parse(d.drill)); drawPlayers(); return mark(true); }
   if (d.sort) {

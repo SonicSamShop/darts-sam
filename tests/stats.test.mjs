@@ -7,7 +7,7 @@
 // out from the history the server sends.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, x01Trend, x01Brackets, headToHead, statsCsv, visitsOf, dartTable, visitsWith, setsSideBySide, boardsSideBySide } from '../web/stats.js';
+import { ENOUGH, X01_TILES, x01Tile, x01Stats, x01Legs, x01Trend, x01Daily, x01Brackets, headToHead, statsCsv, visitsOf, dartTable, visitsWith, setsSideBySide, boardsSideBySide } from '../web/stats.js';
 import { createWarmup, practiceStreak, recordPracticeDay, warmupDart, warmupNext, warmupUndo } from '../web/routine.js';
 
 const T20 = 203, S20 = 201, D20 = 202, D16 = 162, S1 = 11, MISS = 0;
@@ -63,7 +63,16 @@ test('x01 figures, and each tile counted from the list it opens', () => {
   assert.equal(shows('average'), (561 / 18 * 3).toFixed(1));
   assert.equal(shows('first9'), (521 / 15 * 3).toFixed(1));
   assert.deepEqual(['highest', 't180', 't140', 't100', 't60', 'busts'].map(shows), [180, 1, 2, 0, 1, 1]);
+  // Below 100 in steps of ten: Sam's typed 60 is the only one
+  assert.deepEqual(['t90', 't80', 't70', 't60', 't50'].map(shows), [0, 0, 0, 1, 0]);
   assert.equal(shows('checkout'), '25.0%');
+  // Scoring darts (over 100 left, single darts known): Sam's 180, 140 and 141
+  assert.deepEqual(['on20', 'rateT20', 'wide20', 'dart1', 'dart2', 'dart3'].map(shows), ['88.9%', '77.8%', '0.0%', '60.0', '60.0', '33.7']);
+  assert.deepEqual(['under30', 'b26'].map(shows), [0, 0]);
+  // Visits begun on a finish: on 40 (made), on 41 (bust), on 101 (typed 60)
+  assert.deepEqual(['co40', 'co80', 'co170'].map(shows), ['100% (1/1)', '0% (0/1)', '0% (0/1)']);
+  assert.deepEqual(['bestDouble', 'worstDouble'].map(shows), [null, null]);  // no double with 6 darts yet
+  assert.deepEqual(x01Daily(s).map(d => d.darts), [18]);  // all on one day
   assert.deepEqual(s.doubles, [{ aim: 20, hit: 1, darts: 3 }, { aim: 16, hit: 0, darts: 1 }]);
   assert.deepEqual(['bestCheckout', 'tonCheckouts', 'played', 'won'].map(shows), [40, 0, 2, 1]);
   assert.deepEqual(['holds', 'breaks', 'bestLeg', 'perLeg', 'in15', 'in18'].map(shows), ['1/1', '0/1', 12, '12.0', 1, 1]);
@@ -188,7 +197,7 @@ test('x01Trend and x01Brackets summarise recent form and visit score distributio
 
   const brackets = x01Brackets(s);
   const byLabel = Object.fromEntries(brackets.map(b => [b.label, b.count]));
-  assert.deepEqual(byLabel, { '180': 0, '140+': 0, '100+': 1, '60+': 1, 'Under 60': 1 });
+  assert.deepEqual(byLabel, { '180': 0, '140+': 0, '100+': 1, '90+': 0, '80+': 0, '70+': 0, '60+': 1, '50+': 0, 'Under 50': 1 });
 });
 
 test('headToHead aggregates 2-player rivalry records and X01 averages', () => {

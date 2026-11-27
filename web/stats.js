@@ -178,6 +178,49 @@ const versus = first => s => s.legs.filter(l => l.finished && !l.solo && l.first
 const wonOf = (s, rows) => rows.length ? `${rows.filter(l => l.won).length}/${rows.length}` : null;
 const quick = darts => s => wonLegs(s).filter(l => l.start === 501 && l.darts <= darts);
 
+// Scoring visits: more than 100 left, so the darts were (most likely) thrown
+// at the 20 to score rather than to set up a finish. Only those with their
+// single darts known, as a typed total says nothing about where they landed.
+const scoring = s => s.visits.filter(v => v.before > 100 && v.darts);
+const scoringDarts = rows => rows.flatMap(v => v.darts);
+const share = (darts, f) => darts.length ? (darts.filter(f).length / darts.length * 100).toFixed(1) + '%' : null;
+// Full scoring visits that did not go bust, for the points of their 1st, 2nd and 3rd dart.
+const full = s => scoring(s).filter(v => !v.bust && v.darts.length === 3);
+const nthAvg = k => (s, rows) => rows.length ? one(sum(rows, v => value(v.darts[k])) / rows.length) : null;
+// 20, 5, 1, all singles, in any order: the classic "bed and breakfast".
+const is26 = v => v.darts?.length === 3 && v.darts.every(d => d.mult === 1)
+  && v.darts.map(d => d.seg).sort((a, b) => a - b).join() === '1,5,20';
+// A visit where the leg could have been won: what was left can be checked out
+// in three darts (2 to 170 with a double to finish, 1 to 180 straight out).
+const NO_FINISH = new Set([159, 162, 163, 165, 166, 168, 169]);
+const canFinish = v => v.before >= 2 && v.before <= 170 && !NO_FINISH.has(v.before);
+const chances = (lo, hi) => s => s.visits.filter(v => canFinish(v) && v.before >= lo && v.before <= hi);
+const madeOf = (s, rows) => rows.length
+  ? `${(rows.filter(v => v.checkout).length / rows.length * 100).toFixed(0)}% (${rows.filter(v => v.checkout).length}/${rows.length})` : null;
+// Best and weakest double, among those with at least 6 darts thrown at them.
+const named = aim => aim === 25 ? 'Bull' : `D${aim}`;
+const enough = s => s.doubles.filter(d => d.darts >= 6);
+const ranked = best => (s, rows) => {
+  if (!rows.length) return null;
+  const d = rows.reduce((a, b) => ((b.hit / b.darts) - (a.hit / a.darts)) * (best ? 1 : -1) > 0 ? b : a);
+  return `${named(d.aim)} · ${(d.hit / d.darts * 100).toFixed(0)}%`;
+};
+
+// Three-dart average day by day, oldest first: [{day: 'YYYY-MM-DD', avg, darts}].
+// What the by-day progress chart on the stats screen is drawn from.
+export function x01Daily(s) {
+  const days = new Map();
+  for (const v of s.visits) {
+    const t = new Date(v.ts);
+    const day = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    const d = days.get(day) ?? { day, points: 0, darts: 0 };
+    d.points += v.score;
+    d.darts += v.thrown;
+    days.set(day, d);
+  }
+  return [...days.values()].sort((a, b) => a.day < b.day ? -1 : 1).map(d => ({ day: d.day, avg: avg3(d.points, d.darts), darts: d.darts }));
+}
+
 // The X01 tiles, in the order shown. Each one:
 //   key, label, note (optional: more to say after the label, from the stats)
 //   kind   what its list is made of: 'visits', 'legs' or 'doubles'
@@ -193,8 +236,24 @@ export const X01_TILES = [
     { key: 't180', label: '180s', kind: 'visits', rows: scored(180, 180) },
     { key: 't140', label: '140+', kind: 'visits', rows: scored(140, 179) },
     { key: 't100', label: '100+', kind: 'visits', rows: scored(100, 139) },
-    { key: 't60', label: '60+', kind: 'visits', rows: scored(60, 99) },
+    // Below 100 in steps of ten, counted the same way: 90 to 99 is a 90+.
+    { key: 't90', label: '90+', kind: 'visits', rows: scored(90, 99) },
+    { key: 't80', label: '80+', kind: 'visits', rows: scored(80, 89) },
+    { key: 't70', label: '70+', kind: 'visits', rows: scored(70, 79) },
+    { key: 't60', label: '60+', kind: 'visits', rows: scored(60, 69) },
+    { key: 't50', label: '50+', kind: 'visits', rows: scored(50, 59) },
     { key: 'busts', label: 'Busts', kind: 'visits', rows: s => s.visits.filter(v => v.bust) },
+    { key: 'under30', label: 'Under 30 (scoring)', kind: 'visits', rows: s => scoring(s).filter(v => !v.bust && v.score < 30), sort: { by: 'score', desc: false } },
+    { key: 'b26', label: '26s (20, 5, 1)', kind: 'visits', rows: s => s.visits.filter(is26) },
+  ] },
+  // Scoring darts (more than 100 left), on the assumption they were thrown at the 20.
+  { group: 'treble 20', tiles: [
+    { key: 'on20', label: 'Scoring darts in the 20', kind: 'visits', rows: scoring, value: (s, rows) => share(scoringDarts(rows), d => d.seg === 20 && d.mult) },
+    { key: 'rateT20', label: 'Treble 20', kind: 'visits', rows: scoring, value: (s, rows) => share(scoringDarts(rows), d => d.seg === 20 && d.mult === 3) },
+    { key: 'wide20', label: 'Wide, in the 1 or 5', kind: 'visits', rows: scoring, value: (s, rows) => share(scoringDarts(rows), d => (d.seg === 1 || d.seg === 5) && d.mult) },
+    { key: 'dart1', label: '1st dart, points', kind: 'visits', rows: full, value: nthAvg(0) },
+    { key: 'dart2', label: '2nd dart, points', kind: 'visits', rows: full, value: nthAvg(1) },
+    { key: 'dart3', label: '3rd dart, points', kind: 'visits', rows: full, value: nthAvg(2) },
   ] },
   { group: 'checkouts', tiles: [
     { key: 'checkout', label: 'Checkout rate', note: s => s.coDarts ? ` (${s.coHit} of ${s.coDarts} darts)` : '', kind: 'doubles',
@@ -202,6 +261,12 @@ export const X01_TILES = [
     { key: 'bestCheckout', label: 'Highest checkout', kind: 'visits', rows: s => s.visits.filter(v => v.checkout),
       value: (s, rows) => rows.length ? most(rows, v => v.score) : null, sort: { by: 'score' } },
     { key: 'tonCheckouts', label: '100+ checkouts', kind: 'visits', rows: s => s.visits.filter(v => v.checkout && v.score >= 100) },
+    // Out of the visits that began on a finish in that range, how many won the leg.
+    { key: 'co40', label: 'Checkouts from 2–40', kind: 'visits', rows: chances(2, 40), value: madeOf, sort: { by: 'score' } },
+    { key: 'co80', label: 'Checkouts from 41–80', kind: 'visits', rows: chances(41, 80), value: madeOf, sort: { by: 'score' } },
+    { key: 'co170', label: 'Checkouts from 81–170', kind: 'visits', rows: chances(81, 170), value: madeOf, sort: { by: 'score' } },
+    { key: 'bestDouble', label: 'Best double (6+ darts)', kind: 'doubles', rows: enough, value: ranked(true) },
+    { key: 'worstDouble', label: 'Weakest double (6+ darts)', kind: 'doubles', rows: enough, value: ranked(false) },
   ] },
   { group: 'legs', tiles: [
     { key: 'played', label: 'Legs played', kind: 'legs', rows: s => s.legs.filter(l => l.finished) },
@@ -245,8 +310,12 @@ export function x01Brackets(s) {
     ['t180', '180', 180, 180, 'gold'],
     ['t140', '140+', 140, 179, 'accent'],
     ['t100', '100+', 100, 139, 'accent'],
-    ['t60', '60+', 60, 99, 'mid'],
-    [null, 'Under 60', 0, 59, 'muted'],
+    ['t90', '90+', 90, 99, 'mid'],
+    ['t80', '80+', 80, 89, 'mid'],
+    ['t70', '70+', 70, 79, 'mid'],
+    ['t60', '60+', 60, 69, 'mid'],
+    ['t50', '50+', 50, 59, 'mid'],
+    [null, 'Under 50', 0, 49, 'muted'],
   ];
   const rows = defs.map(([key, label, lo, hi, tone]) => {
     const count = visits.filter(v => v.score >= lo && v.score <= hi).length;
