@@ -531,12 +531,22 @@ button.resume {
 .chart-delta.down { color: var(--warn); }
 .trend-scales { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
 .trend-scales button { flex: 1 1 0; min-width: 0; padding: 3px 6px; font-size: 12px; line-height: 1.3; }
-.trend-svg { display: block; width: 100%; height: 104px; overflow: visible; }
+.trend-wrap { position: relative; }
+.trend-svg { display: block; width: 100%; height: 104px; overflow: visible; cursor: crosshair; }
 .trend-ref { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
+.trend-guide { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 2; opacity: .7; pointer-events: none; }
 .trend-area { fill: color-mix(in srgb, var(--accent) 16%, transparent); }
 .trend-line { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.trend-dot { fill: var(--accent); stroke: var(--bg); stroke-width: 1.2; }
+.trend-dot { fill: var(--accent); stroke: var(--bg); stroke-width: 1.2; transition: r .1s ease; }
 .trend-dot.won { fill: var(--gold); }
+.trend-dot.active { r: 5; stroke-width: 2; }
+.chart-tip {
+  position: absolute; top: -6px; transform: translateY(-100%); pointer-events: none; z-index: 4;
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: var(--round);
+  padding: 3px 8px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+}
+.chart-tip[hidden] { display: none; }
 .trend-range { display: flex; justify-content: space-between; margin-top: 2px; font-size: 11px; color: var(--muted); }
 .chart-foot { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .bars { display: flex; flex-direction: column; gap: 7px; }

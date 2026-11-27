@@ -142,11 +142,15 @@ function x01ChartsHtml(x) {
         <b class="chart-delta ${dCls}">${ptsList.length >= 2 ? `${sign}${trend.delta.toFixed(1)}` : '–'}</b></div>
       <div class="trend-scales" role="group" aria-label="3-dart average grouping">${TREND_SCALES.map(([id, name]) =>
         `<button type="button" class="${trend.by === id ? 'on' : ''}" data-trend="${id}">${name}</button>`).join('')}</div>
-      <svg class="trend-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="3-dart average trend">
-        <line class="trend-ref" x1="${padX}" y1="${refY}" x2="${W - padX}" y2="${refY}"/>
-        ${pts.length >= 2 ? `<polygon class="trend-area" points="${area}"/><polyline class="trend-line" points="${line}"/>` : ''}
-        ${pts.map(([cx, cy, p]) => `<circle class="trend-dot ${p.won ? 'won' : ''}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.2"><title>${esc(p.title)}</title></circle>`).join('')}
-      </svg>
+      <div class="trend-wrap">
+        <svg class="trend-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="3-dart average trend">
+          <line class="trend-ref" x1="${padX}" y1="${refY}" x2="${W - padX}" y2="${refY}"/>
+          <line class="trend-guide" y1="${padY}" y2="${H - padY}" style="display:none"/>
+          ${pts.length >= 2 ? `<polygon class="trend-area" points="${area}"/><polyline class="trend-line" points="${line}"/>` : ''}
+          ${pts.map(([cx, cy, p]) => `<circle class="trend-dot ${p.won ? 'won' : ''}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.2" data-tip="${esc(p.title)}"><title>${esc(p.title)}</title></circle>`).join('')}
+        </svg>
+        <div class="chart-tip" hidden></div>
+      </div>
       ${trend.by !== 'legs' && ptsList.length >= 2 ? `<div class="trend-range"><span>${esc(ptsList[0].label)}</span><span>${esc(ptsList.at(-1).label)}</span></div>` : ''}
       <div class="chart-foot"><span>Low ${trend.min.toFixed(1)}</span><span>Avg ${trend.overall.toFixed(1)}</span><span>High ${trend.max.toFixed(1)}</span></div>
     </div>`;
@@ -180,12 +184,19 @@ function dayChart(x) {
   const short = day => `${+day.slice(8)}.${+day.slice(5, 7)}.`;
   return `<div class="chart-card">
     <div class="chart-head"><span>3-dart average · by day</span><span class="muted small">${days.length} days</span></div>
-    <svg class="trend-svg daytrend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Three-dart average by day, from ${days[0].avg.toFixed(1)} to ${days.at(-1).avg.toFixed(1)}">
-      ${[lo, hi].map(v => `<text x="${L - 4}" y="${py(v) + 3}" text-anchor="end">${v}</text>`).join('')}
-      <line class="trend-ref" x1="${L}" y1="${py(all).toFixed(1)}" x2="${W - R}" y2="${py(all).toFixed(1)}"/>
-      <polyline class="trend-line" points="${line}"/>
-      ${days.map((d, i) => `<circle class="trend-dot" cx="${px(i).toFixed(1)}" cy="${py(d.avg).toFixed(1)}" r="3.2"><title>${short(d.day)}: ${d.avg.toFixed(1)} (${d.darts} darts)</title></circle>`).join('')}
-    </svg>
+    <div class="trend-wrap">
+      <svg class="trend-svg daytrend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Three-dart average by day, from ${days[0].avg.toFixed(1)} to ${days.at(-1).avg.toFixed(1)}">
+        ${[lo, hi].map(v => `<text x="${L - 4}" y="${py(v) + 3}" text-anchor="end">${v}</text>`).join('')}
+        <line class="trend-ref" x1="${L}" y1="${py(all).toFixed(1)}" x2="${W - R}" y2="${py(all).toFixed(1)}"/>
+        <line class="trend-guide" y1="${T}" y2="${H - B}" style="display:none"/>
+        <polyline class="trend-line" points="${line}"/>
+        ${days.map((d, i) => {
+          const tip = `${short(d.day)}: ${d.avg.toFixed(1)} (${d.darts} darts)`;
+          return `<circle class="trend-dot" cx="${px(i).toFixed(1)}" cy="${py(d.avg).toFixed(1)}" r="3.2" data-tip="${esc(tip)}"><title>${esc(tip)}</title></circle>`;
+        }).join('')}
+      </svg>
+      <div class="chart-tip" hidden></div>
+    </div>
     <div class="chart-foot"><span>${short(days[0].day)}</span><span>Avg ${all.toFixed(1)}</span><span>${short(days.at(-1).day)}</span></div>
   </div>`;
 }
@@ -459,7 +470,46 @@ export function drawPlayers() {
   </div>`;
   const svg = document.getElementById('statboard');
   if (svg) buildBoard(svg).showHeat(st.recent, heatMode());
+  wireChartTips();
   refreshStatus();
+}
+
+// Show the hovered/tapped point's value immediately above the trend chart.
+function wireChartTips() {
+  for (const wrap of document.querySelectorAll('.trend-wrap')) {
+    const svg = wrap.querySelector('.trend-svg');
+    const tip = wrap.querySelector('.chart-tip');
+    const guide = wrap.querySelector('.trend-guide');
+    const dots = [...wrap.querySelectorAll('.trend-dot')];
+    if (!svg || !tip || !dots.length) continue;
+    const vbW = svg.viewBox?.baseVal?.width || 320;
+    const show = e => {
+      const rect = svg.getBoundingClientRect();
+      if (!rect.width) return;
+      const x = ((e.clientX - rect.left) / rect.width) * vbW;
+      let best = dots[0], bestDist = Infinity;
+      for (const d of dots) {
+        const dist = Math.abs(parseFloat(d.getAttribute('cx')) - x);
+        if (dist < bestDist) { best = d; bestDist = dist; }
+      }
+      for (const d of dots) d.classList.toggle('active', d === best);
+      const cx = best.getAttribute('cx');
+      if (guide) { guide.setAttribute('x1', cx); guide.setAttribute('x2', cx); guide.style.display = ''; }
+      tip.textContent = best.dataset.tip || '';
+      tip.hidden = false;
+      const px = (parseFloat(cx) / vbW) * rect.width;
+      const left = Math.max(0, Math.min(wrap.clientWidth - tip.offsetWidth, px - tip.offsetWidth / 2));
+      tip.style.left = `${left.toFixed(1)}px`;
+    };
+    const hide = () => {
+      for (const d of dots) d.classList.remove('active');
+      if (guide) guide.style.display = 'none';
+      tip.hidden = true;
+    };
+    wrap.addEventListener('pointermove', show);
+    wrap.addEventListener('pointerdown', show);
+    wrap.addEventListener('pointerleave', hide);
+  }
 }
 // Putting the sets side by side needs the games of every set, on the board picked; putting the
 // boards side by side needs the games on every board, with the darts picked. When the page is
