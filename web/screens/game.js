@@ -612,6 +612,7 @@ const tvCamOn = () => settings.tvCam !== false;
 const TV_PEEK_MS = 900;
 let tvPeek = null;  // {at: match.log.length, cam, until} briefly follows a dart outside the current frame
 let tvPeekTimer = 0;
+let lastTvViewBox = null;  // the TV viewBox on screen before the latest dart landed
 function tvHtml(game, s) {
   const rows = s.players.map((p, i) => ({ p, i, ...game.tv(s, i) }));
   const sets = rows[0].sets != null;
@@ -838,7 +839,9 @@ export function renderGame() {
   }
   if (fresh && tvCam && s.winner == null) {
     const lastDart = match.log.at(-1);
-    if (lastDart && !dartInView(lastDart, tvCam.viewBox)) {
+    const seenBox = lastTvViewBox ?? tvCam.viewBox;
+    const bullHit = lastDart?.seg === 25 && tvCam.mode !== 'bull';
+    if (lastDart && (bullHit || !dartInView(lastDart, seenBox))) {
       tvPeek = { at: match.log.length, cam: cameraForDart(lastDart), until: Date.now() + TV_PEEK_MS };
       clearTimeout(tvPeekTimer);
       tvPeekTimer = setTimeout(() => {
@@ -848,6 +851,7 @@ export function renderGame() {
     }
   }
   if (tvPeek && tvCam) tvCam = tvPeek.cam;
+  lastTvViewBox = tvCam?.viewBox ?? null;
   const camTag = document.querySelector('.tvcam-tag');
   if (camTag) {
     camTag.toggleAttribute('hidden', !tvCam);

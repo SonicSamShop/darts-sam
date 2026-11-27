@@ -49,7 +49,7 @@ export function cameraForBed(bed, { tightness = 'broadcast' } = {}) {
   }
 
   if (bed.seg === 25) {
-    const w = tight ? 116 : 142;
+    const w = tight ? 92 : 108;
     return {
       viewBox: squareBox(0, 0, w, false),
       mode: 'bull',
@@ -113,8 +113,9 @@ export function tvCameraFor(score, route = null, { opened = true, tightness = 'b
   return cameraForBed(nextBed, { tightness });
 }
 
-// Whether a landed dart at board coordinates (x, y, +y up) sits comfortably inside viewBox.
-export function pointInView(x, y, viewBox, margin = 18) {
+// Whether a landed dart at board coordinates (x, y, +y up) sits inside viewBox
+// (only returning false if out of shot or very close to the edge).
+export function pointInView(x, y, viewBox, margin = 6) {
   if (x == null || y == null || !viewBox) return true;
   const [vx, vy, vw, vh = vw] = viewBox;
   const sx = x, sy = -y;
@@ -122,7 +123,7 @@ export function pointInView(x, y, viewBox, margin = 18) {
 }
 
 // Whether a dart (with x/y, or just {seg, mult} from voice input) is inside viewBox.
-export function dartInView(d, viewBox, margin = 18) {
+export function dartInView(d, viewBox, margin = 6) {
   if (!d || !viewBox) return true;
   if (d.x != null && d.y != null) return pointInView(d.x, d.y, viewBox, margin);
   if (!d.mult) return true;

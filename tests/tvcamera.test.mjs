@@ -61,8 +61,12 @@ describe('TV broadcast camera (X01)', () => {
   });
 
   it('detects out-of-frame darts on lower beds and zooms to show them', () => {
-    // T19 is at the bottom-left (x ≈ -32, y ≈ -98 in +y up coords), outside TOP_20_VIEW
-    assert.equal(pointInView(0, 103, TOP_20_VIEW), true);       // T20 is in view
+    // T20, Bull, 5, 1, 18 are comfortably inside TOP_20_VIEW (no peek needed)
+    assert.equal(pointInView(0, 103, TOP_20_VIEW), true);       // T20
+    assert.equal(pointInView(0, 0, TOP_20_VIEW), true);         // Bull
+    assert.equal(pointInView(80, 108, TOP_20_VIEW), true);      // S18
+    // Edge of frame (within 6mm) or lower bed (T19) triggers peek
+    assert.equal(pointInView(124, 100, TOP_20_VIEW), false);    // right on the edge
     assert.equal(pointInView(-32, -98, TOP_20_VIEW), false);    // T19 is out of view
     const peek = cameraForDart({ seg: 19, mult: 3, x: -32, y: -98 });
     assert.equal(peek.camTag, 'Treble 19');
